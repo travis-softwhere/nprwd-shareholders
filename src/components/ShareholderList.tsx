@@ -3,7 +3,8 @@
 import type React from "react"
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import type { Property } from "../utils/csvParser"
+import type { Property } from "@/utils/csvParser"
+import { useMeeting } from "@/contexts/MeetingContext"
 
 interface ShareholderListProps {
     properties: Property[]
@@ -21,6 +22,16 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     currentPage,
     itemsPerPage,
 }) => {
+    const { isDataLoaded } = useMeeting()
+
+    if (!isDataLoaded) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-lg text-gray-500">Please upload data in the Admin page first.</p>
+            </div>
+        )
+    }
+
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("account")
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
@@ -81,7 +92,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         e.preventDefault()
         const shareholder = properties.find((p) => p.shareholderId === barcodeInput || p.account === barcodeInput)
         if (shareholder) {
-            router.push(`/shareholders/${shareholder.shareholderId}`)
+            router.push(`/shareholder/${shareholder.shareholderId}`)
         } else {
             alert("Shareholder not found")
         }
@@ -89,7 +100,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     }
 
     const handleRowClick = (shareholderId: string) => {
-        router.push(`/shareholders/${shareholderId}`)
+        router.push(`/shareholder/${shareholderId}`)
     }
 
     const totalPages = Math.ceil(totalProperties / itemsPerPage)

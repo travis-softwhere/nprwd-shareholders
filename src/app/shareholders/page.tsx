@@ -1,5 +1,5 @@
-import { getProperties } from '@/utils/csvParser'
-import ShareholderList from '@/components/ShareholderList'
+import { getProperties } from "@/utils/csvParser"
+import ShareholderList from "@/components/ShareholderList"
 
 export default async function ShareholdersPage({
   searchParams,
@@ -12,6 +12,7 @@ export default async function ShareholdersPage({
   const itemsPerPage = resolvedSearchParams.itemsPerPage
     ? Number.parseInt(resolvedSearchParams.itemsPerPage as string, 10)
     : 25
+
   const { properties, totalProperties } = await getProperties(page, itemsPerPage)
 
   return (
