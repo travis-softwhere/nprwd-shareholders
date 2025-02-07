@@ -1,10 +1,11 @@
 "use client"
 
-import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { Property } from "@/utils/csvParser"
+import type { Property } from "@/types/Property"
 import { useMeeting } from "@/contexts/MeetingContext"
+import { useSession } from "next-auth/react"
+import type React from "react" // Added import for React
 
 interface ShareholderListProps {
     properties: Property[]
@@ -17,20 +18,14 @@ type SortField = "numOf" | "customerName" | "ownerName" | "account"
 type SortOrder = "asc" | "desc"
 
 const ShareholderList: React.FC<ShareholderListProps> = ({
-    properties,
-    totalProperties,
-    currentPage,
-    itemsPerPage,
+    properties = [], // Add default empty array
+    totalProperties = 0,
+    currentPage = 1,
+    itemsPerPage = 25,
 }) => {
+    const { data: session, status } = useSession()
+    const router = useRouter()
     const { isDataLoaded } = useMeeting()
-
-    if (!isDataLoaded) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <p className="text-lg text-gray-500">Please upload data in the Admin page first.</p>
-            </div>
-        )
-    }
 
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("account")
@@ -38,11 +33,20 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const [barcodeInput, setBarcodeInput] = useState("")
     const [propertyFilter, setPropertyFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
-    const router = useRouter()
+
+    useEffect(() => {
+        if (status === "unauthenticated") {
+            router.push("/auth/signin")
+        }
+    }, [status, router])
 
     const filteredAndSortedProperties = useMemo(() => {
+        if (!Array.isArray(properties)) return []
+
         return properties
             .filter((shareholder) => {
+                if (!shareholder) return false
+
                 const matchesSearch =
                     (shareholder.account?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
                     (shareholder.ownerName?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
@@ -54,19 +58,13 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                         : propertyFilter === "1"
                             ? shareholder.numOf === "1"
                             : propertyFilter === "2-5"
-                                ? Number.parseInt(shareholder.numOf) >= 2 && Number.parseInt(shareholder.numOf) <= 5
+                                ? Number(shareholder.numOf) >= 2 && Number(shareholder.numOf) <= 5
                                 : propertyFilter === "6+"
-                                    ? Number.parseInt(shareholder.numOf) >= 6
+                                    ? Number(shareholder.numOf) >= 6
                                     : true
 
                 const matchesStatusFilter =
-                    statusFilter === "all"
-                        ? true
-                        : statusFilter === "checked-in"
-                            ? shareholder.checkedIn
-                            : statusFilter === "not-checked-in"
-                                ? !shareholder.checkedIn
-                                : true
+                    statusFilter === "all" ? true : statusFilter === "checked-in" ? shareholder.checkedIn : !shareholder.checkedIn
 
                 return matchesSearch && matchesPropertyFilter && matchesStatusFilter
             })
@@ -75,18 +73,42 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 let bValue: string | number = b[sortField]
 
                 if (sortField === "numOf") {
-                    aValue = Number.parseInt(aValue as string) || 0
-                    bValue = Number.parseInt(bValue as string) || 0
+                    aValue = Number(aValue) || 0
+                    bValue = Number(bValue) || 0
                 } else {
                     aValue = String(aValue || "")
                     bValue = String(bValue || "")
                 }
 
-                if (aValue < bValue) return sortOrder === "asc" ? -1 : 1
-                if (aValue > bValue) return sortOrder === "asc" ? 1 : -1
-                return 0
+                return sortOrder === "asc"
+                    ? aValue < bValue
+                        ? -1
+                        : aValue > bValue
+                            ? 1
+                            : 0
+                    : aValue > bValue
+                        ? -1
+                        : aValue < bValue
+                            ? 1
+                            : 0
             })
     }, [properties, searchTerm, sortField, sortOrder, propertyFilter, statusFilter])
+
+    if (status === "loading") {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-lg text-gray-500">Loading...</p>
+            </div>
+        )
+    }
+
+    if (!isDataLoaded) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-lg text-gray-500">Please upload data in the Admin page first.</p>
+            </div>
+        )
+    }
 
     const handleBarcodeSubmit = (e: React.FormEvent) => {
         e.preventDefault()

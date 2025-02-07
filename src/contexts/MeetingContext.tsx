@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback } from "react"
+import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { getMeetings } from "@/app/actions/getMeetings"
 
 export interface Meeting {
@@ -32,14 +32,24 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
         try {
             const fetchedMeetings = await getMeetings()
             setMeetings(fetchedMeetings)
-            if (selectedMeeting && !fetchedMeetings.find((m) => m.id === selectedMeeting.id)) {
-                setSelectedMeeting(null)
-            }
-            setIsDataLoaded(true)
+
+            // Update isDataLoaded based on whether any meeting has shareholders
+            const hasData = fetchedMeetings.some((meeting) => meeting.totalShareholders > 0)
+            setIsDataLoaded(hasData)
+
+            // If selected meeting is not in the list anymore, clear it
+            setSelectedMeeting((prevSelected) =>
+                prevSelected && !fetchedMeetings.find((m) => m.id === prevSelected.id) ? null : prevSelected,
+            )
         } catch (error) {
             console.error("Error refreshing meetings:", error)
         }
-    }, [selectedMeeting])
+    }, [])
+
+    // Initial load of meetings
+    useEffect(() => {
+        refreshMeetings()
+    }, [])
 
     return (
         <MeetingContext.Provider

@@ -1,11 +1,9 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import Navigation from "@/components/Navigation"
-import { MeetingProvider } from "@/contexts/MeetingContext"
-import { ProgressProvider } from "@/contexts/ProgressContext"
+import { auth } from "@/lib/auth"
+import { Providers } from "@/components/Providers"
 import type React from "react"
-import { initDatabase } from "@/lib/db/init"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -14,25 +12,17 @@ export const metadata: Metadata = {
   description: "North Prairie Regional Water District Shareholder Management",
 }
 
-// Run the database initialization
-initDatabase().catch(console.error)
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth()
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <MeetingProvider>
-          <ProgressProvider>
-            <div className="flex h-screen">
-              <Navigation />
-              <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>
-            </div>
-          </ProgressProvider>
-        </MeetingProvider>
+        <Providers session={session}>{children}</Providers>
       </body>
     </html>
   )

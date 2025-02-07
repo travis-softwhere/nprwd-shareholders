@@ -1,81 +1,74 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart, Users, Settings, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { LogOut, Users, Home, Settings } from "lucide-react"
+import { signOut, useSession } from "next-auth/react"
 import { useMeeting } from "@/contexts/MeetingContext"
 
-const Navigation = () => {
+export default function Navigation() {
     const pathname = usePathname()
-    const { selectedMeeting, isDataLoaded } = useMeeting()
+    const { data: session } = useSession()
+    const { selectedMeeting } = useMeeting()
 
     const navigation = [
-        {
-            name: "Dashboard",
-            href: "/",
-            icon: BarChart,
-            disabled: !isDataLoaded,
-        },
-        {
-            name: "Shareholder List",
-            href: "/shareholders",
-            icon: Users,
-            disabled: !isDataLoaded,
-        },
-        {
-            name: "Admin",
-            href: "/admin",
-            icon: Settings,
-            disabled: false,
-        },
+        { name: "Home", href: "/", icon: Home },
+        { name: "Shareholders", href: "/shareholders", icon: Users },
+        { name: "Settings", href: "/admin", icon: Settings },
+        ...(session?.user && "isAdmin" in session.user && session.user.isAdmin
+            ? [{ name: "Admin", href: "/admin", icon: Settings }]
+            : []),
     ]
 
+    if (!session) return null
+
     return (
-        <div className="flex h-full w-[64px] flex-col items-center border-r bg-white">
-            <div className="flex h-16 shrink-0 items-center">
-                <Image src="/logo.png" alt="NPRWD Logo" width={40} height={40} className="rounded-lg" />
+        <div className="flex h-full w-16 flex-col gap-y-4 border-r bg-white">
+            <div className="flex flex-col h-16 shrink-0 items-center justify-center border-b">
+                <img className="h-8 w-auto" src="/logo.png" alt="NPRWD" />
+                <p className="text-xxs">AquaShare</p>
             </div>
-            <nav className="flex flex-1 flex-col gap-4 p-3">
+            <nav className="flex flex-1 flex-col gap-y-4 px-2">
                 {navigation.map((item) => {
-                    const isActive = pathname === item.href
+                    const Icon = item.icon
                     return (
                         <Link
                             key={item.name}
-                            href={item.disabled ? "#" : item.href}
+                            href={item.href}
                             className={cn(
-                                "group relative flex h-11 w-11 items-center justify-center rounded-lg outline-none",
-                                isActive && !item.disabled && "bg-gray-100",
-                                item.disabled
-                                    ? "cursor-not-allowed opacity-50"
-                                    : "hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gray-400",
+                                pathname === item.href
+                                    ? "bg-gray-100 text-gray-900"
+                                    : "text-gray-400 hover:bg-gray-50 hover:text-gray-900",
+                                "group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6",
                             )}
-                            title={item.disabled ? `Select a meeting first` : item.name}
-                            onClick={(e) => {
-                                if (item.disabled) {
-                                    e.preventDefault()
-                                }
-                            }}
                         >
-                            <item.icon
-                                className={cn(
-                                    "h-6 w-6 text-gray-400 group-hover:text-gray-600",
-                                    isActive && !item.disabled && "text-blue-600",
-                                )}
-                            />
+                            <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                            <span className="sr-only">{item.name}</span>
                         </Link>
                     )
                 })}
             </nav>
             {selectedMeeting && (
-                <div className="mb-4 flex flex-col items-center gap-1 p-2">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                    <span className="text-xs font-medium text-gray-600">{selectedMeeting.year}</span>
+                <div className="px-2 py-4 border-t border-gray-200">
+                    <div className="text-xs text-gray-500 text-center">
+                        Selected Meeting:
+                        <div className="font-medium text-gray-900">{selectedMeeting.year} Annual Meeting</div>
+                    </div>
                 </div>
             )}
+            <div className="flex shrink-0 justify-center px-2 pb-4">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    className="text-gray-400 hover:bg-gray-50 hover:text-gray-900"
+                >
+                    <LogOut className="h-6 w-6" />
+                    <span className="sr-only">Sign out</span>
+                </Button>
+            </div>
         </div>
     )
 }
-
-export default Navigation

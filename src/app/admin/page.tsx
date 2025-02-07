@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Upload, FileUp, Check, Trash2 } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Upload, Check, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useMeeting } from "@/contexts/MeetingContext"
-import { useProgress } from "@/contexts/ProgressContext"
 import { cn } from "@/lib/utils"
-import { ProgressBar } from "@/components/ProgressBar"
+import { UploadProgress } from "@/components/UploadProgress"
 import { getMeetings } from "@/app/actions/getMeetings"
 import { deleteMeeting } from "@/app/actions/manageMeetings"
 import { CreateMeetingForm } from "@/components/CreateMeetingForm"
@@ -25,30 +24,36 @@ import {
 
 export default function AdminPage() {
     const { selectedMeeting, setSelectedMeeting, setIsDataLoaded, meetings, setMeetings } = useMeeting()
-    const {
-        progress,
-        setProgress,
-        processedRecords,
-        setProcessedRecords,
-        totalRecords,
-        setTotalRecords,
-        isProcessing,
-        setIsProcessing,
-    } = useProgress()
-
     const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null)
-    const [refreshMeetings, setRefreshMeetings] = useState(false)
+    const [uploadProgress, setUploadProgress] = useState(0)
+    const [isUploading, setIsUploading] = useState(false)
+    const [uploadError, setUploadError] = useState<string | null>(null)
+    const [currentStep, setCurrentStep] = useState<string>("")
 
     useEffect(() => {
-        const fetchMeetings = async () => {
-            try {
-                const allMeetings = await getMeetings()
-                setMeetings(allMeetings)
-            } catch (error) {
-                console.error("Error fetching meetings:", error)
-            }
+        console.log("AdminPage rendered", {
+            meetings: meetings.length,
+            selectedMeetingId,
+            isUploading,
+            uploadProgress,
+            currentStep,
+            uploadError,
+        })
+    }, [meetings, selectedMeetingId, isUploading, uploadProgress, currentStep, uploadError])
+
+    const refreshMeetings = useCallback(async () => {
+        try {
+            console.log("Fetching meetings...")
+            const allMeetings = await getMeetings()
+            console.log("Meetings fetched:", allMeetings)
+            setMeetings(allMeetings)
+        } catch (error) {
+            console.error("Error fetching meetings:", error)
         }
-        fetchMeetings()
+    }, [setMeetings])
+
+    useEffect(() => {
+        refreshMeetings()
     }, [refreshMeetings])
 
     useEffect(() => {
@@ -62,104 +67,103 @@ export default function AdminPage() {
         }
     }, [selectedMeetingId, meetings, setSelectedMeeting])
 
-    const handleUpload = async (formData: FormData) => {
-        setIsProcessing(true)
-        setProgress(0)
-        setProcessedRecords(0)
-        setTotalRecords(0)
+    const handleUpload = useCallback(
+        async (formData: FormData) => {
+            console.log("handleUpload called", { meetingId: formData.get("meetingId") })
+            console.log("Starting file upload process")
+            setIsUploading(true)
+            setUploadProgress(0)
+            setUploadError(null)
+            setCurrentStep("Preparing file for upload...")
 
-        try {
-            const response = await fetch("/api/upload", {
-                method: "POST",
-                body: formData,
-            })
+            try {
+                console.log("Sending upload request to server")
+                const response = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData,
+                })
 
-            if (!response.ok) {
-                throw new Error("Upload failed")
+                if (!response.ok) {
+                    throw new Error(`Upload failed with status ${response.status}`)
+                }
+
+                if (!response.body) {
+                    throw new Error("No response body received")
+                }
+
+                const reader = response.body.getReader()
+                const decoder = new TextDecoder()
+                let buffer = ""
+
+                while (true) {
+                    const { done, value } = await reader.read()
+
+                    if (done) {
+                        console.log("Upload stream completed")
+                        break
+                    }
+
+                    buffer += decoder.decode(value, { stream: true })
+                    const lines = buffer.split("\n\n")
+                    buffer = lines.pop() || ""
+
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            try {
+                                const data = JSON.parse(line.slice(6))
+                                console.log("Received progress update:", data)
+
+                                if (data.type === "progress") {
+                                    setUploadProgress(data.progress)
+                                    setCurrentStep(data.step)
+                                } else if (data.type === "complete") {
+                                    console.log("File processed successfully:", data)
+                                    setCurrentStep("Upload completed successfully!")
+                                    setUploadProgress(100)
+                                    setIsDataLoaded(true)
+                                    await refreshMeetings()
+                                    await new Promise((resolve) => setTimeout(resolve, 2000))
+                                    setIsUploading(false)
+                                    setCurrentStep("")
+                                    setUploadProgress(0)
+                                } else if (data.type === "error") {
+                                    console.error("Error during upload:", data.error)
+                                    throw new Error(data.error)
+                                }
+                            } catch (e) {
+                                console.error("Error parsing progress update:", e)
+                                throw new Error("Failed to parse server response")
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Upload failed:", error)
+                setUploadError(error instanceof Error ? error.message : String(error))
+                setCurrentStep("Upload failed")
+                setIsUploading(false)
             }
-
-            const result = await response.json()
-
-            if (result.success) {
-                setIsDataLoaded(true)
-                setTotalRecords(result.totalRecords)
-                setProcessedRecords(result.totalRecords)
-                setProgress(100)
-                setRefreshMeetings(!refreshMeetings)
-                alert("File uploaded successfully!")
-            } else {
-                throw new Error(result.error || "Unknown error occurred")
-            }
-        } catch (error) {
-            console.error("Error uploading file:", error)
-            alert("Failed to upload file: " + (error instanceof Error ? error.message : String(error)))
-        } finally {
-            setIsProcessing(false)
-        }
-    }
-
-    const handlePDFGeneration = async () => {
-        try {
-            const mailerResponse = await fetch("/api/print-mailers", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ meetingId: selectedMeeting?.id }),
-            })
-
-            if (!mailerResponse.ok) {
-                throw new Error(`Failed to generate mailers: ${mailerResponse.statusText}`)
-            }
-
-            const blob = await mailerResponse.blob()
-            const url = window.URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url
-            a.download = `shareholder-mailers-${selectedMeeting?.year}.pdf`
-            document.body.appendChild(a)
-            a.click()
-            window.URL.revokeObjectURL(url)
-
-            setIsDataLoaded(true)
-            setIsProcessing(false)
-            setRefreshMeetings(!refreshMeetings) //Added to refresh meetings after PDF generation
-        } catch (error) {
-            console.error("Error generating PDF:", error)
-            alert("Failed to generate PDF")
-            setIsProcessing(false)
-        }
-    }
+        },
+        [setIsDataLoaded, refreshMeetings],
+    )
 
     const handleDelete = async (meetingId: string) => {
+        console.log("handleDelete called", { meetingId })
+        console.log("Deleting meeting:", meetingId)
         const formData = new FormData()
         formData.append("id", meetingId)
 
         const result = await deleteMeeting(formData)
         if (result.success) {
+            console.log("Meeting deleted successfully")
             setSelectedMeetingId(null)
             const updatedMeetings = meetings.filter((m) => m.id !== meetingId)
             setMeetings(updatedMeetings)
-            setRefreshMeetings(!refreshMeetings) //Added to refresh meetings after deletion
         } else {
+            console.error("Failed to delete meeting:", result.error)
             alert(result.error)
         }
     }
-
-    useEffect(() => {
-        const eventSource = new EventSource("/api/progress")
-
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data)
-            setProgress(data.progress)
-            setProcessedRecords(data.processedCount)
-            setTotalRecords(data.totalRecords)
-        }
-
-        return () => {
-            eventSource.close()
-        }
-    }, [])
 
     return (
         <div className="container mx-auto p-6">
@@ -172,62 +176,52 @@ export default function AdminPage() {
                         <CardDescription>Upload shareholder data for the selected meeting</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault()
-                                handleUpload(new FormData(e.target as HTMLFormElement))
-                            }}
-                        >
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="flex items-center justify-center w-full">
-                                    <label
-                                        htmlFor="file-upload"
-                                        className={cn(
-                                            "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg",
-                                            selectedMeeting && !isProcessing
-                                                ? "cursor-pointer bg-gray-50 hover:bg-gray-100"
-                                                : "cursor-not-allowed bg-gray-100",
-                                        )}
-                                    >
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                                            <p className="mb-2 text-sm text-gray-500">
-                                                <span className="font-semibold">Click to upload</span> or drag and drop
-                                            </p>
-                                            <p className="text-xs text-gray-500">Excel or CSV file</p>
-                                        </div>
-                                        <input
-                                            id="file-upload"
-                                            name="file"
-                                            type="file"
-                                            className="hidden"
-                                            accept=".xlsx,.xls,.csv"
-                                            required
-                                            disabled={!selectedMeeting || isProcessing}
-                                        />
-                                    </label>
-                                </div>
-
-                                {isProcessing && (
-                                    <div className="w-full">
-                                        <ProgressBar progress={progress} processedRecords={processedRecords} totalRecords={totalRecords} />
-                                    </div>
-                                )}
-
-                                <input type="hidden" name="meetingId" value={selectedMeeting?.id ?? ""} />
-
-                                <Button type="submit" className="w-full" disabled={!selectedMeeting || isProcessing}>
-                                    {isProcessing ? (
-                                        <>Processing...</>
-                                    ) : (
-                                        <>
-                                            <FileUp className="w-4 h-4 mr-2" />
-                                            Upload File
-                                        </>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-center w-full">
+                                <label
+                                    htmlFor="file-upload"
+                                    className={cn(
+                                        "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors",
+                                        selectedMeeting && !isUploading
+                                            ? "cursor-pointer border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400"
+                                            : "cursor-not-allowed border-gray-200 bg-gray-100",
                                     )}
-                                </Button>
+                                >
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <Upload className={cn("w-8 h-8 mb-2", isUploading ? "text-gray-400" : "text-gray-500")} />
+                                        <p className="mb-2 text-sm text-gray-500">
+                                            <span className="font-semibold">Click to upload</span> or drag and drop
+                                        </p>
+                                        <p className="text-xs text-gray-500">Excel or CSV file</p>
+                                    </div>
+                                    <input
+                                        id="file-upload"
+                                        name="file"
+                                        type="file"
+                                        className="hidden"
+                                        accept=".xlsx,.xls,.csv"
+                                        disabled={!selectedMeeting || isUploading}
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file && selectedMeeting) {
+                                                console.log("File selected:", file.name, "Size:", file.size, "bytes")
+                                                const formData = new FormData()
+                                                formData.append("file", file)
+                                                formData.append("meetingId", selectedMeeting.id)
+                                                handleUpload(formData)
+                                            }
+                                        }}
+                                    />
+                                </label>
                             </div>
-                        </form>
+
+                            <UploadProgress
+                                isUploading={isUploading}
+                                progress={uploadProgress}
+                                currentStep={currentStep}
+                                error={uploadError}
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -239,8 +233,8 @@ export default function AdminPage() {
                     <CardContent className="space-y-4">
                         <CreateMeetingForm
                             onSuccess={(meeting) => {
+                                console.log("New meeting created:", meeting)
                                 setMeetings((prev) => [...prev, meeting])
-                                setRefreshMeetings(!refreshMeetings)
                             }}
                         />
 
@@ -257,7 +251,8 @@ export default function AdminPage() {
                                         type="button"
                                         className="flex-1 text-left"
                                         onClick={() => {
-                                            if (!isProcessing) {
+                                            if (!isUploading) {
+                                                console.log("Selected meeting:", meeting)
                                                 setSelectedMeetingId(meeting.id)
                                             }
                                         }}

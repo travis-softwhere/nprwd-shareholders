@@ -1,18 +1,10 @@
-import { Progress } from "@/components/ui/progress"
-
-interface ProgressBarProps {
-    progress: number
-    processedRecords: number
-    totalRecords: number
-}
-
-export function ProgressBar({ progress, processedRecords, totalRecords }: ProgressBarProps) {
+export function ProgressBar({ progress }: { progress: number }) {
     return (
-        <div className="w-full space-y-2">
-            <Progress value={progress} className="w-full" />
-            <p className="text-sm text-center text-gray-500">
-                Processed {processedRecords} of {totalRecords} records ({Math.round(progress)}%)
-            </p>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-in-out"
+                style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
         </div>
     )
 }
