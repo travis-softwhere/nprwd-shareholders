@@ -1,41 +1,28 @@
-import { getShareholderProperties } from "../../../utils/csvParser"
+import { getShareholderDetails } from "@/app/actions/getShareholderDetails"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 
-export default async function ShareholderPage({ params }: { params: Promise<{ id: string }> }) {
-    const resolvedParams = await params
-    const shareholderId = resolvedParams.id
-    const properties = await getShareholderProperties(shareholderId)
+export default async function ShareholderPage({ params }: { params: { id: string } }) {
+    const shareholderId = params.id
+    const { shareholder, properties } = await getShareholderDetails(shareholderId)
 
-    if (!properties || properties.length === 0) {
-        return <p>Shareholder not found</p>
+    if (!shareholder) {
+        notFound()
     }
-
-    const shareholder = properties[0] // Assuming the first property has all the shareholder info
 
     return (
         <div className="p-6 max-w-4xl mx-auto">
-            <Link href="/" className="text-blue-500 hover:underline mb-4 inline-block">
+            <Link href="/shareholders" className="text-blue-500 hover:underline mb-4 inline-block">
                 &larr; Back to List
             </Link>
-            <h1 className="text-2xl font-bold mb-4">{shareholder.ownerName}</h1>
+            <h1 className="text-2xl font-bold mb-4">{shareholder.name}</h1>
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                     <p>
-                        <span className="font-semibold">Account:</span> {shareholder.account}
+                        <span className="font-semibold">Shareholder ID:</span> {shareholder.shareholderId}
                     </p>
                     <p>
-                        <span className="font-semibold">Customer Name:</span> {shareholder.customerName}
-                    </p>
-                    <p>
-                        <span className="font-semibold">Total Properties:</span> {shareholder.numOf}
-                    </p>
-                </div>
-                <div>
-                    <p>
-                        <span className="font-semibold">Mailing Address:</span> {shareholder.ownerMailingAddress}
-                    </p>
-                    <p>
-                        <span className="font-semibold">City/State/Zip:</span> {shareholder.ownerCityStateZip}
+                        <span className="font-semibold">Total Properties:</span> {properties.length}
                     </p>
                 </div>
             </div>
@@ -45,23 +32,35 @@ export default async function ShareholderPage({ params }: { params: Promise<{ id
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Account
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Service Address
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Resident Name
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Resident Address
+                                Checked In
                             </th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {properties.map((property, index) => (
-                            <tr key={index}>
+                        {properties.map((property) => (
+                            <tr key={property.id}>
+                                <td className="px-6 py-4 whitespace-nowrap font-mono">{property.account}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{property.serviceAddress}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{property.residentName}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    {property.residentMailingAddress}, {property.residentCityStateZip}
+                                    {property.checkedIn ? (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            Yes
+                                        </span>
+                                    ) : (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                            No
+                                        </span>
+                                    )}
                                 </td>
                             </tr>
                         ))}

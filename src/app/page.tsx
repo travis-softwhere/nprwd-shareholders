@@ -1,17 +1,16 @@
-import { getProperties } from "@/utils/csvParser"
+import { getMeetingStats } from "@/app/actions/getMeetingStats"
 import Dashboard from "@/components/Dashboard"
 
 export default async function Home() {
-  const { properties, totalProperties } = await getProperties(1, Number.MAX_SAFE_INTEGER)
-  const checkedInCount = properties.filter((p) => p.checkedIn).length
+  const { totalShareholders, checkedInCount, nextMeeting } = await getMeetingStats()
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8">
       <div className="w-full max-w-7xl">
         <Dashboard
-          totalShareholders={totalProperties}
+          totalShareholders={totalShareholders}
           checkedInCount={checkedInCount}
-          nextMeetingDate="2024-06-15"
+          nextMeetingDate={nextMeeting ? nextMeeting.date.toISOString().split("T")[0] : "Not scheduled"}
           mailersStatus={false}
         />
       </div>

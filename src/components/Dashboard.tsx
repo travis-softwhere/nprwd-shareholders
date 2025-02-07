@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Calendar, CheckCircle, XCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts"
 import { useMeeting } from "@/contexts/MeetingContext"
+import { useSession } from "next-auth/react"
 
 interface DashboardProps {
     totalShareholders: number
@@ -25,6 +26,23 @@ const Dashboard: React.FC<DashboardProps> = ({
     mailersStatus = false,
 }) => {
     const { isDataLoaded } = useMeeting()
+    const { data: session, status } = useSession()
+    const router = useRouter()
+    const [barcodeInput, setBarcodeInput] = useState("") // Moved useState here
+
+    useEffect(() => {
+        if (status === "unauthenticated") {
+            router.push("/auth/signin")
+        }
+    }, [status, router])
+
+    if (status === "loading") {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-lg text-gray-500">Loading...</p>
+            </div>
+        )
+    }
 
     if (!isDataLoaded) {
         return (
@@ -33,9 +51,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
         )
     }
-
-    const [barcodeInput, setBarcodeInput] = useState("")
-    const router = useRouter()
 
     const checkedInPercentage = Math.round((checkedInCount / totalShareholders) * 100)
     const notCheckedInCount = totalShareholders - checkedInCount
@@ -68,7 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             })
             if (!response.ok) throw new Error("Failed to generate mailers")
 
-            // Trigger PDF download
             const blob = await response.blob()
             const url = window.URL.createObjectURL(blob)
             const a = document.createElement("a")
