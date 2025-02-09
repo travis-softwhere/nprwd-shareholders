@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Upload, Check, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { cn } from "@/lib/utils"
 import { UploadProgress } from "@/components/UploadProgress"
-import { getMeetings } from "@/app/actions/getMeetings"
-import { deleteMeeting } from "@/app/actions/manageMeetings"
+import { getMeetings } from "@/actions/getMeetings"
+import { deleteMeeting } from "@/actions/manageMeetings"
 import { CreateMeetingForm } from "@/components/CreateMeetingForm"
 import {
     AlertDialog,
@@ -21,8 +21,10 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useSession } from "next-auth/react"
 
 export default function AdminPage() {
+    const { data: session } = useSession()
     const { selectedMeeting, setSelectedMeeting, setIsDataLoaded, meetings, setMeetings } = useMeeting()
     const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null)
     const [uploadProgress, setUploadProgress] = useState(0)
@@ -30,22 +32,33 @@ export default function AdminPage() {
     const [uploadError, setUploadError] = useState<string | null>(null)
     const [currentStep, setCurrentStep] = useState<string>("")
 
+    // Use refs to track upload state
+    const abortControllerRef = useRef<AbortController | null>(null)
+    const uploadInProgressRef = useRef<boolean>(false)
+
+    // Cleanup function for upload
+    const cleanupUpload = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+            abortControllerRef.current = null
+        }
+        uploadInProgressRef.current = false
+        setIsUploading(false)
+        setUploadProgress(0)
+        setCurrentStep("")
+    }, [])
+
+    // Cleanup on unmount
     useEffect(() => {
-        console.log("AdminPage rendered", {
-            meetings: meetings.length,
-            selectedMeetingId,
-            isUploading,
-            uploadProgress,
-            currentStep,
-            uploadError,
-        })
-    }, [meetings, selectedMeetingId, isUploading, uploadProgress, currentStep, uploadError])
+        return () => {
+            cleanupUpload()
+        }
+    }, [cleanupUpload])
 
     const refreshMeetings = useCallback(async () => {
         try {
             console.log("Fetching meetings...")
             const allMeetings = await getMeetings()
-            console.log("Meetings fetched:", allMeetings)
             setMeetings(allMeetings)
         } catch (error) {
             console.error("Error fetching meetings:", error)
@@ -69,18 +82,27 @@ export default function AdminPage() {
 
     const handleUpload = useCallback(
         async (formData: FormData) => {
-            console.log("handleUpload called", { meetingId: formData.get("meetingId") })
+            // Prevent multiple uploads
+            if (uploadInProgressRef.current) {
+                console.log("Upload already in progress")
+                return
+            }
+
             console.log("Starting file upload process")
             setIsUploading(true)
             setUploadProgress(0)
             setUploadError(null)
             setCurrentStep("Preparing file for upload...")
+            uploadInProgressRef.current = true
+
+            // Create new AbortController for this upload
+            abortControllerRef.current = new AbortController()
 
             try {
-                console.log("Sending upload request to server")
                 const response = await fetch("/api/upload", {
                     method: "POST",
                     body: formData,
+                    signal: abortControllerRef.current.signal,
                 })
 
                 if (!response.ok) {
@@ -111,27 +133,27 @@ export default function AdminPage() {
                         if (line.startsWith("data: ")) {
                             try {
                                 const data = JSON.parse(line.slice(6))
-                                console.log("Received progress update:", data)
+                                console.log("Received update:", data)
 
                                 if (data.type === "progress") {
                                     setUploadProgress(data.progress)
                                     setCurrentStep(data.step)
                                 } else if (data.type === "complete") {
-                                    console.log("File processed successfully:", data)
+                                    console.log("Upload completed:", data)
                                     setCurrentStep("Upload completed successfully!")
                                     setUploadProgress(100)
                                     setIsDataLoaded(true)
                                     await refreshMeetings()
-                                    await new Promise((resolve) => setTimeout(resolve, 2000))
-                                    setIsUploading(false)
-                                    setCurrentStep("")
-                                    setUploadProgress(0)
+                                    // Reset state after a delay
+                                    setTimeout(() => {
+                                        cleanupUpload()
+                                    }, 2000)
+                                    break
                                 } else if (data.type === "error") {
-                                    console.error("Error during upload:", data.error)
                                     throw new Error(data.error)
                                 }
                             } catch (e) {
-                                console.error("Error parsing progress update:", e)
+                                console.error("Error parsing update:", e)
                                 throw new Error("Failed to parse server response")
                             }
                         }
@@ -141,29 +163,40 @@ export default function AdminPage() {
                 console.error("Upload failed:", error)
                 setUploadError(error instanceof Error ? error.message : String(error))
                 setCurrentStep("Upload failed")
-                setIsUploading(false)
+                cleanupUpload()
             }
         },
-        [setIsDataLoaded, refreshMeetings],
+        [setIsDataLoaded, refreshMeetings, cleanupUpload],
     )
 
     const handleDelete = async (meetingId: string) => {
-        console.log("handleDelete called", { meetingId })
-        console.log("Deleting meeting:", meetingId)
-        const formData = new FormData()
-        formData.append("id", meetingId)
+        try {
+            console.log("Deleting meeting:", meetingId)
+            const formData = new FormData()
+            formData.append("id", meetingId)
 
-        const result = await deleteMeeting(formData)
-        if (result.success) {
-            console.log("Meeting deleted successfully")
-            setSelectedMeetingId(null)
-            const updatedMeetings = meetings.filter((m) => m.id !== meetingId)
-            setMeetings(updatedMeetings)
-        } else {
-            console.error("Failed to delete meeting:", result.error)
-            alert(result.error)
+            const result = await deleteMeeting(formData)
+            if (result.success) {
+                console.log("Meeting deleted successfully")
+                setSelectedMeetingId(null)
+                setMeetings((prev) => prev.filter((m) => m.id !== meetingId))
+            } else {
+                throw new Error(result.error)
+            }
+        } catch (error) {
+            console.error("Failed to delete meeting:", error)
+            alert(error instanceof Error ? error.message : "Failed to delete meeting")
         }
     }
+
+    // Redirect if not admin
+    // if (!session?.user?.isAdmin) {
+    //     return (
+    //         <div className="flex items-center justify-center h-screen">
+    //             <p className="text-lg text-gray-500">You do not have permission to access this page.</p>
+    //         </div>
+    //     )
+    // }
 
     return (
         <div className="container mx-auto p-6">
@@ -192,14 +225,14 @@ export default function AdminPage() {
                                         <p className="mb-2 text-sm text-gray-500">
                                             <span className="font-semibold">Click to upload</span> or drag and drop
                                         </p>
-                                        <p className="text-xs text-gray-500">Excel or CSV file</p>
+                                        <p className="text-xs text-gray-500">CSV file only</p>
                                     </div>
                                     <input
                                         id="file-upload"
                                         name="file"
                                         type="file"
                                         className="hidden"
-                                        accept=".xlsx,.xls,.csv"
+                                        accept=".csv"
                                         disabled={!selectedMeeting || isUploading}
                                         onChange={(e) => {
                                             const file = e.target.files?.[0]

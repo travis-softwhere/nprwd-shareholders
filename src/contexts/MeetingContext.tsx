@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
-import { getMeetings } from "@/app/actions/getMeetings"
+import { getMeetings } from "@/actions/getMeetings"
 
 export interface Meeting {
     id: string

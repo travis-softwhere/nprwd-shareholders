@@ -1,4 +1,4 @@
-import { getMeetingStats } from "@/app/actions/getMeetingStats"
+import { getMeetingStats } from "@/actions/getMeetingStats"
 import Dashboard from "@/components/Dashboard"
 
 export default async function Home() {
