@@ -1,4 +1,4 @@
-import { getShareholderDetails } from "@/app/actions/getShareholderDetails"
+import { getShareholderDetails } from "@/actions/getShareholderDetails"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
