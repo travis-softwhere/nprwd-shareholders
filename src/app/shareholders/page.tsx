@@ -1,6 +1,6 @@
 import { getShareholdersList } from "@/actions/getShareholdersList"
 import ShareholderList from "@/components/ShareholderList"
-import type { Property } from "@/types/Property"
+import type { Property } from "@/types/property"
 
 export default async function ShareholdersPage({
   searchParams,

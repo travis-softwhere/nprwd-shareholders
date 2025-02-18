@@ -16,10 +16,8 @@ export default function Navigation() {
     const navigation = [
         { name: "Home", href: "/", icon: Home },
         { name: "Shareholders", href: "/shareholders", icon: Users },
-        { name: "Settings", href: "/admin", icon: Settings },
-        ...(session?.user && "isAdmin" in session.user && session.user.isAdmin
-            ? [{ name: "Admin", href: "/admin", icon: Settings }]
-            : []),
+        { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
+        { name: "Users", href: "/admin/users", icon: Users },
     ]
 
     if (!session) return null
@@ -33,20 +31,25 @@ export default function Navigation() {
             <nav className="flex flex-1 flex-col gap-y-4 px-2">
                 {navigation.map((item) => {
                     const Icon = item.icon
+                    const isAdminOnly = item.adminOnly
+                    const shouldRender = !isAdminOnly || (session?.user && "isAdmin" in session.user && session.user.isAdmin == "true")
+
                     return (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            className={cn(
-                                pathname === item.href
-                                    ? "bg-gray-100 text-gray-900"
-                                    : "text-gray-400 hover:bg-gray-50 hover:text-gray-900",
-                                "group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6",
-                            )}
-                        >
-                            <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                            <span className="sr-only">{item.name}</span>
-                        </Link>
+                        shouldRender && (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                className={cn(
+                                    pathname === item.href
+                                        ? "bg-gray-100 text-gray-900"
+                                        : "text-gray-400 hover:bg-gray-50 hover:text-gray-900",
+                                    "group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6",
+                                )}
+                            >
+                                <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                <span className="sr-only">{item.name}</span>
+                            </Link>
+                        )
                     )
                 })}
             </nav>
