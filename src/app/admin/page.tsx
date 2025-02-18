@@ -190,13 +190,13 @@ export default function AdminPage() {
     }
 
     // Redirect if not admin
-    // if (!session?.user?.isAdmin) {
-    //     return (
-    //         <div className="flex items-center justify-center h-screen">
-    //             <p className="text-lg text-gray-500">You do not have permission to access this page.</p>
-    //         </div>
-    //     )
-    // }
+    if (!session?.user?.isAdmin == "true") { // Marked true as a string because the 'isAdmin' attribute on keycloak is a string
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p className="text-lg text-gray-500">You do not have permission to access this page.</p>
+            </div>
+        )
+    }
 
     return (
         <div className="container mx-auto p-6">

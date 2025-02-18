@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { Property } from "@/types/Property"
+import type { Property } from "@/types/property"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { useSession } from "next-auth/react"
 import type React from "react" // Added import for React
