@@ -8,6 +8,7 @@ if (typeof window !== "undefined") {
 }
 
 if (!process.env.DATABASE_URL) {
+    logToFile("database", "DATABASE_URL environment variable is not set", LogLevel.ERROR)
     throw new Error("DATABASE_URL environment variable is not set")
 }
 

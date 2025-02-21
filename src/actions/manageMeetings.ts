@@ -5,13 +5,15 @@ import { meetings, shareholders, properties } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
+// Update the createMeeting function to ensure dataSource is correctly typed
 export async function createMeeting(formData: FormData) {
     try {
         const year = Number.parseInt(formData.get("year") as string)
         const date = new Date(formData.get("date") as string)
+        const dataSource = formData.get("dataSource") as "excel" | "database"
 
-        if (!year || isNaN(year) || !date || isNaN(date.getTime())) {
-            throw new Error("Invalid year or date")
+        if (!year || isNaN(year) || !date || isNaN(date.getTime()) || !dataSource) {
+            throw new Error("Invalid year, date, or data source")
         }
 
         const result = await db
@@ -19,6 +21,7 @@ export async function createMeeting(formData: FormData) {
             .values({
                 year,
                 date,
+                dataSource,
             })
             .returning({
                 id: meetings.id,
@@ -42,7 +45,7 @@ export async function createMeeting(formData: FormData) {
                 date: result[0].date.toISOString(),
                 totalShareholders: result[0].totalShareholders ?? 0,
                 checkedIn: result[0].checkedIn ?? 0,
-                dataSource: result[0].dataSource,
+                dataSource: result[0].dataSource as "excel" | "database",
                 hasInitialData: result[0].hasInitialData ?? false,
                 mailersGenerated: result[0].mailersGenerated ?? false,
                 mailerGenerationDate: result[0].mailerGenerationDate?.toISOString() ?? null,

@@ -5,14 +5,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getShareholdersList } from "@/actions/getShareholdersList"
 
 interface ShareholdersPageProps {
-  searchParams: {
+  searchParams: Promise<{
     page?: string
     itemsPerPage?: string
-  }
+  }>
 }
 
 export default async function ShareholdersPage({ searchParams }: ShareholdersPageProps) {
-  const { page: pageParam, itemsPerPage: itemsPerPageParam } = searchParams
+  const { page: pageParam, itemsPerPage: itemsPerPageParam } = await searchParams
 
   const page = pageParam && !isNaN(Number(pageParam)) ? Math.max(1, Number.parseInt(pageParam, 10)) : 1
   const itemsPerPage =

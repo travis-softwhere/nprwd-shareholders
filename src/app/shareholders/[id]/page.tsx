@@ -1,16 +1,25 @@
 import { getShareholderDetails } from "@/actions/getShareholderDetails"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
 interface ShareholderPageProps {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }
 
 export default async function ShareholderPage({ params }: ShareholderPageProps) {
-    const shareholderId = (await params).id
+    // Check authentication
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+        redirect("/auth/signin?callbackUrl=/shareholders")
+    }
+
+    const { id: shareholderId } = await params
 
     try {
         const { shareholder, properties } = await getShareholderDetails(shareholderId)
