@@ -17,7 +17,6 @@ export default function Navigation() {
         { name: "Home", href: "/", icon: Home },
         { name: "Shareholders", href: "/shareholders", icon: Users },
         { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
-        { name: "Users", href: "/admin/users", icon: Users },
     ]
 
     if (!session) return null
@@ -32,7 +31,10 @@ export default function Navigation() {
                 {navigation.map((item) => {
                     const Icon = item.icon
                     const isAdminOnly = item.adminOnly
-                    const shouldRender = !isAdminOnly || (session?.user && "isAdmin" in session.user && session.user.isAdmin == "true")
+                    const isAdmininsessionuser = ("isAdmin" in session.user)
+                    const isAdmin = (session.user.isAdmin)
+
+                    const shouldRender = !isAdminOnly || isAdmin
 
                     return (
                         shouldRender && (

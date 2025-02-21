@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { getMeetings } from "@/actions/getMeetings"
 
@@ -9,6 +10,11 @@ export interface Meeting {
     date: string
     totalShareholders: number
     checkedIn: number
+    dataSource: "excel" | "database"
+    hasInitialData: boolean
+    mailersGenerated: boolean
+    mailerGenerationDate: string | null
+    createdAt: string
 }
 
 interface MeetingContextType {
@@ -32,12 +38,8 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
         try {
             const fetchedMeetings = await getMeetings()
             setMeetings(fetchedMeetings)
-
-            // Update isDataLoaded based on whether any meeting has shareholders
             const hasData = fetchedMeetings.some((meeting) => meeting.totalShareholders > 0)
             setIsDataLoaded(hasData)
-
-            // If selected meeting is not in the list anymore, clear it
             setSelectedMeeting((prevSelected) =>
                 prevSelected && !fetchedMeetings.find((m) => m.id === prevSelected.id) ? null : prevSelected,
             )
@@ -46,10 +48,9 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
         }
     }, [])
 
-    // Initial load of meetings
     useEffect(() => {
         refreshMeetings()
-    }, [])
+    }, [refreshMeetings])
 
     return (
         <MeetingContext.Provider
