@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { cn } from "@/lib/utils"
 import { UploadProgress } from "@/components/UploadProgress"
+import { MailerGenerator } from "@/components/MailerGenerator"
+import { DataChanges } from "@/components/DataChanges"
 import { getMeetings } from "@/actions/getMeetings"
 import { deleteMeeting } from "@/actions/manageMeetings"
 import { CreateMeetingForm } from "@/components/CreateMeetingForm"
@@ -82,7 +84,6 @@ export default function AdminPage() {
 
     const handleUpload = useCallback(
         async (formData: FormData) => {
-            // Prevent multiple uploads
             if (uploadInProgressRef.current) {
                 console.log("Upload already in progress")
                 return
@@ -95,78 +96,38 @@ export default function AdminPage() {
             setCurrentStep("Preparing file for upload...")
             uploadInProgressRef.current = true
 
-            // Create new AbortController for this upload
-            abortControllerRef.current = new AbortController()
-
             try {
                 const response = await fetch("/api/upload", {
                     method: "POST",
                     body: formData,
-                    signal: abortControllerRef.current.signal,
                 })
 
-                if (!response.ok) {
-                    throw new Error(`Upload failed with status ${response.status}`)
+                const result = await response.json()
+
+                if (!result.success) {
+                    throw new Error(result.error || "Upload failed")
                 }
 
-                if (!response.body) {
-                    throw new Error("No response body received")
-                }
+                setCurrentStep("Upload completed successfully!")
+                setUploadProgress(100)
+                setIsDataLoaded(true)
+                await refreshMeetings()
 
-                const reader = response.body.getReader()
-                const decoder = new TextDecoder()
-                let buffer = ""
-
-                while (true) {
-                    const { done, value } = await reader.read()
-
-                    if (done) {
-                        console.log("Upload stream completed")
-                        break
-                    }
-
-                    buffer += decoder.decode(value, { stream: true })
-                    const lines = buffer.split("\n\n")
-                    buffer = lines.pop() || ""
-
-                    for (const line of lines) {
-                        if (line.startsWith("data: ")) {
-                            try {
-                                const data = JSON.parse(line.slice(6))
-                                console.log("Received update:", data)
-
-                                if (data.type === "progress") {
-                                    setUploadProgress(data.progress)
-                                    setCurrentStep(data.step)
-                                } else if (data.type === "complete") {
-                                    console.log("Upload completed:", data)
-                                    setCurrentStep("Upload completed successfully!")
-                                    setUploadProgress(100)
-                                    setIsDataLoaded(true)
-                                    await refreshMeetings()
-                                    // Reset state after a delay
-                                    setTimeout(() => {
-                                        cleanupUpload()
-                                    }, 2000)
-                                    break
-                                } else if (data.type === "error") {
-                                    throw new Error(data.error)
-                                }
-                            } catch (e) {
-                                console.error("Error parsing update:", e)
-                                throw new Error("Failed to parse server response")
-                            }
-                        }
-                    }
-                }
+                // Reset state after a delay
+                setTimeout(() => {
+                    setIsUploading(false)
+                    setUploadProgress(0)
+                    setCurrentStep("")
+                }, 2000)
             } catch (error) {
                 console.error("Upload failed:", error)
                 setUploadError(error instanceof Error ? error.message : String(error))
                 setCurrentStep("Upload failed")
-                cleanupUpload()
+            } finally {
+                uploadInProgressRef.current = false
             }
         },
-        [setIsDataLoaded, refreshMeetings, cleanupUpload],
+        [refreshMeetings, setIsDataLoaded],
     )
 
     const handleDelete = async (meetingId: string) => {
@@ -189,8 +150,15 @@ export default function AdminPage() {
         }
     }
 
+    const showUploadComponent =
+        selectedMeeting && !selectedMeeting.hasInitialData && selectedMeeting.dataSource === "excel"
+
+    const showMailerGenerator = selectedMeeting && selectedMeeting.hasInitialData && !selectedMeeting.mailersGenerated
+
+    const showDataChanges = selectedMeeting && selectedMeeting.mailersGenerated
+
     // Redirect if not admin
-    if (!session?.user?.isAdmin == "true") { // Marked true as a string because the 'isAdmin' attribute on keycloak is a string
+    if (session?.user?.isAdmin !== true) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <p className="text-lg text-gray-500">You do not have permission to access this page.</p>
@@ -203,60 +171,74 @@ export default function AdminPage() {
             <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
 
             <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Data Management</CardTitle>
-                        <CardDescription>Upload shareholder data for the selected meeting</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-center w-full">
-                                <label
-                                    htmlFor="file-upload"
-                                    className={cn(
-                                        "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors",
-                                        selectedMeeting && !isUploading
-                                            ? "cursor-pointer border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400"
-                                            : "cursor-not-allowed border-gray-200 bg-gray-100",
-                                    )}
-                                >
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <Upload className={cn("w-8 h-8 mb-2", isUploading ? "text-gray-400" : "text-gray-500")} />
-                                        <p className="mb-2 text-sm text-gray-500">
-                                            <span className="font-semibold">Click to upload</span> or drag and drop
-                                        </p>
-                                        <p className="text-xs text-gray-500">CSV file only</p>
+                <div className="space-y-6">
+                    {showUploadComponent && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Data Management</CardTitle>
+                                <CardDescription>Upload shareholder data for the selected meeting</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-center w-full">
+                                        <label
+                                            htmlFor="file-upload"
+                                            className={cn(
+                                                "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors",
+                                                selectedMeeting && !isUploading
+                                                    ? "cursor-pointer border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400"
+                                                    : "cursor-not-allowed border-gray-200 bg-gray-100",
+                                            )}
+                                        >
+                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                <Upload className={cn("w-8 h-8 mb-2", isUploading ? "text-gray-400" : "text-gray-500")} />
+                                                <p className="mb-2 text-sm text-gray-500">
+                                                    <span className="font-semibold">Click to upload</span> or drag and drop
+                                                </p>
+                                                <p className="text-xs text-gray-500">CSV file only</p>
+                                            </div>
+                                            <input
+                                                id="file-upload"
+                                                name="file"
+                                                type="file"
+                                                className="hidden"
+                                                accept=".csv"
+                                                disabled={!selectedMeeting || isUploading}
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0]
+                                                    if (file && selectedMeeting) {
+                                                        console.log("File selected:", file.name, "Size:", file.size, "bytes")
+                                                        const formData = new FormData()
+                                                        formData.append("file", file)
+                                                        formData.append("meetingId", selectedMeeting.id)
+                                                        handleUpload(formData)
+                                                    }
+                                                }}
+                                            />
+                                        </label>
                                     </div>
-                                    <input
-                                        id="file-upload"
-                                        name="file"
-                                        type="file"
-                                        className="hidden"
-                                        accept=".csv"
-                                        disabled={!selectedMeeting || isUploading}
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0]
-                                            if (file && selectedMeeting) {
-                                                console.log("File selected:", file.name, "Size:", file.size, "bytes")
-                                                const formData = new FormData()
-                                                formData.append("file", file)
-                                                formData.append("meetingId", selectedMeeting.id)
-                                                handleUpload(formData)
-                                            }
-                                        }}
-                                    />
-                                </label>
-                            </div>
 
-                            <UploadProgress
-                                isUploading={isUploading}
-                                progress={uploadProgress}
-                                currentStep={currentStep}
-                                error={uploadError}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+                                    <UploadProgress
+                                        isUploading={isUploading}
+                                        progress={uploadProgress}
+                                        currentStep={currentStep}
+                                        error={uploadError}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {showMailerGenerator && (
+                        <MailerGenerator
+                            meetingId={selectedMeeting.id}
+                            onComplete={refreshMeetings}
+                            disabled={!selectedMeeting.hasInitialData}
+                        />
+                    )}
+
+                    {showDataChanges && <DataChanges meetingId={selectedMeeting.id} />}
+                </div>
 
                 <Card>
                     <CardHeader>

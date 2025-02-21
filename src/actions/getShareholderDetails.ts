@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { shareholders, properties } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
+import { notFound } from "next/navigation"
 
 export async function getShareholderDetails(shareholderId: string) {
     try {
@@ -15,6 +16,10 @@ export async function getShareholderDetails(shareholderId: string) {
 
             db.select().from(properties).where(eq(properties.shareholderId, shareholderId)).orderBy(properties.account),
         ])
+
+        if (!shareholder) {
+            notFound()
+        }
 
         return {
             shareholder,

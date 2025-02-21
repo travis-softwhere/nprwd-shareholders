@@ -57,12 +57,13 @@ async function validateCredentials(username: string, password: string) {
         }
 
         const userInfo = await userInfoResponse.json()
-        console.log("User info:", JSON.stringify(userInfo, null, 2))
+
+        const isAdmin = userInfo.isAdmin
 
         return {
             id: userInfo.sub,
-            name: userInfo.name || username,
-            email: userInfo.email || username,
+            email: userInfo.email,
+            isAdmin: isAdmin,
         }
     } catch (error) {
         console.error("Detailed error in validateCredentials:", error)
@@ -98,35 +99,37 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async jwt({ token, user }: { token: JWT; user: any }) {
+        async jwt({ token, user }: { token: JWT; user?: any }) {
             if (user) {
-                token.id = user.id
-                token.email = user.email
+                token.id = user.id;
+                token.email = user.email;
+                console.log("User", + user)
+                token.isAdmin = user.isAdmin === "true"; // Ensure it's boolean
 
                 try {
-                    const dbUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1)
+                    const dbUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
 
                     if (dbUser.length === 0) {
                         await db.insert(users).values({
                             name: user.name || "",
                             email: user.email,
-                            isAdmin: false,
-                        })
+                            isAdmin: token.isAdmin,
+                        });
+                    } else if (dbUser[0].isAdmin !== token.isAdmin) {
+                        await db.update(users).set({ isAdmin: token.isAdmin }).where(eq(users.email, user.email));
                     }
-
-                    token.isAdmin = dbUser[0]?.isAdmin ?? false
                 } catch (error) {
-                    console.error("Error in jwt callback:", error)
-                    // Instead of throwing an error, we'll set a default isAdmin value
-                    token.isAdmin = false
+                    console.error("Error in jwt callback:", error);
+                    // Don't override token.isAdmin here – prefer the value from Keycloak if DB fails
                 }
             }
-            return token
+
+            return token;
         },
         async session({ session, token }: { session: any; token: JWT }) {
             if (token && session.user) {
                 session.user.id = token.id as string
-                session.user.isAdmin = token.isAdmin as boolean
+                session.user.isAdmin = token.isAdmin
             }
             return session
         },

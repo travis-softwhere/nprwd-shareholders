@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-02-21T06:12:49.583Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 330,
+      "heapUsed": 302,
+      "external": 6,
+      "rss": 1091
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T06:12:49.594Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Error generating mailers: SyntaxError: Unexpected end of JSON input",
+  "metadata": {
+    "memory": {
+      "heapTotal": 330,
+      "heapUsed": 303,
+      "external": 6,
+      "rss": 1092
+    }
+  }
+}

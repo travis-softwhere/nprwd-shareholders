@@ -1,0 +1,240 @@
+{
+  "timestamp": "2025-02-18T07:09:49.966Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload process b6dd2ffb-cd2f-4a34-8120-4387c2eefa65",
+  "metadata": {
+    "memory": {
+      "heapTotal": 721,
+      "heapUsed": 681,
+      "external": 10,
+      "rss": 996
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:09:50.004Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Progress Update: 0% - Initializing upload...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 721,
+      "heapUsed": 682,
+      "external": 10,
+      "rss": 996
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:13:59.160Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload cda266c2-4d2d-4602-a1f7-b6dcf557a426",
+  "metadata": {
+    "memory": {
+      "heapTotal": 677,
+      "heapUsed": 651,
+      "external": 6,
+      "rss": 894
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:13:59.168Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Progress Update: 0% - Initializing upload...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 677,
+      "heapUsed": 651,
+      "external": 6,
+      "rss": 894
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:17:24.723Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 7dd3328a-7b4e-4c49-aec1-91e87fd34e18",
+  "metadata": {
+    "memory": {
+      "heapTotal": 724,
+      "heapUsed": 679,
+      "external": 6,
+      "rss": 934
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:17:24.821Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 724,
+      "heapUsed": 680,
+      "external": 6,
+      "rss": 934
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:17:24.829Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 815,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 724,
+      "heapUsed": 680,
+      "external": 6,
+      "rss": 934
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:17:24.854Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "CSV parsed",
+  "metadata": {
+    "recordCount": 3,
+    "memory": {
+      "heapTotal": 724,
+      "heapUsed": 681,
+      "external": 6,
+      "rss": 934
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:17:25.321Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Batch processed",
+  "metadata": {
+    "processedCount": 3,
+    "totalRecords": 3,
+    "memory": {
+      "heapTotal": 716,
+      "heapUsed": 672,
+      "external": 6,
+      "rss": 927
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T07:17:25.382Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Upload completed",
+  "metadata": {
+    "duration": "0.66",
+    "totalRecords": 3,
+    "totalShareholders": 2,
+    "memory": {
+      "heapTotal": 716,
+      "heapUsed": 673,
+      "external": 6,
+      "rss": 927
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T20:16:38.924Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 2285d312-68bc-43b9-9050-d35a89f8d8f9",
+  "metadata": {
+    "memory": {
+      "heapTotal": 535,
+      "heapUsed": 514,
+      "external": 7,
+      "rss": 1104
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T20:16:38.957Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 535,
+      "heapUsed": 516,
+      "external": 7,
+      "rss": 1106
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T20:16:38.968Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 815,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 535,
+      "heapUsed": 515,
+      "external": 7,
+      "rss": 1106
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T20:16:38.987Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "CSV parsed",
+  "metadata": {
+    "recordCount": 3,
+    "memory": {
+      "heapTotal": 535,
+      "heapUsed": 515,
+      "external": 7,
+      "rss": 1106
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T20:16:39.444Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Batch processed",
+  "metadata": {
+    "processedCount": 3,
+    "totalRecords": 3,
+    "memory": {
+      "heapTotal": 536,
+      "heapUsed": 518,
+      "external": 7,
+      "rss": 1108
+    }
+  }
+}
+{
+  "timestamp": "2025-02-18T20:16:39.539Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Upload completed",
+  "metadata": {
+    "duration": "0.61",
+    "totalRecords": 3,
+    "totalShareholders": 2,
+    "memory": {
+      "heapTotal": 536,
+      "heapUsed": 516,
+      "external": 7,
+      "rss": 1109
+    }
+  }
+}
