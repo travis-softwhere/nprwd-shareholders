@@ -26,3 +26,367 @@
     }
   }
 }
+{
+  "timestamp": "2025-02-21T06:47:27.508Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 182,
+      "heapUsed": 153,
+      "external": 5,
+      "rss": 1726
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T06:47:27.514Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Error generating mailers: SyntaxError: Unexpected end of JSON input",
+  "metadata": {
+    "memory": {
+      "heapTotal": 182,
+      "heapUsed": 153,
+      "external": 5,
+      "rss": 1726
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T06:51:35.243Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 217,
+      "heapUsed": 187,
+      "external": 5,
+      "rss": 1767
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T06:51:35.258Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Invalid request body: SyntaxError: Unexpected end of JSON input",
+  "metadata": {
+    "memory": {
+      "heapTotal": 217,
+      "heapUsed": 187,
+      "external": 5,
+      "rss": 1767
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T06:59:31.011Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 116,
+      "heapUsed": 101,
+      "external": 4,
+      "rss": 864
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T06:59:31.015Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Invalid content type",
+  "metadata": {
+    "memory": {
+      "heapTotal": 116,
+      "heapUsed": 101,
+      "external": 4,
+      "rss": 864
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:01:23.406Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 204,
+      "heapUsed": 178,
+      "external": 5,
+      "rss": 1685
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:01:23.415Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Invalid content type: null",
+  "metadata": {
+    "memory": {
+      "heapTotal": 204,
+      "heapUsed": 178,
+      "external": 5,
+      "rss": 1685
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:04:10.165Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 219,
+      "heapUsed": 192,
+      "external": 5,
+      "rss": 1698
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:04:10.170Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "📨 Incoming headers: {\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"connection\":\"keep-alive\",\"content-length\":\"0\",\"cookie\":\"next-auth.csrf-token=479043e788eb1fdaf63f7f0a954285ac69df1abf4bcd1b857413c4681dd78a7f%7C015527ec422b63c1350a6605d351a2cd7fc3806c455e8d1f967c261a120fc3ce; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin%3FcallbackUrl%3D%2Fshareholders; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..UKAm35G-O2jVOBkU.CGp7yniJtkmgJplcw9FywhdyMGQQvQDOX_-am8RmsQklOKbfSYl6pLZWZoj92h1JeH_7CkzpaIxM5pWiSLvUvvf_euIe20FdtH22LqB_oJ5zqrxm60OjCnUSQtRs6kgbHRctdtbj3JD4Ajyc-2wQZ2Xk6EdPO7uX_5nFkGH2WUWTOxJGu1u1LCMNokjfTZHkD-NCJ5j5v-2xdxYoXB8iUmbo4CE8BnZdXzdFHfBdVrAIg4liSVXvXHiYTWjDAYKXkKLnFAMnh7G-NAd1ARJhcmvFVFrLEOZZ.L8hOxksfN8KxCWDb-Mhgpw\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not A(Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"132\\\", \\\"Google Chrome\\\";v=\\\"132\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 219,
+      "heapUsed": 192,
+      "external": 5,
+      "rss": 1698
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:04:10.175Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Missing content type header",
+  "metadata": {
+    "memory": {
+      "heapTotal": 219,
+      "heapUsed": 192,
+      "external": 5,
+      "rss": 1698
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:06:08.009Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 172,
+      "heapUsed": 165,
+      "external": 5,
+      "rss": 1670
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:06:08.014Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "📨 Incoming headers: {\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"connection\":\"keep-alive\",\"content-length\":\"0\",\"cookie\":\"next-auth.csrf-token=479043e788eb1fdaf63f7f0a954285ac69df1abf4bcd1b857413c4681dd78a7f%7C015527ec422b63c1350a6605d351a2cd7fc3806c455e8d1f967c261a120fc3ce; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin%3FcallbackUrl%3D%2Fshareholders; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..bmSO3gBmAAn9WGZ0.NVs5zMzDcJI-MCqjON2EftEbLo7UpJZEJYlwFdIHRwNXQVJ4mfeDPLuPDtCO5Oq5liyp5zZG24gd9iqfX6VkvXb04IqVBYnCTslB7jOkdF4lWnS3BsJlFDnsNKG3lWGHOXQ0Kr3EsR9w2bsKLjgawpmHFTXcGXkpGfuJw-C2Bfqt4ohAJAysph3F62Pq3HbIx9WUr_N2Uqi45QDJuGDTlK1Dwz1vOn2vRKBb3LciUu1jo0PwsMQxMpDlpoP2-aaQktcYim0fq_5Eb9sjBJnurRaovF_FBHBO.VdOlu502wb-6b8IF3VMqkQ\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not A(Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"132\\\", \\\"Google Chrome\\\";v=\\\"132\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 172,
+      "heapUsed": 165,
+      "external": 5,
+      "rss": 1671
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:06:08.021Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Missing content type header",
+  "metadata": {
+    "memory": {
+      "heapTotal": 172,
+      "heapUsed": 165,
+      "external": 5,
+      "rss": 1671
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:06:16.371Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 180,
+      "heapUsed": 169,
+      "external": 5,
+      "rss": 1683
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:06:16.375Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "📨 Incoming headers: {\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"connection\":\"keep-alive\",\"content-length\":\"0\",\"cookie\":\"next-auth.csrf-token=479043e788eb1fdaf63f7f0a954285ac69df1abf4bcd1b857413c4681dd78a7f%7C015527ec422b63c1350a6605d351a2cd7fc3806c455e8d1f967c261a120fc3ce; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin%3FcallbackUrl%3D%2Fshareholders; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..TGbuVbyk1Jj-5Wyl.Bkf1ZAud3gZt5OCcUtmpN_Wzu_4NPpzqVewCq3_I8DHdKyIKjK3F07wiARgkZELSs9oe0l5wwSkyEDq7HtBcf-0Hbw_0hdmB4T2FyuMFs1CP1J2UUVTLtXz3WxbQLwjd9FZuHXIFLfMerh3zRSeokyFxDDy3LLwGk741YUS9nDwJRCCnPXKmubDsSZKvTqI6yIuGSfGmMpeuAa5oWqL72X5lNsSghXPxmW8WU4rVVVIl2KqoGdtRJjBbRnxAFuvA-NTM4XASVG69ZcO0sKSLj6lZTkabl6Cs.VV5Y1ogKYw_338e0OUw82Q\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not A(Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"132\\\", \\\"Google Chrome\\\";v=\\\"132\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 180,
+      "heapUsed": 169,
+      "external": 5,
+      "rss": 1683
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:06:16.387Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Missing content type header",
+  "metadata": {
+    "memory": {
+      "heapTotal": 180,
+      "heapUsed": 169,
+      "external": 5,
+      "rss": 1683
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:08:33.815Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 234,
+      "heapUsed": 195,
+      "external": 5,
+      "rss": 1733
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:08:33.819Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "📨 Incoming headers: {\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"connection\":\"keep-alive\",\"content-length\":\"0\",\"cookie\":\"next-auth.csrf-token=479043e788eb1fdaf63f7f0a954285ac69df1abf4bcd1b857413c4681dd78a7f%7C015527ec422b63c1350a6605d351a2cd7fc3806c455e8d1f967c261a120fc3ce; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin%3FcallbackUrl%3D%2Fshareholders; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..uAFb-DhPqFMNAt8a.m3Y7LQeGLlCyVSZDy5svrB9yFM3mXX4pb4xIQwwImwTzmMc3vXu_ah9VM-gx-8ckoGeBFtJ7lhRKVKhxGyOp1JoHVmIk-Fb67MEv3H9OkIzeztp0-xXQKtK2LtRoxD9a2khHH7C7E_nXoOqQeRF3-8SuwZZXAHx6Vm-4hC7zawqZvgsIgcGqBuNozIH84dKbQWDfh4Z28FUmhXdcKCP3ayJEC3anlXQ-2VgbDA2HYaua2dXPt5LMQ5kN29iyelUMODLhBk7RoaOKiyrZ5-dJ7qpDCrmNdwLE.MBJqDCsZYf3iWks9qrFRZg\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not A(Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"132\\\", \\\"Google Chrome\\\";v=\\\"132\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 234,
+      "heapUsed": 195,
+      "external": 5,
+      "rss": 1733
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:08:33.827Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Missing content type header",
+  "metadata": {
+    "memory": {
+      "heapTotal": 234,
+      "heapUsed": 195,
+      "external": 5,
+      "rss": 1733
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:14:11.904Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 196,
+      "heapUsed": 185,
+      "external": 6,
+      "rss": 1701
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:14:11.907Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "📨 Incoming headers: {\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"connection\":\"keep-alive\",\"content-length\":\"0\",\"cookie\":\"next-auth.csrf-token=479043e788eb1fdaf63f7f0a954285ac69df1abf4bcd1b857413c4681dd78a7f%7C015527ec422b63c1350a6605d351a2cd7fc3806c455e8d1f967c261a120fc3ce; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin%3FcallbackUrl%3D%2Fshareholders; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..J4KQ3qDE4_E6IXEU.xaizolS4MR38fJvYozT99yQJIUUGJ3eEvq07FSLDoy63fbsbipxeXTu1GVdqtTGwcMH98saVf8eASRuIBp8KFvwPOlpDriLpUsvnC161m7_E8XnWo8NurHYpbssVrKT_-Qk2mtuM9mGtyVI60Ml441-qMLu-g0hmYr7-S4VUXdB3bl1e-dj7K3TO69uE1kOdAD24XkGoVHVO2dDx-ACAfI3PNwefhoCrV-iX9eTXc4FBSxjyK058UDKzhks-pKQ0GuzO0pocCbL9SB-pjRyhksbHWE8pCuXp.5aEqhdGH63IQkX-tc_P97Q\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not A(Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"132\\\", \\\"Google Chrome\\\";v=\\\"132\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 196,
+      "heapUsed": 185,
+      "external": 6,
+      "rss": 1702
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:14:11.911Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Missing content type header",
+  "metadata": {
+    "memory": {
+      "heapTotal": 196,
+      "heapUsed": 186,
+      "external": 6,
+      "rss": 1702
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:16:07.118Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "🚀 Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 186,
+      "external": 6,
+      "rss": 1703
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:16:07.121Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "📨 Incoming headers: {\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"connection\":\"keep-alive\",\"content-length\":\"0\",\"cookie\":\"next-auth.csrf-token=479043e788eb1fdaf63f7f0a954285ac69df1abf4bcd1b857413c4681dd78a7f%7C015527ec422b63c1350a6605d351a2cd7fc3806c455e8d1f967c261a120fc3ce; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin%3FcallbackUrl%3D%2Fshareholders; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..HjJDbBDrFa7iPMMf.M9QxnFdtN9qrJPq-uLxc3OUcu4xQ86FAfgoijhB8vm99nuvP-BTtP0MuTpbh5k4mk7Y_cuEaaeEnU02hV8Vd1Fly4BGquo-P77InOojeqhn779caugk-H6ZReFUH6Hnbw3FF3hZg52QTqa58d5zG8hKWviNGCJtRcoKn0soROrqv4SWjy3Q_GOlKxx_9vKNDAQhXPjmXvatxot1QlyFkuSLXzsEaoVwrLOg_LLrFihpNlZI9j0Jr3EyVq7dHbKwfm_lB7i3EzIi7B5gPg4oYgGupmVD9TGZr.NKZilHbiCEFoWelDWA_ZBw\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not A(Brand\\\";v=\\\"8\\\", \\\"Chromium\\\";v=\\\"132\\\", \\\"Google Chrome\\\";v=\\\"132\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 186,
+      "external": 6,
+      "rss": 1703
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T07:16:07.124Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "❌ Missing content type header",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 187,
+      "external": 6,
+      "rss": 1703
+    }
+  }
+}

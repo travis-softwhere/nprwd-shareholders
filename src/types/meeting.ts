@@ -9,4 +9,4 @@ export interface Meeting {
     mailersGenerated: boolean
     mailerGenerationDate: string | null // Changed from Date to string | null
     createdAt: string // Changed from Date to string
-}
+}  

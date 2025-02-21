@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { cn } from "@/lib/utils"
 import { UploadProgress } from "@/components/UploadProgress"
-import { MailerGenerator } from "@/components/MailerGenerator"
+import { PrintMailersButton } from "@/components/PrintMailersButton"
 import { DataChanges } from "@/components/DataChanges"
 import { getMeetings } from "@/actions/getMeetings"
 import { deleteMeeting } from "@/actions/manageMeetings"
@@ -153,7 +153,7 @@ export default function AdminPage() {
     const showUploadComponent =
         selectedMeeting && !selectedMeeting.hasInitialData && selectedMeeting.dataSource === "excel"
 
-    const showMailerGenerator = selectedMeeting && selectedMeeting.hasInitialData && !selectedMeeting.mailersGenerated
+    const showMailersButton = selectedMeeting && selectedMeeting.hasInitialData && !selectedMeeting.mailersGenerated
 
     const showDataChanges = selectedMeeting && selectedMeeting.mailersGenerated
 
@@ -229,8 +229,8 @@ export default function AdminPage() {
                         </Card>
                     )}
 
-                    {showMailerGenerator && (
-                        <MailerGenerator
+                    {showMailersButton && (
+                        <PrintMailersButton
                             meetingId={selectedMeeting.id}
                             onComplete={refreshMeetings}
                             disabled={!selectedMeeting.hasInitialData}
