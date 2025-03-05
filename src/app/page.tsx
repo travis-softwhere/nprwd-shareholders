@@ -5,7 +5,7 @@ export default async function Home() {
   const { totalShareholders, checkedInCount, nextMeeting } = await getMeetingStats()
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8">
+    <main className="flex-1 p-8">
       <div className="w-full max-w-7xl">
         <Dashboard
           totalShareholders={totalShareholders}

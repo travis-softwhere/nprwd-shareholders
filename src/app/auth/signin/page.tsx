@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -17,7 +19,7 @@ export default function SignIn() {
     const [password, setPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(
-        searchParams?.get("error") === "OAuthSignin" ? "An error occurred during sign in. Please try again." : null,
+        searchParams?.get("error") === "CredentialsSignin" ? "Invalid username or password" : null,
     )
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,8 +50,8 @@ export default function SignIn() {
         <div className="flex min-h-screen items-center justify-center bg-gray-100">
             <Card className="w-[400px]">
                 <CardHeader>
-                    <CardTitle>Welcome to AquaShare</CardTitle>
-                    <CardDescription>Sign in to access the shareholder management system</CardDescription>
+                    <CardTitle>Welcome to SeeStudents</CardTitle>
+                    <CardDescription>Sign in to connect with students around the world</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,7 +61,7 @@ export default function SignIn() {
                                 id="username"
                                 type="text"
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                                 required
                                 disabled={isLoading}
                             />
@@ -70,7 +72,7 @@ export default function SignIn() {
                                 id="password"
                                 type="password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                                 required
                                 disabled={isLoading}
                             />

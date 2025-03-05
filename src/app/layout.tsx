@@ -1,28 +1,14 @@
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { auth } from "@/lib/auth"
-import { Providers } from "@/components/Providers"
-import type React from "react"
+import type { ReactNode } from "react"
+import { Toaster } from "@/components/ui/toaster"
+import Providers from "@/components/Providers"
+import "@/app/globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
-
-export const metadata: Metadata = {
-  title: "AquaShare | NPRWD",
-  description: "North Prairie Regional Water District Shareholder Management",
-}
-
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const session = await auth()
-
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <Providers session={session}>{children}</Providers>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   )
