@@ -330,3 +330,95 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-05T04:06:39.890Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload df76c6ec-c6a3-45be-86ca-2d2ff42efec0",
+  "metadata": {
+    "memory": {
+      "heapTotal": 184,
+      "heapUsed": 177,
+      "external": 5,
+      "rss": 1655
+    }
+  }
+}
+{
+  "timestamp": "2025-03-05T04:06:39.927Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 185,
+      "heapUsed": 177,
+      "external": 5,
+      "rss": 1656
+    }
+  }
+}
+{
+  "timestamp": "2025-03-05T04:06:39.931Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 815,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 185,
+      "heapUsed": 177,
+      "external": 5,
+      "rss": 1656
+    }
+  }
+}
+{
+  "timestamp": "2025-03-05T04:06:39.952Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "CSV parsed",
+  "metadata": {
+    "recordCount": 3,
+    "memory": {
+      "heapTotal": 185,
+      "heapUsed": 178,
+      "external": 5,
+      "rss": 1656
+    }
+  }
+}
+{
+  "timestamp": "2025-03-05T04:06:40.450Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Batch processed",
+  "metadata": {
+    "processedCount": 3,
+    "totalRecords": 3,
+    "memory": {
+      "heapTotal": 185,
+      "heapUsed": 178,
+      "external": 5,
+      "rss": 1656
+    }
+  }
+}
+{
+  "timestamp": "2025-03-05T04:06:40.523Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Upload completed",
+  "metadata": {
+    "duration": "0.63",
+    "totalRecords": 3,
+    "totalShareholders": 2,
+    "memory": {
+      "heapTotal": 186,
+      "heapUsed": 178,
+      "external": 5,
+      "rss": 1657
+    }
+  }
+}
