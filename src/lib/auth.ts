@@ -7,7 +7,6 @@ import { eq } from "drizzle-orm"
 import type { JWT } from "next-auth/jwt"
 import { getServerSession } from "next-auth/next"
 
-
 async function validateCredentials(username: string, password: string) {
     try {
         console.log(`Attempting to authenticate user: ${username}`)
@@ -101,30 +100,30 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         async jwt({ token, user }: { token: JWT; user?: any }) {
             if (user) {
-                token.id = user.id;
-                token.email = user.email;
-                console.log("User", + user)
-                token.isAdmin = user.isAdmin === "true"; // Ensure it's boolean
+                token.id = user.id
+                token.email = user.email
+                console.log("User", +user)
+                token.isAdmin = user.isAdmin === "true" // Ensure it's boolean
 
                 try {
-                    const dbUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+                    const dbUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1)
 
                     if (dbUser.length === 0) {
                         await db.insert(users).values({
                             name: user.name || "",
                             email: user.email,
                             isAdmin: token.isAdmin,
-                        });
+                        })
                     } else if (dbUser[0].isAdmin !== token.isAdmin) {
-                        await db.update(users).set({ isAdmin: token.isAdmin }).where(eq(users.email, user.email));
+                        await db.update(users).set({ isAdmin: token.isAdmin }).where(eq(users.email, user.email))
                     }
                 } catch (error) {
-                    console.error("Error in jwt callback:", error);
+                    console.error("Error in jwt callback:", error)
                     // Don't override token.isAdmin here – prefer the value from Keycloak if DB fails
                 }
             }
 
-            return token;
+            return token
         },
         async session({ session, token }: { session: any; token: JWT }) {
             if (token && session.user) {

@@ -10,7 +10,6 @@ import { authOptions } from "@/lib/auth"
 
 export async function POST(request: Request) {
     try {
-        // Check authentication
         const session = await getServerSession(authOptions)
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -18,11 +17,9 @@ export async function POST(request: Request) {
 
         await logToFile("mailers", "🚀 Starting PDF generation process")
 
-        // Log all incoming headers for debugging
         const headers = Object.fromEntries(request.headers.entries())
         await logToFile("mailers", `📨 Incoming headers: ${JSON.stringify(headers)}`)
 
-        // Safely parse the request body with content type check
         const contentType = request.headers.get("content-type")
         if (!contentType) {
             await logToFile("mailers", "❌ Missing content type header")
@@ -37,23 +34,14 @@ export async function POST(request: Request) {
             )
         }
 
-        let meetingId: string
-        try {
-            const body = await request.json()
-            meetingId = body.meetingId
+        const body = await request.json()
+        await logToFile("mailers", `📦 Request body: ${JSON.stringify(body)}`)
 
-            if (!meetingId) {
-                throw new Error("Meeting ID is required")
-            }
-        } catch (error) {
-            await logToFile("mailers", `❌ Invalid request body: ${error}`)
-            return NextResponse.json({ error: "Invalid request body. Expected { meetingId: string }" }, { status: 400 })
-        }
+        const { meetingId } = body
 
-        // Validate meeting ID format
-        if (typeof meetingId !== "string") {
-            await logToFile("mailers", "❌ Invalid meeting ID format")
-            return NextResponse.json({ error: "Invalid meeting ID format" }, { status: 400 })
+        if (!meetingId || typeof meetingId !== "string") {
+            await logToFile("mailers", "❌ Invalid or missing meetingId")
+            return NextResponse.json({ error: "Invalid or missing meetingId" }, { status: 400 })
         }
 
         const shareholderData = await db
@@ -69,7 +57,6 @@ export async function POST(request: Request) {
 
         await logToFile("mailers", `📊 Total shareholders to process: ${shareholderData.length}`)
 
-        // Create a new PDF document
         const doc = new jsPDF({
             orientation: "portrait",
             unit: "pt",
@@ -79,7 +66,6 @@ export async function POST(request: Request) {
         let currentY = 50
         let processedCount = 0
 
-        // Process shareholders in smaller chunks
         const chunkSize = 25
         for (let i = 0; i < shareholderData.length; i += chunkSize) {
             const chunk = shareholderData.slice(i, i + chunkSize)
@@ -90,13 +76,11 @@ export async function POST(request: Request) {
                 if (!shareholder) continue
 
                 try {
-                    // Ensure strings are properly truncated and handle nulls
                     const ownerName = shareholder.name?.substring(0, 50) || "N/A"
                     const account = property?.account?.substring(0, 30) || "N/A"
                     const mailingAddress = property?.ownerMailingAddress?.substring(0, 50) || ""
                     const cityStateZip = property?.ownerCityStateZip?.substring(0, 50) || ""
 
-                    // Generate barcode
                     const barcodeBuffer = await new Promise<Buffer>((resolve, reject) => {
                         bwip.toBuffer(
                             {
@@ -114,10 +98,8 @@ export async function POST(request: Request) {
                         )
                     })
 
-                    // Convert barcode to base64
                     const barcodeBase64 = `data:image/png;base64,${barcodeBuffer.toString("base64")}`
 
-                    // Add content to PDF with proper spacing
                     doc.setFontSize(14)
                     doc.text(ownerName, doc.internal.pageSize.width / 2, currentY, { align: "center" })
 
@@ -144,10 +126,9 @@ export async function POST(request: Request) {
                     processedCount++
                     await logToFile("mailers", `✓ Processed shareholder ${processedCount} of ${shareholderData.length}`)
 
-                    // Add new page if not the last record
                     if (processedCount < shareholderData.length) {
                         doc.addPage()
-                        currentY = 50 // Reset Y position for new page
+                        currentY = 50
                     }
                 } catch (error) {
                     await logToFile("mailers", `❌ Error processing shareholder ${shareholder.shareholderId}: ${error}`)
@@ -155,20 +136,16 @@ export async function POST(request: Request) {
                 }
             }
 
-            // Save progress periodically
             if (i % 100 === 0) {
                 await logToFile("mailers", `💾 Saving progress after ${processedCount} records...`)
             }
         }
 
-        // Generate PDF in chunks
         await logToFile("mailers", "📑 Generating final PDF...")
         const pdfChunks = doc.output("arraybuffer")
 
-        // Create response with chunked data
         await logToFile("mailers", "✅ PDF generation complete!")
 
-        // Use Response constructor for better control over headers
         return new Response(pdfChunks, {
             status: 200,
             headers: {

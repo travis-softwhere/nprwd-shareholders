@@ -4,22 +4,20 @@ import { SessionProvider } from "next-auth/react"
 import { MeetingProvider } from "@/contexts/MeetingContext"
 import { ProgressProvider } from "@/contexts/ProgressContext"
 import Navigation from "@/components/Navigation"
-import type React from "react"
+import type { ReactNode } from "react"
 
-export function Providers({
-    children,
-    session,
-}: {
-    children: React.ReactNode
-    session: any
-}) {
+interface ProvidersProps {
+    children: ReactNode
+}
+
+export default function Providers({ children }: ProvidersProps) {
     return (
-        <SessionProvider session={session}>
+        <SessionProvider>
             <MeetingProvider>
                 <ProgressProvider>
-                    <div className="flex h-screen">
+                    <div className="flex min-h-screen">
                         <Navigation />
-                        <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>
+                        <div className="flex-1">{children}</div>
                     </div>
                 </ProgressProvider>
             </MeetingProvider>

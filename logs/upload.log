@@ -238,3 +238,95 @@
     }
   }
 }
+{
+  "timestamp": "2025-02-21T18:27:42.491Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 42f20f98-1f2e-4012-933e-8e2b18e355ca",
+  "metadata": {
+    "memory": {
+      "heapTotal": 455,
+      "heapUsed": 439,
+      "external": 7,
+      "rss": 1025
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T18:27:42.580Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 465,
+      "heapUsed": 440,
+      "external": 7,
+      "rss": 1028
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T18:27:42.589Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 815,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 465,
+      "heapUsed": 441,
+      "external": 7,
+      "rss": 1028
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T18:27:42.616Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "CSV parsed",
+  "metadata": {
+    "recordCount": 3,
+    "memory": {
+      "heapTotal": 465,
+      "heapUsed": 442,
+      "external": 7,
+      "rss": 1028
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T18:27:43.064Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Batch processed",
+  "metadata": {
+    "processedCount": 3,
+    "totalRecords": 3,
+    "memory": {
+      "heapTotal": 466,
+      "heapUsed": 440,
+      "external": 7,
+      "rss": 1032
+    }
+  }
+}
+{
+  "timestamp": "2025-02-21T18:27:43.150Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Upload completed",
+  "metadata": {
+    "duration": "0.66",
+    "totalRecords": 3,
+    "totalShareholders": 2,
+    "memory": {
+      "heapTotal": 466,
+      "heapUsed": 442,
+      "external": 7,
+      "rss": 1032
+    }
+  }
+}
