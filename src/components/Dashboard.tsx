@@ -77,10 +77,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   // Calculate attendance stats
-  const checkedInPercentage = Math.round((checkedInCount / totalShareholders) * 100);
-  const notCheckedInCount = totalShareholders - checkedInCount;
+  const checkedInPercentage = Math.round((attendance.checkedIn / attendance.total) * 100);
+  const notCheckedInCount = attendance.total - attendance.checkedIn;
   const pieData = [
-    { name: "Checked In", value: checkedInCount },
+    { name: "Checked In", value: attendance.checkedIn },
     { name: "Not Checked In", value: notCheckedInCount },
   ];
 
