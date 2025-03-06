@@ -5234,3 +5234,2229 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-06T01:44:28.492Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 115,
+      "heapUsed": 89,
+      "external": 4,
+      "rss": 696
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:44:30.994Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 134,
+      "heapUsed": 114,
+      "external": 5,
+      "rss": 923
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:44:31.944Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 75,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:44:41.439Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:44:42.691Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:44:44.638Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:44:50.103Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 94
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:46:32.805Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:46:35.231Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:46:36.455Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T01:46:58.645Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:36.025Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 113,
+      "heapUsed": 77,
+      "external": 4,
+      "rss": 693
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:38.132Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 135,
+      "heapUsed": 114,
+      "external": 4,
+      "rss": 918
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:38.947Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:40.051Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:41.961Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:43.568Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:32:45.140Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 88
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:33:12.396Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 180,
+      "heapUsed": 143,
+      "external": 4,
+      "rss": 1476
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:33:13.972Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:09.268Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:15.854Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:25.026Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.237Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.179Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.239Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.409Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 26,
+      "external": 3,
+      "rss": 68
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.149Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.321Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 39,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:12:36.503Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 71
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.227Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.289Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.220Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.350Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 39,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.313Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 39,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.274Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:16:20.461Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 71
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:55.969Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:56.104Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 68
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:56.088Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:56.031Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:56.093Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:56.120Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:17:56.290Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 72
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.405Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 21,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.489Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.492Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.510Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.491Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 39,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.371Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:21:16.646Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 71
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.418Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.359Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.318Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.563Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.577Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 22,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.559Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 41,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:24:57.588Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 27,
+      "external": 4,
+      "rss": 69
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:25:03.603Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 45,
+      "heapUsed": 34,
+      "external": 4,
+      "rss": 77
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:25:50.051Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 119,
+      "heapUsed": 86,
+      "external": 4,
+      "rss": 776
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:25:51.985Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 143,
+      "heapUsed": 116,
+      "external": 4,
+      "rss": 1031
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:25:52.749Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:00.601Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 88
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:02.963Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:04.451Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:07.881Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:09.176Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:10.291Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:27:10.801Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:33:57.413Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 93,
+      "heapUsed": 85,
+      "external": 4,
+      "rss": 917
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:00.797Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 139,
+      "heapUsed": 114,
+      "external": 5,
+      "rss": 1192
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:01.566Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:33.807Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 179,
+      "heapUsed": 140,
+      "external": 4,
+      "rss": 1538
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:46.612Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:49.288Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:50.652Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:53.410Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:33.750Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:33.896Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:33.806Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:33.795Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:33.937Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 39,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:33.923Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 68
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:34.021Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 71
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:40:40.001Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 45,
+      "heapUsed": 29,
+      "external": 4,
+      "rss": 77
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:42:55.971Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 117,
+      "heapUsed": 83,
+      "external": 4,
+      "rss": 609
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:42:56.763Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 88
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:42:57.748Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 88
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:42:59.380Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 88
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:43:02.095Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 151,
+      "heapUsed": 131,
+      "external": 4,
+      "rss": 1188
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:47:14.265Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:48:53.341Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:48:57.397Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 92
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:04.762Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 94
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:09.892Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:20.914Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:23.736Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:36.711Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 94
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:40.613Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 92
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:49:58.884Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 92
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:55:06.857Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 193,
+      "heapUsed": 153,
+      "external": 5,
+      "rss": 1492
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:57:22.018Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 168,
+      "external": 5,
+      "rss": 1504
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:57:40.744Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:57:55.553Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 92
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:04:11.929Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 115,
+      "heapUsed": 89,
+      "external": 4,
+      "rss": 938
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:04:14.198Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 145,
+      "heapUsed": 122,
+      "external": 5,
+      "rss": 1200
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:04:14.965Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 75,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 88
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:04:34.642Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 94
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:11:28.536Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:11:37.083Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 159,
+      "heapUsed": 136,
+      "external": 4,
+      "rss": 1359
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:14:11.030Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 173,
+      "heapUsed": 162,
+      "external": 4,
+      "rss": 1396
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:14:23.198Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 94
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:14:25.487Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 185,
+      "heapUsed": 147,
+      "external": 4,
+      "rss": 1374
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:23:37.234Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:24:06.671Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 94
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:24:12.253Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 92
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:24:24.336Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 194,
+      "heapUsed": 177,
+      "external": 5,
+      "rss": 1414
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:24:28.081Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:24:50.954Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:24:51.451Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.669Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 37,
+      "heapUsed": 22,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.618Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 37,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.796Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 40,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.813Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 65
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.714Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 38,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 66
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.781Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 64
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:27:56.908Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 71
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:28:02.479Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 32,
+      "external": 4,
+      "rss": 75
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:30:01.333Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 115,
+      "heapUsed": 86,
+      "external": 4,
+      "rss": 699
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:30:03.578Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 137,
+      "heapUsed": 114,
+      "external": 4,
+      "rss": 922
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:30:04.376Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:34:44.615Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:34:57.426Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:40:06.191Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:43:48.760Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 93
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T04:46:43.669Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 89
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:32:00.938Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 93,
+      "heapUsed": 85,
+      "external": 4,
+      "rss": 914
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:32:04.274Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 136,
+      "heapUsed": 109,
+      "external": 4,
+      "rss": 1172
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:32:05.179Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 75,
+      "heapUsed": 46,
+      "external": 3,
+      "rss": 91
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:32:14.726Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 96
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:32:17.239Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 95
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:33:30.942Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 96
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:34:59.291Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 176,
+      "heapUsed": 140,
+      "external": 4,
+      "rss": 1343
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:35:00.577Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 96
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:35:03.995Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 96
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:35:21.520Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 182,
+      "heapUsed": 143,
+      "external": 4,
+      "rss": 1354
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:35:22.562Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 95
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:37:01.470Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 172,
+      "heapUsed": 151,
+      "external": 4,
+      "rss": 1358
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:37:13.040Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 74,
+      "heapUsed": 49,
+      "external": 3,
+      "rss": 96
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:37:16.066Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 200,
+      "heapUsed": 174,
+      "external": 4,
+      "rss": 1403
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:37:17.766Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 76,
+      "heapUsed": 47,
+      "external": 3,
+      "rss": 95
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:07.080Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 68
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:06.995Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 37,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 68
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:07.100Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 39,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 69
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:07.033Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 29,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:06.978Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 28,
+      "heapUsed": 23,
+      "external": 3,
+      "rss": 67
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:07.217Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 41,
+      "heapUsed": 24,
+      "external": 3,
+      "rss": 71
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:07.321Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 44,
+      "heapUsed": 25,
+      "external": 4,
+      "rss": 74
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T16:43:14.487Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 45,
+      "heapUsed": 32,
+      "external": 4,
+      "rss": 78
+    }
+  }
+}

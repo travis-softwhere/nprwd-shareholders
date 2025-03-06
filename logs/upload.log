@@ -422,3 +422,95 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-06T02:34:18.741Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 49976d04-aeaf-42f8-9025-9182f6101643",
+  "metadata": {
+    "memory": {
+      "heapTotal": 174,
+      "heapUsed": 162,
+      "external": 4,
+      "rss": 1532
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:18.750Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 174,
+      "heapUsed": 163,
+      "external": 4,
+      "rss": 1532
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:18.754Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 815,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 174,
+      "heapUsed": 163,
+      "external": 4,
+      "rss": 1532
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:18.765Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "CSV parsed",
+  "metadata": {
+    "recordCount": 3,
+    "memory": {
+      "heapTotal": 174,
+      "heapUsed": 163,
+      "external": 4,
+      "rss": 1532
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:19.231Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Batch processed",
+  "metadata": {
+    "processedCount": 3,
+    "totalRecords": 3,
+    "memory": {
+      "heapTotal": 174,
+      "heapUsed": 164,
+      "external": 4,
+      "rss": 1533
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:34:19.297Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Upload completed",
+  "metadata": {
+    "duration": "0.56",
+    "totalRecords": 3,
+    "totalShareholders": 2,
+    "memory": {
+      "heapTotal": 174,
+      "heapUsed": 164,
+      "external": 4,
+      "rss": 1533
+    }
+  }
+}

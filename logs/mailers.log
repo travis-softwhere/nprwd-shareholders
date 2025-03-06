@@ -2560,3 +2560,493 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-06T02:35:07.302Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 200,
+      "heapUsed": 174,
+      "external": 4,
+      "rss": 1785
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:07.306Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Incoming headers: {\"accept\":\"application/pdf\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"cache-control\":\"max-age=0\",\"connection\":\"keep-alive\",\"content-length\":\"17\",\"content-type\":\"application/json\",\"cookie\":\"next-auth.csrf-token=f156f92821bb3199f4f8fead406bbfe2667c6994a906572a92b101032b38952a%7C46f2fe64b612bc03cd1dbb9394ab6092ecb3ce3ef238cc7afbb9ef090e6157a6; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..LNhjgvaVn6BZ_NUz.EonAcwnz7_3Kkn6L6s7cgH4qLvNdJkBz7Cqllb7-6TPk3bDFxzG2RGbTMWln8xT8fDMsbA2o1WQV5lzXrsw4gUWA8NvQi22I2meD-mPrPrRtUVPiGM-0UCevjz_2guWeqap0rqb00nzvWS8jtNQ-UX5Ci9Fd8Uevf8YqdUJ-lTbqOF_UpIK2KrwCy7KiXXQYhQqT3BCzrRzhzlVSxEug_avZnW3pgzhRMmgotXlgVGeCSiTKKDXWGN3RtDg5Ch6vu4MvntFGhHP-DG6gsQeuLTKYwEz-yoxs.Itj-eAZKvSS7F9DOkHgxlQ\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not(A:Brand\\\";v=\\\"99\\\", \\\"Google Chrome\\\";v=\\\"133\\\", \\\"Chromium\\\";v=\\\"133\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 200,
+      "heapUsed": 175,
+      "external": 4,
+      "rss": 1785
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:07.309Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Request body: {\"meetingId\":\"9\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 200,
+      "heapUsed": 175,
+      "external": 4,
+      "rss": 1785
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:07.508Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Total joined rows: 3",
+  "metadata": {
+    "memory": {
+      "heapTotal": 200,
+      "heapUsed": 175,
+      "external": 4,
+      "rss": 1785
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:07.511Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Found 2 unique shareholders",
+  "metadata": {
+    "memory": {
+      "heapTotal": 200,
+      "heapUsed": 175,
+      "external": 4,
+      "rss": 1785
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:07.663Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Generating final PDF...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 215,
+      "heapUsed": 184,
+      "external": 9,
+      "rss": 1800
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T02:35:07.680Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "PDF generation complete!",
+  "metadata": {
+    "memory": {
+      "heapTotal": 216,
+      "heapUsed": 185,
+      "external": 10,
+      "rss": 1799
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:49.814Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 186,
+      "heapUsed": 155,
+      "external": 4,
+      "rss": 1639
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:49.823Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Incoming headers: {\"accept\":\"application/pdf\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"cache-control\":\"max-age=0\",\"connection\":\"keep-alive\",\"content-length\":\"17\",\"content-type\":\"application/json\",\"cookie\":\"next-auth.csrf-token=f156f92821bb3199f4f8fead406bbfe2667c6994a906572a92b101032b38952a%7C46f2fe64b612bc03cd1dbb9394ab6092ecb3ce3ef238cc7afbb9ef090e6157a6; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..gn8sYWV6xBtGLdwp.eUZ_BMmnDVy39eXj2daYo7Ku5cJDsTjmUVfzhwmamEEU_35FKj_6oWCA6hYgZigxPfXeQ3JNgV7HVLXc9V5XEZLNws_E_fcgjBCayPIbwtOmNUpxv3n4eTK9XBRUThgM78znx8rnMhcFvhNamVmYu7Jgpe8BUmCMmKBPQqytEW2eNKwOUkmWEWz5Tek79o3l8JvzMuWmjUFKcky8BDy2NcpHNWVR9_SjlbXYFtq5_t-mAFqtduiNDsQDib0y_moDLvqHw1jsk6fiJQwadSr9eV-bJgxrkoie.TOAjPONvu5KVJmvrbk0tsA\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not(A:Brand\\\";v=\\\"99\\\", \\\"Google Chrome\\\";v=\\\"133\\\", \\\"Chromium\\\";v=\\\"133\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 186,
+      "heapUsed": 156,
+      "external": 4,
+      "rss": 1640
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:49.827Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Request body: {\"meetingId\":\"9\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 186,
+      "heapUsed": 156,
+      "external": 4,
+      "rss": 1640
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:49.904Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Total joined rows: 3",
+  "metadata": {
+    "memory": {
+      "heapTotal": 187,
+      "heapUsed": 157,
+      "external": 4,
+      "rss": 1639
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:49.908Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Found 2 unique shareholders",
+  "metadata": {
+    "memory": {
+      "heapTotal": 187,
+      "heapUsed": 157,
+      "external": 4,
+      "rss": 1639
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.051Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Generating final PDF...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 189,
+      "heapUsed": 153,
+      "external": 6,
+      "rss": 1668
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.066Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "PDF generation complete!",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 154,
+      "external": 7,
+      "rss": 1667
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.122Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 155,
+      "external": 7,
+      "rss": 1668
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.125Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Incoming headers: {\"accept\":\"application/pdf\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"cache-control\":\"max-age=0\",\"connection\":\"keep-alive\",\"content-length\":\"17\",\"content-type\":\"application/json\",\"cookie\":\"next-auth.csrf-token=f156f92821bb3199f4f8fead406bbfe2667c6994a906572a92b101032b38952a%7C46f2fe64b612bc03cd1dbb9394ab6092ecb3ce3ef238cc7afbb9ef090e6157a6; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..gn8sYWV6xBtGLdwp.eUZ_BMmnDVy39eXj2daYo7Ku5cJDsTjmUVfzhwmamEEU_35FKj_6oWCA6hYgZigxPfXeQ3JNgV7HVLXc9V5XEZLNws_E_fcgjBCayPIbwtOmNUpxv3n4eTK9XBRUThgM78znx8rnMhcFvhNamVmYu7Jgpe8BUmCMmKBPQqytEW2eNKwOUkmWEWz5Tek79o3l8JvzMuWmjUFKcky8BDy2NcpHNWVR9_SjlbXYFtq5_t-mAFqtduiNDsQDib0y_moDLvqHw1jsk6fiJQwadSr9eV-bJgxrkoie.TOAjPONvu5KVJmvrbk0tsA\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not(A:Brand\\\";v=\\\"99\\\", \\\"Google Chrome\\\";v=\\\"133\\\", \\\"Chromium\\\";v=\\\"133\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 155,
+      "external": 7,
+      "rss": 1668
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.128Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Request body: {\"meetingId\":\"9\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 155,
+      "external": 7,
+      "rss": 1668
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.207Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Total joined rows: 3",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 156,
+      "external": 7,
+      "rss": 1668
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.210Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Found 2 unique shareholders",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 156,
+      "external": 7,
+      "rss": 1668
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.266Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Generating final PDF...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 190,
+      "heapUsed": 164,
+      "external": 13,
+      "rss": 1673
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:26:50.274Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "PDF generation complete!",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 165,
+      "external": 13,
+      "rss": 1674
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.344Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 162,
+      "heapUsed": 132,
+      "external": 4,
+      "rss": 1459
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.348Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Incoming headers: {\"accept\":\"application/pdf\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"cache-control\":\"max-age=0\",\"connection\":\"keep-alive\",\"content-length\":\"17\",\"content-type\":\"application/json\",\"cookie\":\"next-auth.csrf-token=f156f92821bb3199f4f8fead406bbfe2667c6994a906572a92b101032b38952a%7C46f2fe64b612bc03cd1dbb9394ab6092ecb3ce3ef238cc7afbb9ef090e6157a6; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..yhc1nWYyfkihH48w.Xb3hbjGfCEaAEFhVBUffyTrIDfhTmqcE-g28_0EeFHx73Z4lOug9_3RsTuBryg72tQqw7m1Z5wUMnAPEZnEU-xfvOPwNsX1UTbtNqh_sj4N2e6mt9v6yQ4zX_THPGoQ4HsPwvxJk-KUtlZaX02J_OmhJ351IQ0k5Wp1iR5A07614ypbJAUdFCv88X8RG-HAqtZXAUX-6pzV348qKTKrFw3hum6tE4h7-s94nmVpTlWf9IX3ENhtTn0zZq9FbTUtWkkW0yG4ljB8aEtCtzuJMOb1vsjkSuaVP.PzBVe1PAJgRgXkYkZXHdZg\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not(A:Brand\\\";v=\\\"99\\\", \\\"Google Chrome\\\";v=\\\"133\\\", \\\"Chromium\\\";v=\\\"133\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 162,
+      "heapUsed": 132,
+      "external": 4,
+      "rss": 1459
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.352Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Request body: {\"meetingId\":\"9\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 162,
+      "heapUsed": 132,
+      "external": 4,
+      "rss": 1459
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.564Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Total joined rows: 3",
+  "metadata": {
+    "memory": {
+      "heapTotal": 162,
+      "heapUsed": 133,
+      "external": 4,
+      "rss": 1460
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.567Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Found 2 unique shareholders",
+  "metadata": {
+    "memory": {
+      "heapTotal": 162,
+      "heapUsed": 133,
+      "external": 4,
+      "rss": 1460
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.702Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Generating final PDF...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 165,
+      "heapUsed": 130,
+      "external": 6,
+      "rss": 1489
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:34:09.716Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "PDF generation complete!",
+  "metadata": {
+    "memory": {
+      "heapTotal": 166,
+      "heapUsed": 131,
+      "external": 7,
+      "rss": 1490
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:28.872Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Starting PDF generation process",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 126,
+      "external": 4,
+      "rss": 1444
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:28.875Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Incoming headers: {\"accept\":\"application/pdf\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"accept-language\":\"en-US,en;q=0.9\",\"cache-control\":\"max-age=0\",\"connection\":\"keep-alive\",\"content-length\":\"17\",\"content-type\":\"application/json\",\"cookie\":\"next-auth.csrf-token=f156f92821bb3199f4f8fead406bbfe2667c6994a906572a92b101032b38952a%7C46f2fe64b612bc03cd1dbb9394ab6092ecb3ce3ef238cc7afbb9ef090e6157a6; next-auth.callback-url=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsignin; next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..yhc1nWYyfkihH48w.Xb3hbjGfCEaAEFhVBUffyTrIDfhTmqcE-g28_0EeFHx73Z4lOug9_3RsTuBryg72tQqw7m1Z5wUMnAPEZnEU-xfvOPwNsX1UTbtNqh_sj4N2e6mt9v6yQ4zX_THPGoQ4HsPwvxJk-KUtlZaX02J_OmhJ351IQ0k5Wp1iR5A07614ypbJAUdFCv88X8RG-HAqtZXAUX-6pzV348qKTKrFw3hum6tE4h7-s94nmVpTlWf9IX3ENhtTn0zZq9FbTUtWkkW0yG4ljB8aEtCtzuJMOb1vsjkSuaVP.PzBVe1PAJgRgXkYkZXHdZg\",\"host\":\"localhost:3000\",\"origin\":\"http://localhost:3000\",\"referer\":\"http://localhost:3000/\",\"sec-ch-ua\":\"\\\"Not(A:Brand\\\";v=\\\"99\\\", \\\"Google Chrome\\\";v=\\\"133\\\", \\\"Chromium\\\";v=\\\"133\\\"\",\"sec-ch-ua-mobile\":\"?0\",\"sec-ch-ua-platform\":\"\\\"Windows\\\"\",\"sec-fetch-dest\":\"empty\",\"sec-fetch-mode\":\"cors\",\"sec-fetch-site\":\"same-origin\",\"user-agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\",\"x-forwarded-for\":\"::1\",\"x-forwarded-host\":\"localhost:3000\",\"x-forwarded-port\":\"3000\",\"x-forwarded-proto\":\"http\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 126,
+      "external": 4,
+      "rss": 1444
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:28.878Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Request body: {\"meetingId\":\"9\"}",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 126,
+      "external": 4,
+      "rss": 1444
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:29.191Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Total joined rows: 3",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 126,
+      "external": 4,
+      "rss": 1444
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:29.197Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Found 2 unique shareholders",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 126,
+      "external": 4,
+      "rss": 1444
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:29.293Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "Generating final PDF...",
+  "metadata": {
+    "memory": {
+      "heapTotal": 136,
+      "heapUsed": 128,
+      "external": 6,
+      "rss": 1449
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T03:39:29.301Z",
+  "level": "INFO",
+  "category": "mailers",
+  "message": "PDF generation complete!",
+  "metadata": {
+    "memory": {
+      "heapTotal": 137,
+      "heapUsed": 128,
+      "external": 7,
+      "rss": 1449
+    }
+  }
+}

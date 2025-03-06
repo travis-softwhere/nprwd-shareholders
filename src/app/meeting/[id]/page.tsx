@@ -1,8 +1,9 @@
+// app/meeting/[id]/page.tsx
 "use client";
 
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useMeeting } from "@/contexts/MeetingContext";
+import { useMeeting } from "@/contexts/MeetingContext"; // adjust path if needed
 import { PrintMailersButton } from "@/components/PrintMailersButton";
 
 export default function MeetingPage() {
@@ -10,10 +11,14 @@ export default function MeetingPage() {
   const { id } = params as { id: string };
   const { meetings, selectedMeeting, setSelectedMeeting } = useMeeting();
 
+  // Log meeting data from context
+  console.log("MeetingPage: meetings from context:", meetings);
+  console.log("MeetingPage: URL id:", id);
+
   useEffect(() => {
     if (meetings.length > 0 && !selectedMeeting) {
-      // Find the meeting whose id matches the URL parameter
       const meeting = meetings.find((m) => m.id === id);
+      console.log("MeetingPage: Found meeting:", meeting);
       if (meeting) {
         setSelectedMeeting(meeting);
       }
@@ -24,12 +29,13 @@ export default function MeetingPage() {
     return <div>Loading meeting data...</div>;
   }
 
+  console.log("MeetingPage: Selected meeting:", selectedMeeting);
+
   return (
-    <div className="container mx-auto p-6">
+    <div>
       <h1>Meeting on {selectedMeeting.date}</h1>
       <p>Total Shareholders: {selectedMeeting.totalShareholders}</p>
-      {/* Pass the meeting id (from the Meeting object) to the PrintMailersButton */}
-      <PrintMailersButton meetingId={selectedMeeting.id} />
+      <PrintMailersButton meetingId={selectedMeeting.id} onComplete={() => {}} />
     </div>
   );
 }

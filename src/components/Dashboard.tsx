@@ -41,6 +41,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   const router = useRouter();
   const { meetings, selectedMeeting } = useMeeting();
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // Local state to track attendance so that the pie chart updates dynamically.
+  const [attendance, setAttendance] = useState({
+    total: totalShareholders,
+    checkedIn: checkedInCount,
+  });
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -90,11 +98,47 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
   
 
-  const handleBarcodeSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleBarcodeSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (barcodeInput) {
+    if (!barcodeInput) return;
+    
+    setLoading(true);
+    setError("");
+    
+    try {
+      console.log("Attempting check-in for shareholder:", barcodeInput);
+      const response = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shareholderId: barcodeInput }),
+      });
+      
+      const data = await response.json();
+      console.log("Check-in response:", data);
+      
+      if (!response.ok) {
+        console.error("Check-in failed:", data.error);
+        setError(data.error || "Check-in failed.");
+        return;
+      }
+
+      // Update local attendance state with the returned meeting data
+      if (data.meeting) {
+        console.log("Updating attendance with:", data.meeting);
+        setAttendance({
+          total: data.meeting.total_shareholders || attendance.total,
+          checkedIn: data.meeting.checked_in || attendance.checkedIn,
+        });
+      }
+
+      // Navigate to the shareholder detail page
       router.push(`/shareholders/${barcodeInput}`);
       setBarcodeInput("");
+    } catch (err) {
+      console.error("Error during check-in", err);
+      setError("An error occurred during check-in.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -230,21 +274,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
       </div>
 
-      {/* Barcode Scanner Input */}
+      {/* Quick Check-In Card */}
       <Card>
         <CardHeader>
           <CardTitle>Quick Check-In</CardTitle>
-          <CardDescription>Scan shareholder barcode to view details</CardDescription>
+          <CardDescription>
+            Scan shareholder barcode to check in and view details
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (barcodeInput) {
-                router.push(`/shareholders/${barcodeInput}`);
-                setBarcodeInput("");
-              }
-            }}
+            onSubmit={handleBarcodeSubmit}
             className="flex flex-col items-center space-y-4"
           >
             <Input
@@ -255,10 +295,13 @@ const Dashboard: React.FC<DashboardProps> = ({
               className="w-full max-w-md text-center text-lg"
               autoFocus
             />
-            <Button type="submit" className="w-full max-w-md">
-              Submit
+            <Button type="submit" className="w-full max-w-md" disabled={loading}>
+              {loading ? "Checking In..." : "Submit"}
             </Button>
           </form>
+          {error && (
+            <p className="mt-2 text-red-600 text-center">{error}</p>
+          )}
         </CardContent>
       </Card>
     </div>

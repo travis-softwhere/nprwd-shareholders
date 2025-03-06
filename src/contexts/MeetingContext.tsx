@@ -4,11 +4,15 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { getMeetings } from "@/actions/getMeetings";
 import type { Meeting } from "@/types/meeting";
 
-interface MeetingContextType {
+// Re-export the Meeting type so it can be imported from this module
+export type { Meeting };
+
+export interface MeetingContextType {
   meetings: Meeting[];
   selectedMeeting: Meeting | null;
   setSelectedMeeting: (meeting: Meeting | null) => void;
   refreshMeetings: () => Promise<void>;
+  setMeetings: React.Dispatch<React.SetStateAction<Meeting[]>>;
 }
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
@@ -21,7 +25,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await getMeetings();
       setMeetings(data);
-      // Optionally set the first meeting as selected
+      // Optionally, set the first meeting as selected if none is selected
       if (data.length > 0 && !selectedMeeting) {
         setSelectedMeeting(data[0]);
       }
@@ -38,6 +42,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     <MeetingContext.Provider
       value={{
         meetings,
+        setMeetings,
         selectedMeeting,
         setSelectedMeeting,
         refreshMeetings,
