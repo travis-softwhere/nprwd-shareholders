@@ -50,8 +50,8 @@ export default function SignIn() {
         <div className="flex min-h-screen items-center justify-center bg-gray-100">
             <Card className="w-[400px]">
                 <CardHeader>
-                    <CardTitle>Welcome to SeeStudents</CardTitle>
-                    <CardDescription>Sign in to connect with students around the world</CardDescription>
+                    <CardTitle>Aquashare Login</CardTitle>
+                    <CardDescription>NPRWD</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">

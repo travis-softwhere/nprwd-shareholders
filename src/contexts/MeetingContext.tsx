@@ -1,78 +1,57 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useState, useCallback, useEffect } from "react"
-import { getMeetings } from "@/actions/getMeetings"
-
-export interface Meeting {
-    id: string
-    year: number
-    date: string
-    totalShareholders: number
-    checkedIn: number
-    dataSource: "excel" | "database"
-    hasInitialData: boolean
-    mailersGenerated: boolean
-    mailerGenerationDate: string | null
-    createdAt: string
-}
+import { createContext, useContext, useState, useEffect } from "react";
+import { getMeetings } from "@/actions/getMeetings";
+import type { Meeting } from "@/types/meeting";
 
 interface MeetingContextType {
-    selectedMeeting: Meeting | null
-    setSelectedMeeting: (meeting: Meeting | null) => void
-    isDataLoaded: boolean
-    setIsDataLoaded: (loaded: boolean) => void
-    refreshMeetings: () => Promise<void>
-    meetings: Meeting[]
-    setMeetings: React.Dispatch<React.SetStateAction<Meeting[]>>
+  meetings: Meeting[];
+  selectedMeeting: Meeting | null;
+  setSelectedMeeting: (meeting: Meeting | null) => void;
+  refreshMeetings: () => Promise<void>;
 }
 
-const MeetingContext = createContext<MeetingContextType | undefined>(undefined)
+const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 
 export function MeetingProvider({ children }: { children: React.ReactNode }) {
-    const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
-    const [isDataLoaded, setIsDataLoaded] = useState(false)
-    const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
 
-    const refreshMeetings = useCallback(async () => {
-        try {
-            const fetchedMeetings = await getMeetings()
-            setMeetings(fetchedMeetings)
-            const hasData = fetchedMeetings.some((meeting) => meeting.totalShareholders > 0)
-            setIsDataLoaded(hasData)
-            setSelectedMeeting((prevSelected) =>
-                prevSelected && !fetchedMeetings.find((m) => m.id === prevSelected.id) ? null : prevSelected,
-            )
-        } catch (error) {
-            console.error("Error refreshing meetings:", error)
-        }
-    }, [])
+  const refreshMeetings = async () => {
+    try {
+      const data = await getMeetings();
+      setMeetings(data);
+      // Optionally set the first meeting as selected
+      if (data.length > 0 && !selectedMeeting) {
+        setSelectedMeeting(data[0]);
+      }
+    } catch (error) {
+      console.error("Error refreshing meetings:", error);
+    }
+  };
 
-    useEffect(() => {
-        refreshMeetings()
-    }, [refreshMeetings])
+  useEffect(() => {
+    refreshMeetings();
+  }, []);
 
-    return (
-        <MeetingContext.Provider
-            value={{
-                selectedMeeting,
-                setSelectedMeeting,
-                isDataLoaded,
-                setIsDataLoaded,
-                refreshMeetings,
-                meetings,
-                setMeetings,
-            }}
-        >
-            {children}
-        </MeetingContext.Provider>
-    )
+  return (
+    <MeetingContext.Provider
+      value={{
+        meetings,
+        selectedMeeting,
+        setSelectedMeeting,
+        refreshMeetings,
+      }}
+    >
+      {children}
+    </MeetingContext.Provider>
+  );
 }
 
 export function useMeeting() {
-    const context = useContext(MeetingContext)
-    if (context === undefined) {
-        throw new Error("useMeeting must be used within a MeetingProvider")
-    }
-    return context
+  const context = useContext(MeetingContext);
+  if (context === undefined) {
+    throw new Error("useMeeting must be used within a MeetingProvider");
+  }
+  return context;
 }
