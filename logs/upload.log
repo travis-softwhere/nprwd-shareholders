@@ -514,3 +514,211 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-06T17:05:40.081Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 9e95a383-a21b-4c0a-8cb6-631041e58723",
+  "metadata": {
+    "memory": {
+      "heapTotal": 166,
+      "heapUsed": 149,
+      "external": 4,
+      "rss": 1399
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:05:40.121Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 166,
+      "heapUsed": 149,
+      "external": 4,
+      "rss": 1400
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:05:40.148Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 757,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 167,
+      "heapUsed": 145,
+      "external": 4,
+      "rss": 1396
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:05:40.418Z",
+  "level": "ERROR",
+  "category": "upload",
+  "message": "Upload failed: Error: Failed to parse CSV: Error: Invalid Record Length: columns length is 13, got 14 on line 2",
+  "metadata": {
+    "memory": {
+      "heapTotal": 193,
+      "heapUsed": 160,
+      "external": 4,
+      "rss": 1432
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:09:29.367Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 14fd340b-c028-4a07-b09a-c10af593f067",
+  "metadata": {
+    "memory": {
+      "heapTotal": 122,
+      "heapUsed": 115,
+      "external": 4,
+      "rss": 1035
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:09:29.379Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 122,
+      "heapUsed": 115,
+      "external": 4,
+      "rss": 1035
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:09:29.382Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 2795,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 122,
+      "heapUsed": 115,
+      "external": 4,
+      "rss": 1035
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:09:29.740Z",
+  "level": "ERROR",
+  "category": "upload",
+  "message": "Upload failed: Error: Failed to parse CSV: Error: Invalid Record Length: columns length is 13, got 14 on line 2",
+  "metadata": {
+    "memory": {
+      "heapTotal": 167,
+      "heapUsed": 138,
+      "external": 4,
+      "rss": 1082
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:16:05.048Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Starting upload 204712ec-73c4-4501-b03f-82f6f14f6517",
+  "metadata": {
+    "memory": {
+      "heapTotal": 125,
+      "heapUsed": 116,
+      "external": 4,
+      "rss": 1038
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:16:05.059Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "FormData received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 123,
+      "heapUsed": 114,
+      "external": 4,
+      "rss": 1038
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:16:05.063Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "File content read",
+  "metadata": {
+    "contentLength": 2260,
+    "firstLine": "account,# of,customer_name,customer_mailing_address,city_state_zip,owner_name,owner_mailing_address,owner_city_state_zip,resident_name,resident_mailing_address,resident_city_state_zip,service_address,checked_in\r",
+    "memory": {
+      "heapTotal": 123,
+      "heapUsed": 114,
+      "external": 4,
+      "rss": 1038
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:16:05.073Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "CSV parsed",
+  "metadata": {
+    "recordCount": 15,
+    "memory": {
+      "heapTotal": 123,
+      "heapUsed": 114,
+      "external": 4,
+      "rss": 1038
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:16:05.598Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Batch processed",
+  "metadata": {
+    "processedCount": 15,
+    "totalRecords": 15,
+    "memory": {
+      "heapTotal": 134,
+      "heapUsed": 115,
+      "external": 4,
+      "rss": 1042
+    }
+  }
+}
+{
+  "timestamp": "2025-03-06T17:16:05.678Z",
+  "level": "INFO",
+  "category": "upload",
+  "message": "Upload completed",
+  "metadata": {
+    "duration": "0.63",
+    "totalRecords": 15,
+    "totalShareholders": 5,
+    "memory": {
+      "heapTotal": 134,
+      "heapUsed": 115,
+      "external": 4,
+      "rss": 1042
+    }
+  }
+}

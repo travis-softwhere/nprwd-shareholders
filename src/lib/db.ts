@@ -7,13 +7,13 @@ if (typeof window !== "undefined") {
     throw new Error("This module can only be used server-side")
 }
 
-if (!process.env.DATABASE_URL) {
+if (!process.env.DATABASE_URL_DEV) {
     logToFile("database", "DATABASE_URL environment variable is not set", LogLevel.ERROR)
     throw new Error("DATABASE_URL environment variable is not set")
 }
 
 // Initialize Neon serverless SQL connection
-const sql = neon(process.env.DATABASE_URL)
+const sql = neon(process.env.DATABASE_URL_DEV)
 
 // Create Drizzle instance with Neon HTTP driver
 export const db = drizzle(sql)
