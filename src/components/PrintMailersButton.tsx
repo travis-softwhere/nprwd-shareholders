@@ -7,8 +7,9 @@ import { Printer, Loader2 } from "lucide-react";
 
 interface PrintMailersButtonProps {
   meetingId: string;
-  onComplete?: () => Promise<void> | void;
+  onComplete: () => Promise<void> | void;
   disabled?: boolean;
+  isPrinting?: boolean;
   className?: string;
 }
 
@@ -96,7 +97,8 @@ export function PrintMailersButton({
       console.error("Print mailers error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate mailers",
+        description:
+          error instanceof Error ? error.message : "Failed to generate mailers",
         variant: "destructive",
       });
     } finally {
@@ -112,7 +114,11 @@ export function PrintMailersButton({
       variant="default"
       type="button"
     >
-      {isPrinting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
+      {isPrinting ? (
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+      ) : (
+        <Printer className="h-4 w-4 mr-2" />
+      )}
       {isPrinting ? "Generating..." : "Print Mailers"}
     </Button>
   );

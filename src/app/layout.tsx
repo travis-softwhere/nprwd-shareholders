@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster"
 import Providers from "@/components/Providers"
 import "@/app/globals.css"
 
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
