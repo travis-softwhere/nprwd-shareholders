@@ -30,9 +30,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from "next-auth/react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { Metadata } from "next";
+import { EmployeeList } from "@/components/EmployeeList";
+import { Separator } from "@/components/ui/separator";
+
+
 
 export default function AdminPage() {
   const { data: session } = useSession();
+  const { toast } = useToast();
 
   // Destructure the properties provided by the MeetingContext.
   const { selectedMeeting, setSelectedMeeting, meetings, setMeetings } = useMeeting();
@@ -48,6 +57,13 @@ export default function AdminPage() {
   // Refs to track ongoing upload
   const abortControllerRef = useRef<AbortController | null>(null);
   const uploadInProgressRef = useRef<boolean>(false);
+
+  // Add Employee state
+  const [newEmployee, setNewEmployee] = useState({
+    fullName: "",
+    email: "",
+  });
+  const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
 
   // Cleanup function for uploads
   const cleanupUpload = useCallback(() => {
@@ -211,6 +227,49 @@ export default function AdminPage() {
   const showDataChanges =
     selectedMeeting && selectedMeeting.mailersGenerated;
 
+  // Handle employee creation
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingEmployee(true);
+
+    try {
+      console.log("Making API call to create employee...");
+      const response = await fetch("/api/create-employee", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newEmployee),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create employee");
+      }
+
+      toast({
+        title: "Success",
+        description: "Employee created successfully"
+      });
+
+      // Reset form
+      setNewEmployee({
+        fullName: "",
+        email: "",
+      });
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create employee"
+      });
+    } finally {
+      setIsCreatingEmployee(false);
+    }
+  };
+
   // Redirect if not admin
   if (session?.user?.isAdmin !== true) {
     return (
@@ -223,13 +282,154 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="space-y-6 p-6 pb-16">
+      <div className="space-y-0.5">
+        <h2 className="text-2xl font-bold tracking-tight">Admin Dashboard</h2>
+        <p className="text-muted-foreground">
+          Manage employees and system settings
+        </p>
+      </div>
+      <Separator />
+      
+      {/* Employee List - Full Width */}
+      <div className="w-full">
+        <EmployeeList />
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Left column */}
+        {/* Left Column */}
         <div className="space-y-6">
-          {/* Upload data for selected meeting */}
+          {/* Add Employee Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Employee</CardTitle>
+              <CardDescription>Create a new employee account</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateEmployee} className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      placeholder="Enter employee's full name"
+                      value={newEmployee.fullName}
+                      onChange={(e) => setNewEmployee(prev => ({ ...prev, fullName: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter employee's email"
+                      value={newEmployee.email}
+                      onChange={(e) => setNewEmployee(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={isCreatingEmployee}>
+                  {isCreatingEmployee ? "Creating..." : "Add Employee"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Shareholder Meetings Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Shareholder Meetings</CardTitle>
+              <CardDescription>Select a meeting to manage</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Create a new meeting */}
+              <CreateMeetingForm
+                onSuccess={(meeting) => {
+                  setMeetings((prev: any[]) => [...prev, meeting]);
+                }}
+              />
+
+              {/* List existing meetings */}
+              <div className="space-y-4">
+                {meetings.map((meeting) => (
+                  <div
+                    key={meeting.id}
+                    className={cn(
+                      "flex w-full items-center justify-between p-4 rounded-lg border transition-colors",
+                      selectedMeetingId === meeting.id ? "border-blue-500 bg-blue-50" : "hover:border-gray-300"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="flex-1 text-left"
+                      onClick={() => {
+                        if (!isUploading) {
+                          setSelectedMeetingId(selectedMeetingId === meeting.id ? null : meeting.id);
+                        }
+                      }}
+                    >
+                      <div>
+                        <h3 className="font-semibold">
+                          {meeting.year} Annual Meeting
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(meeting.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">
+                            {meeting.checkedIn} / {meeting.totalShareholders} Checked In
+                          </p>
+                        </div>
+                        {selectedMeetingId === meeting.id && (
+                          <Check className="h-5 w-5 text-blue-500" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Delete Meeting */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="ml-2 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Meeting</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this meeting? This action cannot be undone. All associated shareholder data will be permanently deleted.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-500 hover:bg-red-600"
+                            onClick={() => handleDelete(meeting.id)}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Upload Data Card */}
           {showUploadComponent && (
             <Card>
               <CardHeader>
@@ -296,105 +496,15 @@ export default function AdminPage() {
           {/* Print Mailers Button */}
           {showMailersButton && (
             <PrintMailersButton
-                meetingId={selectedMeeting.id}
-                onComplete={refreshMeetings}
-                disabled={!selectedMeeting}
-        />
-        )}
-
+              meetingId={selectedMeeting.id}
+              onComplete={refreshMeetings}
+              disabled={!selectedMeeting}
+            />
+          )}
 
           {/* Show Data Changes after mailers generated */}
           {showDataChanges && <DataChanges meetingId={selectedMeeting.id} />}
         </div>
-
-        {/* Right column: List of meetings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Shareholder Meetings</CardTitle>
-            <CardDescription>Select a meeting to manage</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Create a new meeting */}
-            <CreateMeetingForm
-              onSuccess={(meeting) => {
-                setMeetings((prev: any[]) => [...prev, meeting]);
-              }}
-            />
-
-            {/* List existing meetings */}
-            <div className="space-y-4">
-              {meetings.map((meeting) => (
-                <div
-                  key={meeting.id}
-                  className={cn(
-                    "flex w-full items-center justify-between p-4 rounded-lg border transition-colors",
-                    selectedMeetingId === meeting.id ? "border-blue-500 bg-blue-50" : "hover:border-gray-300"
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="flex-1 text-left"
-                    onClick={() => {
-                      if (!isUploading) {
-                        setSelectedMeetingId(meeting.id);
-                      }
-                    }}
-                  >
-                    <div>
-                      <h3 className="font-semibold">
-                        {meeting.year} Annual Meeting
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {new Date(meeting.date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500">
-                          {meeting.checkedIn} / {meeting.totalShareholders} Checked In
-                        </p>
-                      </div>
-                      {selectedMeetingId === meeting.id && (
-                        <Check className="h-5 w-5 text-blue-500" />
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Delete Meeting */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="ml-2 text-red-500 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Meeting</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this meeting? This action cannot be undone. All associated shareholder data will be permanently deleted.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-red-500 hover:bg-red-600"
-                          onClick={() => handleDelete(meeting.id)}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

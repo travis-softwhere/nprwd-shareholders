@@ -26,16 +26,24 @@ export default function MeetingPage() {
   }, [meetings, selectedMeeting, id, setSelectedMeeting]);
 
   if (!selectedMeeting) {
-    return <div>Loading meeting data...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-lg text-gray-500">Loading...</p>
+      </div>
+    );
   }
 
   console.log("MeetingPage: Selected meeting:", selectedMeeting);
 
   return (
-    <div>
+    <div className="container mx-auto p-6">
       <h1>Meeting on {selectedMeeting.date}</h1>
       <p>Total Shareholders: {selectedMeeting.totalShareholders}</p>
-      <PrintMailersButton meetingId={selectedMeeting.id} onComplete={() => {}} />
+      <PrintMailersButton 
+        meetingId={selectedMeeting.id} 
+        onComplete={() => {}} 
+        disabled={false}
+      />
     </div>
   );
 }

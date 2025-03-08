@@ -33,7 +33,6 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("shareholderId")
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
-    const [barcodeInput, setBarcodeInput] = useState("")
     const [propertyFilter, setPropertyFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
 
@@ -119,17 +118,6 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         )
     }
 
-    const handleBarcodeSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        const shareholder = shareholders.find((s) => s.shareholderId === barcodeInput)
-        if (shareholder) {
-            router.push(`/shareholders/${shareholder.shareholderId}`)
-        } else {
-            alert("Shareholder not found")
-        }
-        setBarcodeInput("")
-    }
-
     const handleRowClick = (shareholderId: string) => {
         router.push(`/shareholders/${shareholderId}`)
     }
@@ -183,15 +171,6 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <option value="not-checked-in">Partially/Not Checked In</option>
                 </select>
             </div>
-            <form onSubmit={handleBarcodeSubmit} className="mb-6">
-                <input
-                    type="text"
-                    placeholder="Scan barcode"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={barcodeInput}
-                    onChange={(e) => setBarcodeInput(e.target.value)}
-                />
-            </form>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">

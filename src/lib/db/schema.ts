@@ -1,13 +1,5 @@
 import { integer, pgTable, serial, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core"
 
-export const users = pgTable("users", {
-    id: serial("id").primaryKey(),
-    name: text("name"),
-    email: text("email").notNull().unique(),
-    isAdmin: boolean("isAdmin").default(false),
-    createdAt: timestamp("created_at").defaultNow(),
-})
-
 export const meetings = pgTable("meetings", {
     id: serial("id").primaryKey(),
     year: integer("year").notNull(),
