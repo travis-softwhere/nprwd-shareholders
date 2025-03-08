@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,54 +19,128 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/components/ui/use-toast"
 
 interface User {
     id: string
     username: string
     email: string
-    createdAt: string
+    firstName: string
+    lastName: string
+    enabled: boolean
 }
 
 export default function UsersPage() {
     const { data: session } = useSession()
+    const { toast } = useToast()
     const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [newUser, setNewUser] = useState({
-        username: "",
+        fullName: "",
         email: "",
-        firstName: "",
-        lastName: "",
     })
+
+    // Fetch users on component mount
+    useEffect(() => {
+        fetchUsers()
+    }, [])
+
+    const fetchUsers = async () => {
+        try {
+            const response = await fetch("/api/users")
+            if (!response.ok) throw new Error("Failed to fetch users")
+            const data = await response.json()
+            console.log("Fetched users:", data)
+            setUsers(data.users)
+        } catch (err) {
+            console.error("Error fetching users:", err)
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to fetch users"
+            })
+        }
+    }
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault()
-        setLoading(true)
-        setError(null)
+        
+        // Check if we have a session and if the user is an admin
+        if (!session || !session.user?.isAdmin) {
+            console.error("No session or user is not admin");
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "You must be logged in as an admin to create users"
+            });
+            return;
+        }
+
+        console.log("Session check passed:", session);
+        console.log("Form submitted with data:", newUser);
+        setLoading(true);
+        setError(null);
+
+        if (!newUser.fullName.includes(" ")) {
+            setError("Full name must include both first and last name");
+            setLoading(false);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Full name must include both first and last name"
+            });
+            return;
+        }
 
         try {
-            const response = await fetch("/api/users", {
+            console.log("Making API call to create employee...");
+            const response = await fetch("/api/create-employee", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
+                credentials: "include", // Include cookies for authentication
                 body: JSON.stringify(newUser),
-            })
+            });
 
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.message || "Failed to create user")
+            console.log("API response status:", response.status);
+            const responseText = await response.text();
+            console.log("Raw response:", responseText);
+
+            let responseData;
+            try {
+                responseData = JSON.parse(responseText);
+                console.log("API response data:", responseData);
+            } catch (e) {
+                console.error("Failed to parse response as JSON:", e);
+                throw new Error("Invalid response from server");
             }
 
-            const createdUser = await response.json()
-            setUsers((prev) => [...prev, createdUser])
-            setNewUser({ username: "", email: "", firstName: "", lastName: "" })
+            if (!response.ok) {
+                throw new Error(responseData.error || "Failed to create user");
+            }
+
+            setUsers((prev) => [...prev, responseData.user]);
+            setNewUser({ fullName: "", email: "" });
+            toast({
+                title: "Success",
+                description: "User created successfully"
+            });
+            fetchUsers(); // Refresh the user list
         } catch (err) {
-            setError(err instanceof Error ? err.message : "An error occurred")
+            console.error("Error creating user:", err);
+            const message = err instanceof Error ? err.message : "Failed to create user";
+            setError(message);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: message
+            });
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const handleDeleteUser = async (userId: string) => {
         try {
@@ -79,8 +153,17 @@ export default function UsersPage() {
             }
 
             setUsers((prev) => prev.filter((user) => user.id !== userId))
+            toast({
+                title: "Success",
+                description: "User deleted successfully"
+            })
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to delete user")
+            console.error("Error deleting user:", err)
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to delete user"
+            })
         }
     }
 
@@ -105,32 +188,13 @@ export default function UsersPage() {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleCreateUser} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="firstName">First Name</Label>
-                                    <Input
-                                        id="firstName"
-                                        value={newUser.firstName}
-                                        onChange={(e) => setNewUser((prev) => ({ ...prev, firstName: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="lastName">Last Name</Label>
-                                    <Input
-                                        id="lastName"
-                                        value={newUser.lastName}
-                                        onChange={(e) => setNewUser((prev) => ({ ...prev, lastName: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                            </div>
                             <div className="space-y-2">
-                                <Label htmlFor="username">Username</Label>
+                                <Label htmlFor="fullName">Full Name</Label>
                                 <Input
-                                    id="username"
-                                    value={newUser.username}
-                                    onChange={(e) => setNewUser((prev) => ({ ...prev, username: e.target.value }))}
+                                    id="fullName"
+                                    value={newUser.fullName}
+                                    onChange={(e) => setNewUser((prev) => ({ ...prev, fullName: e.target.value }))}
+                                    placeholder="John Doe"
                                     required
                                 />
                             </div>
@@ -141,6 +205,7 @@ export default function UsersPage() {
                                     type="email"
                                     value={newUser.email}
                                     onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))}
+                                    placeholder="john.doe@example.com"
                                     required
                                 />
                             </div>
@@ -169,8 +234,9 @@ export default function UsersPage() {
                                     className="flex items-center justify-between p-4 rounded-lg border hover:border-gray-300"
                                 >
                                     <div>
-                                        <p className="font-medium">{user.username}</p>
+                                        <p className="font-medium">{user.firstName} {user.lastName}</p>
                                         <p className="text-sm text-gray-500">{user.email}</p>
+                                        <p className="text-xs text-gray-400">Username: {user.username}</p>
                                     </div>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>

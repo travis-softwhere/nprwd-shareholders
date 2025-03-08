@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -248,26 +248,29 @@ const Dashboard: React.FC<DashboardProps> = ({
         {/* Mailer Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Mailer Status</CardTitle>
-            <CardDescription>Meeting notifications</CardDescription>
+            <CardTitle>Meeting Notifications</CardTitle>
+            <CardDescription>Generate and print meeting invitations for shareholders</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center space-y-4">
-              <div className="flex items-center space-x-2">
-                {mailersStatus ? (
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                ) : (
-                  <XCircle className="h-8 w-8 text-red-500" />
-                )}
-                <span className="text-lg">
-                  {mailersStatus ? "Mailers Sent" : "Mailers Not Sent"}
-                </span>
+              <div className="text-center space-y-2">
+                <p className="text-sm text-gray-500">
+                  Generate personalized meeting invitations for all shareholders, including their unique check-in codes.
+                </p>
               </div>
               <Button
                 onClick={handlePrintMailers}
-                variant={mailersStatus ? "outline" : "default"}
+                className="w-full max-w-xs"
+                disabled={loading}
               >
-                {mailersStatus ? "Reprint Mailers" : "Print Mailers"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  'Generate Invitations'
+                )}
               </Button>
             </div>
           </CardContent>
