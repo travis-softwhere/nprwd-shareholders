@@ -1,28 +1,30 @@
 import type { ReactNode } from "react"
 import { Toaster } from "@/components/ui/toaster"
 import Providers from "@/components/Providers"
-import { Metadata } from "next"
+import { Metadata, Viewport } from "next"
 import "@/app/globals.css"
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+}
+
 export const metadata: Metadata = {
-  title: "AquaShare - NPRWD Shareholder Portal",
+  title: "AquaShare",
   description: "A portal for NPRWD shareholders to view and manage their accounts and meetings",
   icons: {
     icon: [
+      { url: "/favicon.png", type: "image/png" },
       { url: "/logo.png", sizes: "32x32", type: "image/png" },
       { url: "/logo.png", sizes: "16x16", type: "image/png" },
     ],
     apple: [
       { url: "/logo.png", sizes: "180x180", type: "image/png" },
     ],
-    shortcut: { url: "/logo.png" },
+    shortcut: { url: "/favicon.png" },
   },
   manifest: "/manifest.json",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
   applicationName: "AquaShare",
   keywords: ["NPRWD", "shareholders", "meetings", "water district", "utility"],
   authors: [{ name: "NPRWD", url: "https://nprwd.com" }],
@@ -41,6 +43,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.png" type="image/png" />
+      </head>
       <body>
         <Providers>{children}</Providers>
         <Toaster />
