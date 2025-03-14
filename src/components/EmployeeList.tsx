@@ -45,10 +45,18 @@ export function EmployeeList() {
   const handleResetPassword = async (userId: string) => {
     setActionInProgress(userId);
     try {
-      const response = await fetch(`/api/users/${userId}/reset-password`, {
+      // Find the employee with the matching userId
+      const employee = employees.find(emp => emp.id === userId);
+      if (!employee) throw new Error("Employee not found");
+  
+      // Send both userId and email to the endpoint
+      const response = await fetch(`/api/reset-password/initiate`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: employee.id, email: employee.email }),
       });
-      if (!response.ok) throw new Error('Failed to reset password');
+  
+      if (!response.ok) throw new Error('Failed to initiate password reset');
       toast.success('Password reset email sent');
     } catch (error) {
       toast.error('Failed to send password reset email');
@@ -57,6 +65,8 @@ export function EmployeeList() {
       setActionInProgress(null);
     }
   };
+  
+  
 
   const handleRemoveEmployee = async (userId: string) => {
     if (!confirm('Are you sure you want to remove this employee?')) return;
