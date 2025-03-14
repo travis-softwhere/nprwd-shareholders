@@ -25,7 +25,7 @@ export async function DELETE(
         const kcAdmin = await authenticateAdmin();
         await kcAdmin.users.del({ 
             id: userId,
-            realm: process.env.KEYCLOAK_REALM || "nprwd-realm"
+            realm: process.env.KEYCLOAK_REALM || "nprwd-dev-realm"
         });
 
         return NextResponse.json({ success: true });

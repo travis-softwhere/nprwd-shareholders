@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         // Create user in Keycloak
         console.log('Creating user in Keycloak...');
         const user = await kcAdmin.users.create({
-            realm: "nprwd-realm",
+            realm: process.env.KEYCLOAK_REALM || "nprwd-dev-realm",
             username: username,
             email: email,
             enabled: true,

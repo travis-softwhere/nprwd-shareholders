@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     // Call Keycloak Admin API to reset the password
     await keycloakAdmin.users.resetPassword({
       id: userId as string,
-      realm: process.env.KEYCLOAK_REALM,
+      realm: process.env.KEYCLOAK_REALM || "nprwd-dev-realm",
       credential: {
         temporary: false,
         type: "password",
