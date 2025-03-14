@@ -5,15 +5,30 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react"; // Import icons for password visibility
 import Image from "next/image";
+import Head from "next/head";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   
   // Wrap useSearchParams in Suspense
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
-      <SearchParamsComponent router={router} />
-    </Suspense>
+    <>
+      <Head>
+        <title>Set New Password | AquaShare</title>
+      </Head>
+      <Suspense fallback={
+        <div className="flex justify-center items-center h-screen bg-gray-50">
+          <div className="text-center p-4">
+            <div className="animate-pulse mb-4">
+              <div className="h-12 w-12 bg-blue-100 rounded-full mx-auto"></div>
+            </div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }>
+        <SearchParamsComponent router={router} />
+      </Suspense>
+    </>
   );
 }
 
@@ -53,7 +68,7 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
         setMessage(data.error || "Failed to reset password");
       } else {
         setMessage("Password reset successfully!");
-        setTimeout(() => router.push("/auth/signin"), 2000);
+        setTimeout(() => router.push("/auth/signup"), 2000);
       }
     } catch (error) {
       console.error("Error resetting password:", error);
@@ -64,21 +79,22 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 bg-white p-6 sm:p-8 rounded-xl shadow-md">
         <div className="text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-6">
             <Image 
               src="/logo.png" 
               alt="AquaShare Logo" 
-              width={80} 
-              height={80} 
+              width={100} 
+              height={100} 
               className="mx-auto" 
+              priority
             />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-1">Set New Password</h1>
-          <h2 className="text-xl font-medium text-gray-700 mb-2">AquaShare</h2>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-1">Set New Password</h1>
+          <h2 className="text-lg sm:text-xl font-medium text-gray-700 mb-2">AquaShare</h2>
+          <p className="text-sm text-gray-600 max-w-sm mx-auto">
             Please enter your new password below
           </p>
         </div>
@@ -86,6 +102,12 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
         {!token ? (
           <div className="p-4 bg-red-50 rounded-md text-red-700 text-center">
             <p>Invalid or expired token. Please request a new password reset link.</p>
+            <button
+              onClick={() => router.push("/auth/signup")}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Go to Sign Up
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-6">
@@ -109,6 +131,7 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
                     type="button"
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -138,6 +161,7 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
                     type="button"
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -155,8 +179,17 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
                 disabled={isLoading}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {isLoading ? "Processing..." : "Submit"}
+                {isLoading ? "Processing..." : "Set New Password"}
               </button>
+            </div>
+            
+            <div className="text-center">
+              <a 
+                href="/auth/signup" 
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Need an account? Sign up
+              </a>
             </div>
           </form>
         )}
