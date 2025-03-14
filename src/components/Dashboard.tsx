@@ -46,11 +46,36 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   
+  // Track window dimensions to trigger re-renders on resize
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+  
   // Local state to track attendance so that the pie chart updates dynamically.
   const [attendance, setAttendance] = useState({
     total: totalShareholders,
     checkedIn: checkedInCount,
   });
+
+  // Handle window resize events to update responsive chart elements
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Call handler right away to ensure initial state matches window size
+    handleResize();
+    
+    // Remove event listener on cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Update attendance when meetings or selectedMeeting changes
   useEffect(() => {
@@ -249,35 +274,101 @@ const Dashboard: React.FC<DashboardProps> = ({
               <CardDescription className="text-xs sm:text-sm">Current check-in status</CardDescription>
             </CardHeader>
             <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6">
-              <div className="h-[140px] sm:h-[180px] md:h-[200px]">
+              <div className="h-[130px] xs:h-[140px] sm:h-[180px] md:h-[220px] lg:h-[240px] xl:h-[260px] flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                     <Pie
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={window?.innerWidth < 640 ? 35 : 50}
-                      outerRadius={window?.innerWidth < 640 ? 55 : 70}
-                      paddingAngle={2}
+                      innerRadius={windowSize.width < 380 ? 30 : 
+                                   windowSize.width < 640 ? 35 : 
+                                   windowSize.width < 768 ? 45 :
+                                   windowSize.width < 835 ? 42 : // iPad Mini specific
+                                   windowSize.width < 1024 ? 50 : 
+                                   windowSize.width < 1280 ? 60 : 70}
+                      outerRadius={windowSize.width < 380 ? 45 : 
+                                   windowSize.width < 640 ? 55 : 
+                                   windowSize.width < 768 ? 65 :
+                                   windowSize.width < 835 ? 62 : // iPad Mini specific
+                                   windowSize.width < 1024 ? 75 : 
+                                   windowSize.width < 1280 ? 90 : 100}
+                      paddingAngle={windowSize.width >= 768 && windowSize.width < 835 ? 5 : 4} // Slightly more separation for iPad Mini
                       dataKey="value"
+                      label={windowSize.width < 480 ? false : 
+                             (windowSize.width >= 768 && windowSize.width < 835) ? false : // Remove labels on iPad Mini
+                             {
+                               fill: '#666',
+                               fontSize: windowSize.width < 1024 ? 10 : 12,
+                               offset: 10
+                             }}
+                      labelLine={windowSize.width < 480 ? false : 
+                                (windowSize.width >= 768 && windowSize.width < 835) ? false : // Remove label lines on iPad Mini
+                                {
+                                  stroke: '#999',
+                                  strokeWidth: 1
+                                }}
+                      stroke="#fff"
+                      strokeWidth={windowSize.width >= 768 && windowSize.width < 835 ? 3 : 2} // Thicker stroke on iPad Mini
                     >
                       {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={COLORS[index]} 
+                          style={{ filter: 'drop-shadow(0px 2px 3px rgba(0,0,0,0.1))' }}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value, name) => [`${value} shareholders`, name]} />
-                    <Legend wrapperStyle={{ fontSize: window?.innerWidth < 640 ? '10px' : '12px' }} />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [
+                        `${value} shareholders (${Math.round((Number(value) / attendance.total) * 100)}%)`, 
+                        name
+                      ]}
+                      contentStyle={{ 
+                        fontSize: windowSize.width < 640 ? '10px' : (windowSize.width >= 768 && windowSize.width < 835) ? '11px' : '12px',
+                        padding: windowSize.width < 1024 ? (windowSize.width >= 768 && windowSize.width < 835 ? '6px 10px' : '4px 8px') : '8px 12px',
+                        borderRadius: '6px',
+                        boxShadow: '0 3px 10px rgba(0,0,0,0.15)',
+                        border: 'none'
+                      }}
+                      itemStyle={{ 
+                        padding: windowSize.width < 1024 ? '2px 0' : '3px 0' 
+                      }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ 
+                        fontSize: windowSize.width < 380 ? '9px' : 
+                                  windowSize.width < 640 ? '10px' : 
+                                  (windowSize.width >= 768 && windowSize.width < 835) ? '11px' : // iPad Mini specific
+                                  windowSize.width < 1024 ? '12px' : '13px',
+                        paddingTop: windowSize.width < 480 ? 5 : 
+                                    (windowSize.width >= 768 && windowSize.width < 835) ? 0 : 10, // Adjust padding for iPad Mini
+                        bottom: windowSize.width < 480 ? 0 : 
+                                (windowSize.width >= 768 && windowSize.width < 835) ? 5 : 10 // Adjust bottom for iPad Mini
+                      }}
+                      iconSize={windowSize.width < 480 ? 8 : 
+                                (windowSize.width >= 768 && windowSize.width < 835) ? 12 : // Larger icons on iPad Mini
+                                windowSize.width < 1024 ? 10 : 14}
+                      iconType="circle"
+                      layout={windowSize.width < 380 ? "horizontal" : 
+                              (windowSize.width >= 768 && windowSize.width < 835) ? "horizontal" : // Horizontal layout on iPad Mini
+                              windowSize.width < 1024 ? "vertical" : "horizontal"}
+                      verticalAlign={windowSize.width < 1024 && !(windowSize.width >= 768 && windowSize.width < 835) ? "middle" : "bottom"}
+                      align={windowSize.width < 380 ? "center" : 
+                             (windowSize.width >= 768 && windowSize.width < 835) ? "center" : // Center align on iPad Mini
+                             windowSize.width < 1024 ? "right" : "center"}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex justify-center items-center mt-2 gap-4 sm:gap-6">
-                <div className="text-center">
-                  <p className="text-2xl sm:text-3xl font-bold text-green-500">{checkedInPercentage}%</p>
-                  <p className="text-xs text-gray-500">Checked In</p>
+              <div className="flex justify-center items-center mt-1 xs:mt-2 sm:mt-3 md:mt-4 gap-3 sm:gap-6 md:gap-10">
+                <div className={`text-center bg-green-50 px-2 py-1 xs:py-1.5 md:px-4 md:py-2 rounded-lg shadow-sm hover:shadow-md transition-shadow ${windowSize.width >= 768 && windowSize.width < 835 ? 'px-3 py-2' : ''}`}>
+                  <p className={`text-xl xs:text-2xl sm:text-3xl md:text-4xl font-bold text-green-500 ${windowSize.width >= 768 && windowSize.width < 835 ? 'text-3xl' : ''}`}>{checkedInPercentage}%</p>
+                  <p className={`text-[10px] xs:text-xs md:text-sm text-gray-600 ${windowSize.width >= 768 && windowSize.width < 835 ? 'text-xs' : ''}`}>Checked In</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-base sm:text-lg font-medium">{attendance.checkedIn} / {attendance.total}</p>
-                  <p className="text-xs text-gray-500">Shareholders</p>
+                <div className={`text-center bg-gray-50 px-2 py-1 xs:py-1.5 md:px-4 md:py-2 rounded-lg shadow-sm hover:shadow-md transition-shadow ${windowSize.width >= 768 && windowSize.width < 835 ? 'px-3 py-2' : ''}`}>
+                  <p className={`text-sm xs:text-base sm:text-lg md:text-xl font-medium ${windowSize.width >= 768 && windowSize.width < 835 ? 'text-lg' : ''}`}>{attendance.checkedIn} / {attendance.total}</p>
+                  <p className={`text-[10px] xs:text-xs md:text-sm text-gray-600 ${windowSize.width >= 768 && windowSize.width < 835 ? 'text-xs' : ''}`}>Shareholders</p>
                 </div>
               </div>
             </CardContent>
