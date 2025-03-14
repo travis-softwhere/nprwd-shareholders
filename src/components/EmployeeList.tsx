@@ -9,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Loader2, RefreshCcw, Trash2 } from "lucide-react";
+import { Loader2, RefreshCcw, Trash2, UserCog, Mail, User, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Employee {
   id: string;
@@ -19,13 +20,18 @@ interface Employee {
   email: string;
 }
 
-export function EmployeeList() {
+interface EmployeeListProps {
+  refreshTrigger?: number;
+}
+
+export function EmployeeList({ refreshTrigger = 0 }: EmployeeListProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const fetchEmployees = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/users');
       if (!response.ok) throw new Error('Failed to fetch employees');
       const data = await response.json();
@@ -38,9 +44,10 @@ export function EmployeeList() {
     }
   };
 
+  // Effect to fetch employees on initial load and when refreshTrigger changes
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleResetPassword = async (userId: string) => {
     setActionInProgress(userId);
@@ -66,8 +73,6 @@ export function EmployeeList() {
     }
   };
   
-  
-
   const handleRemoveEmployee = async (userId: string) => {
     if (!confirm('Are you sure you want to remove this employee?')) return;
     
@@ -87,10 +92,13 @@ export function EmployeeList() {
     }
   };
 
-  if (loading) {
+  if (loading && employees.length === 0) {
     return (
       <div className="flex justify-center items-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading employees...</p>
+        </div>
       </div>
     );
   }
@@ -98,58 +106,137 @@ export function EmployeeList() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Employees</h2>
-        <Button onClick={() => fetchEmployees()} variant="outline" size="sm">
-          <RefreshCcw className="h-4 w-4 mr-2" />
-          Refresh
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <Users className="h-5 w-5 text-blue-500" />
+          Employees
+        </h2>
+        <Button 
+          onClick={() => fetchEmployees()} 
+          variant="outline" 
+          size="sm"
+          className="gap-1 text-blue-600"
+        >
+          <RefreshCcw className="h-4 w-4" />
+          <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
       
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {employees.length === 0 ? (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+          <User className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+          <h3 className="text-lg font-medium text-gray-800 mb-1">No Employees Found</h3>
+          <p className="text-gray-600 text-sm">
+            Add employees using the form below to give them access to the system.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop View */}
+          <div className="hidden md:block border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employees.map((employee) => (
+                  <TableRow key={employee.id} className="hover:bg-gray-50">
+                    <TableCell className="font-medium">{`${employee.firstName} ${employee.lastName}`}</TableCell>
+                    <TableCell>{employee.email}</TableCell>
+                    <TableCell>{employee.username}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResetPassword(employee.id)}
+                          disabled={actionInProgress === employee.id}
+                          className="gap-1"
+                        >
+                          {actionInProgress === employee.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Mail className="h-4 w-4" />
+                              <span>Reset Password</span>
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRemoveEmployee(employee.id)}
+                          disabled={actionInProgress === employee.id}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="md:hidden space-y-3">
             {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell>{`${employee.firstName} ${employee.lastName}`}</TableCell>
-                <TableCell>{employee.email}</TableCell>
-                <TableCell>{employee.username}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+              <Card key={employee.id} className="overflow-hidden hover:shadow-sm transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-4 w-4 text-blue-500" />
+                        <h3 className="font-medium text-gray-900">{`${employee.firstName} ${employee.lastName}`}</h3>
+                      </div>
+                      <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                        <Mail className="h-3 w-3 text-gray-400" />
+                        {employee.email}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        @{employee.username}
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => handleRemoveEmployee(employee.id)}
+                      disabled={actionInProgress === employee.id}
+                      className="h-8 w-8"
+                    >
+                      {actionInProgress === employee.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-100">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleResetPassword(employee.id)}
                       disabled={actionInProgress === employee.id}
+                      className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
                     >
                       {actionInProgress === employee.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        'Reset Password'
+                        <Mail className="h-4 w-4 mr-2" />
                       )}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleRemoveEmployee(employee.id)}
-                      disabled={actionInProgress === employee.id}
-                    >
-                      <Trash2 className="h-4 w-4" />
+                      Reset Password
                     </Button>
                   </div>
-                </TableCell>
-              </TableRow>
+                </CardContent>
+              </Card>
             ))}
-          </TableBody>
-        </Table>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 } 
