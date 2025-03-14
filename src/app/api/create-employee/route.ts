@@ -3,6 +3,8 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/keycloakAdmin";
 import { auth } from "@/lib/auth";
+import jwt from "jsonwebtoken";
+import { sendResetEmail } from "@/utils/emailService";
 
 // Function to generate a username from full name
 function generateUsername(firstName: string, lastName: string): string {
@@ -79,15 +81,21 @@ export async function POST(request: Request) {
         });
         console.log('Successfully created user:', user.id);
 
-        // Send password reset email
+        // generate a custom token for setting a new password.
         if (user.id) {
-            console.log('Sending password reset email...');
-            await kcAdmin.users.executeActionsEmail({
-                realm: "nprwd-realm",
-                id: user.id,
-                actions: ["UPDATE_PASSWORD"],
-            });
-            console.log('Successfully sent password reset email');
+            // Generate a JWT token with a 1-hour expiration
+            if (!process.env.JWT_SECRET) {
+                throw new Error("JWT_SECRET is not configured");
+            }
+            const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "2h" });
+            
+            // Build a reset URL that points to your custom "Set New Password" page.
+            // For example, if you want the page to be at /set-new-password:
+            const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/set-new-password?token=${token}`;
+            
+            // Send the email with your custom email service
+            await sendResetEmail(email, resetUrl);
+            console.log('Successfully sent set-new-password email');
         }
 
         return NextResponse.json({ 

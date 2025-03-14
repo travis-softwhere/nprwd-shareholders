@@ -8,6 +8,7 @@ if (process.env.NODE_ENV === 'development') {
 // Check required environment variables
 const requiredEnvVars = {
     KEYCLOAK_ISSUER: process.env.KEYCLOAK_ISSUER,
+    KEYCLOAK_REALM: process.env.KEYCLOAK_REALM,
     KEYCLOAK_CLIENT_ID: process.env.KEYCLOAK_CLIENT_ID,
     KEYCLOAK_CLIENT_SECRET: process.env.KEYCLOAK_CLIENT_SECRET,
 } as const;
@@ -21,7 +22,7 @@ Object.entries(requiredEnvVars).forEach(([key, value]) => {
 
 // Extract base URL and realm from issuer
 const issuerUrl = new URL(requiredEnvVars.KEYCLOAK_ISSUER as string);
-const realmName = issuerUrl.pathname.split('/realms/')[1];
+const realmName = process.env.KEYCLOAK_REALM; // Directly use the realm name from .env 
 
 // Log configuration for debugging
 console.log('Keycloak configuration:', {
