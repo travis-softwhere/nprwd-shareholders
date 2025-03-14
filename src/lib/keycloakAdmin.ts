@@ -1,5 +1,15 @@
 import KcAdminClient from '@keycloak/keycloak-admin-client';
 
+/**
+ * Keycloak Admin Client Configuration
+ * 
+ * This file configures the connection to Keycloak for administrative operations.
+ * Admin verification is now based on the 'realm-admin' role in Keycloak rather than
+ * a custom attribute. Make sure to assign this role to users who need administrative access.
+ * 
+ * In development, self-signed certificates are allowed for ease of testing.
+ */
+
 // In development, allow self-signed certificates
 if (process.env.NODE_ENV === 'development') {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';

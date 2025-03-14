@@ -13,6 +13,10 @@ export default function Navigation() {
     const { data: session } = useSession()
     const { selectedMeeting } = useMeeting()
 
+    // Debug session
+    console.log("Navigation - Session:", session);
+    console.log("Navigation - isAdmin:", session?.user?.isAdmin);
+
     const navigation = [
         { name: "Home", href: "/", icon: Home },
         { name: "Shareholders", href: "/shareholders", icon: Users },
@@ -33,6 +37,16 @@ export default function Navigation() {
                     const isAdminOnly = item.adminOnly
                     const isAdmininsessionuser = ("isAdmin" in session.user)
                     const isAdmin = (session.user.isAdmin)
+
+                    // Debug rendering logic
+                    if (isAdminOnly) {
+                        console.log("Admin menu item:", {
+                            name: item.name,
+                            isAdmininsessionuser,
+                            isAdmin,
+                            shouldRender: !isAdminOnly || isAdmin
+                        });
+                    }
 
                     const shouldRender = !isAdminOnly || isAdmin
 
