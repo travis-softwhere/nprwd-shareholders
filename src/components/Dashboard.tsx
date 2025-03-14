@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Loader2, Search } from "lucide-react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import {
   Cell,
   ResponsiveContainer,
   Legend,
+  Tooltip,
 } from "recharts";
 import { useMeeting } from "@/contexts/MeetingContext";
 import { useSession } from "next-auth/react";
@@ -59,8 +61,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-lg text-gray-500">Loading...</p>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-lg text-gray-600">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -68,16 +73,23 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Check if meetings have been loaded
   if (!meetings || meetings.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-lg text-gray-500">
-          Please upload data in the Admin page first.
-        </p>
+      <div className="flex items-center justify-center h-full p-6">
+        <div className="max-w-md w-full text-center bg-white p-8 rounded-xl shadow-md">
+          <Calendar className="h-16 w-16 text-blue-500 mx-auto mb-4 opacity-70" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">No Meetings Found</h2>
+          <p className="text-gray-600 mb-6">
+            Please upload data in the Admin page first to get started with managing your shareholder meetings.
+          </p>
+          <Button onClick={() => router.push('/admin')} className="w-full">
+            Go to Admin
+          </Button>
+        </div>
       </div>
     );
   }
 
   // Calculate attendance stats
-  const checkedInPercentage = Math.round((attendance.checkedIn / attendance.total) * 100);
+  const checkedInPercentage = Math.round((attendance.checkedIn / attendance.total) * 100) || 0;
   const notCheckedInCount = attendance.total - attendance.checkedIn;
   const pieData = [
     { name: "Checked In", value: attendance.checkedIn },
@@ -97,6 +109,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     return isNaN(diffDays) ? "N/A" : diffDays.toString();
   };
   
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Not set";
+    
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  };
 
   const handleBarcodeSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -149,6 +172,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       return;
     }
 
+    setLoading(true);
+
     // Build payload using meeting id from selectedMeeting
     const payload = JSON.stringify({ meetingId: selectedMeeting.id });
     console.log("Dashboard payload being sent:", payload);
@@ -185,125 +210,178 @@ const Dashboard: React.FC<DashboardProps> = ({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error generating mailers:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Attendance Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Shareholder Attendance</CardTitle>
-            <CardDescription>Current check-in status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index]} />
-                    ))}
-                  </Pie>
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 text-center">
-              <p className="text-2xl font-bold">{checkedInPercentage}%</p>
-              <p className="text-sm text-gray-500">Checked In</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Meeting Countdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Next Meeting</CardTitle>
-            <CardDescription>Shareholder meeting countdown</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center space-x-4">
-              <Calendar className="h-8 w-8 text-gray-500" />
-              <div>
-              <p className="text-2xl font-bold">{daysUntilMeeting()}</p>
-                <p className="text-sm text-gray-500">Days Remaining</p>
+    <div className="w-full">
+      <div className="max-w-6xl mx-auto bg-white px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 mb-16 md:mb-6 shadow-sm rounded-lg">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 md:mb-4">Dashboard</h1>
+        
+        {/* Statistics Grid */}
+        <div className="grid gap-3 sm:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {/* Attendance Stats */}
+          <Card className="overflow-hidden transition-all hover:shadow-md">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2 px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+                Shareholder Attendance
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Current check-in status</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6">
+              <div className="h-[140px] sm:h-[180px] md:h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={window?.innerWidth < 640 ? 35 : 50}
+                      outerRadius={window?.innerWidth < 640 ? 55 : 70}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value, name) => [`${value} shareholders`, name]} />
+                    <Legend wrapperStyle={{ fontSize: window?.innerWidth < 640 ? '10px' : '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            </div>
-            <p className="mt-4 text-center text-sm text-gray-500">
-              Meeting Date: {new Date(nextMeetingDate).toLocaleDateString()}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Mailer Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Mailer Status</CardTitle>
-            <CardDescription>Meeting notifications</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center space-y-4">
-              <div className="flex items-center space-x-2">
-                {mailersStatus ? (
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                ) : (
-                  <XCircle className="h-8 w-8 text-red-500" />
-                )}
-                <span className="text-lg">
-                  {mailersStatus ? "Mailers Sent" : "Mailers Not Sent"}
-                </span>
+              <div className="flex justify-center items-center mt-2 gap-4 sm:gap-6">
+                <div className="text-center">
+                  <p className="text-2xl sm:text-3xl font-bold text-green-500">{checkedInPercentage}%</p>
+                  <p className="text-xs text-gray-500">Checked In</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base sm:text-lg font-medium">{attendance.checkedIn} / {attendance.total}</p>
+                  <p className="text-xs text-gray-500">Shareholders</p>
+                </div>
               </div>
-              <Button
-                onClick={handlePrintMailers}
-                variant={mailersStatus ? "outline" : "default"}
+            </CardContent>
+          </Card>
+
+          {/* Meeting Countdown */}
+          <Card className="overflow-hidden transition-all hover:shadow-md">
+            <CardHeader className="bg-gradient-to-r from-amber-50 to-white pb-2 px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />
+                Next Meeting
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Shareholder meeting countdown</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 sm:pt-6 px-3 sm:px-6">
+              <div className="flex items-center justify-center space-x-4 sm:space-x-6">
+                <div className="text-center">
+                  <div className="text-3xl sm:text-4xl font-bold text-amber-500 mb-1">{daysUntilMeeting()}</div>
+                  <p className="text-xs sm:text-sm text-gray-500">Days Remaining</p>
+                </div>
+              </div>
+              <div className="mt-4 sm:mt-6 text-center">
+                <div className="text-xs sm:text-sm font-medium text-gray-700">Meeting Date</div>
+                <p className="text-sm sm:text-base text-gray-600">{formatDate(nextMeetingDate)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mailer Status */}
+          <Card className="overflow-hidden transition-all hover:shadow-md">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-white pb-2 px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+                Meeting Notifications
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Generate invitations for shareholders</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="text-center space-y-2">
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    Generate personalized meeting invitations with unique check-in codes for all shareholders.
+                  </p>
+                </div>
+                <Button
+                  onClick={handlePrintMailers}
+                  className="w-full bg-purple-600 hover:bg-purple-700 transition-colors text-sm sm:text-base py-1.5 sm:py-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                      Generating PDF...
+                    </>
+                  ) : (
+                    'Generate Invitations'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Check-In Card */}
+        <Card className="mt-4 sm:mt-6 overflow-hidden transition-all hover:shadow-md">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2 px-3 sm:px-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Search className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+              Quick Check-In
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Scan shareholder barcode or enter ID manually
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-3 sm:pt-6 px-3 sm:px-6">
+            <form
+              onSubmit={handleBarcodeSubmit}
+              className="flex flex-col items-center space-y-3 sm:space-y-4"
+            >
+              <div className="relative w-full max-w-md">
+                <Input
+                  type="text"
+                  placeholder="Enter ID or scan barcode"
+                  value={barcodeInput}
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 text-center text-sm sm:text-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg transition-all"
+                  autoFocus
+                />
+                <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full max-w-md bg-blue-600 hover:bg-blue-700 transition-colors text-sm sm:text-base py-1.5 sm:py-2" 
+                disabled={loading}
               >
-                {mailersStatus ? "Reprint Mailers" : "Print Mailers"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    Checking In...
+                  </>
+                ) : (
+                  'Check In Shareholder'
+                )}
               </Button>
-            </div>
+            </form>
+            {error && (
+              <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-red-50 text-red-700 rounded-md text-center text-xs sm:text-sm">
+                {error}
+              </div>
+            )}
           </CardContent>
+          <CardFooter className="bg-gray-50 px-3 sm:px-6 py-2 sm:py-3">
+            <p className="w-full text-xs text-gray-500 text-center">
+              After check-in, you will be redirected to the shareholder's details page
+            </p>
+          </CardFooter>
         </Card>
+        
+        {/* Mobile spacing for bottom nav - increased slightly */}
+        <div className="h-20 md:hidden"></div>
       </div>
-
-      {/* Quick Check-In Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Check-In</CardTitle>
-          <CardDescription>
-            Scan shareholder barcode to check in and view details
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={handleBarcodeSubmit}
-            className="flex flex-col items-center space-y-4"
-          >
-            <Input
-              type="text"
-              placeholder="Scan barcode"
-              value={barcodeInput}
-              onChange={(e) => setBarcodeInput(e.target.value)}
-              className="w-full max-w-md text-center text-lg"
-              autoFocus
-            />
-            <Button type="submit" className="w-full max-w-md" disabled={loading}>
-              {loading ? "Checking In..." : "Submit"}
-            </Button>
-          </form>
-          {error && (
-            <p className="mt-2 text-red-600 text-center">{error}</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };

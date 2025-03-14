@@ -6,7 +6,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex-1 p-8">
-      <div className="w-full max-w-7xl">
+      <div className="flex justify-center w-full max-w-7xl">
         <Dashboard
           totalShareholders={totalShareholders}
           checkedInCount={checkedInCount}

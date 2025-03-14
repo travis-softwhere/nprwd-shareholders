@@ -1,9 +1,7 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter"
 import type { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { db } from "./db"
-import { users } from "./db/schema"
-import { eq } from "drizzle-orm"
+
 import type { JWT } from "next-auth/jwt"
 import { getServerSession } from "next-auth/next"
 
@@ -56,25 +54,46 @@ async function validateCredentials(username: string, password: string) {
         }
 
         const userInfo = await userInfoResponse.json()
+        console.log("User info:", JSON.stringify(userInfo, null, 2))
 
-        const isAdmin = userInfo.isAdmin
+        // Check if the user has isAdmin attribute in userInfo
+        let isAdmin = userInfo.isAdmin === "true";
+        
+        // If isAdmin attribute is not present, check for realm-admin role in the access token
+        if (isAdmin === false) {
+            try {
+                // Parse the JWT token to get roles
+                const tokenParts = data.access_token.split('.');
+                if (tokenParts.length === 3) {
+                    const tokenPayload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+                    console.log("Token payload resource_access:", tokenPayload.resource_access);
+                    
+                    // Check for realm-admin role in resource_access
+                    if (tokenPayload.resource_access && 
+                        tokenPayload.resource_access["realm-management"] && 
+                        tokenPayload.resource_access["realm-management"].roles) {
+                        isAdmin = tokenPayload.resource_access["realm-management"].roles.includes("realm-admin");
+                        console.log("Admin status based on realm-admin role:", isAdmin);
+                    }
+                }
+            } catch (error) {
+                console.error("Error parsing token for roles:", error);
+            }
+        }
 
         return {
             id: userInfo.sub,
+            name: userInfo.name,
             email: userInfo.email,
             isAdmin: isAdmin,
         }
     } catch (error) {
-        console.error("Detailed error in validateCredentials:", error)
-        if (error instanceof TypeError && error.message.includes("fetch")) {
-            throw new Error("Unable to connect to authentication server. Please try again later.")
-        }
+        console.error("Error in validateCredentials:", error)
         throw error
     }
 }
 
 export const authOptions: NextAuthOptions = {
-    adapter: DrizzleAdapter(db),
     providers: [
         CredentialsProvider({
             name: "Credentials",
@@ -89,6 +108,7 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     const user = await validateCredentials(credentials.username, credentials.password)
+                    console.log("authorize returning user with isAdmin:", user.isAdmin);
                     return user
                 } catch (error: any) {
                     console.error("Error in authorize:", error)
@@ -99,38 +119,44 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         async jwt({ token, user }: { token: JWT; user?: any }) {
+            console.log("JWT callback - incoming token:", { 
+                hasToken: !!token, 
+                currentIsAdmin: token?.isAdmin 
+            });
+            console.log("JWT callback - incoming user:", { 
+                hasUser: !!user, 
+                userIsAdmin: user?.isAdmin 
+            });
+            
             if (user) {
                 token.id = user.id
                 token.email = user.email
-                console.log("User", +user)
-                token.isAdmin = user.isAdmin === "true" // Ensure it's boolean
-
-                try {
-                    const dbUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1)
-
-                    if (dbUser.length === 0) {
-                        await db.insert(users).values({
-                            name: user.name || "",
-                            email: user.email,
-                            isAdmin: token.isAdmin,
-                        })
-                    } else if (dbUser[0].isAdmin !== token.isAdmin) {
-                        await db.update(users).set({ isAdmin: token.isAdmin }).where(eq(users.email, user.email))
-                    }
-                } catch (error) {
-                    console.error("Error in jwt callback:", error)
-                    // Don't override token.isAdmin here – prefer the value from Keycloak if DB fails
-                }
+                token.isAdmin = user.isAdmin
+                console.log("JWT callback - updated token with user data, isAdmin:", token.isAdmin);
             }
-
             return token
         },
         async session({ session, token }: { session: any; token: JWT }) {
+            console.log("Session callback - incoming token:", { 
+                hasToken: !!token, 
+                tokenIsAdmin: token?.isAdmin 
+            });
+            
             if (token && session.user) {
                 session.user.id = token.id as string
                 session.user.isAdmin = token.isAdmin
+                console.log("Session callback - updated session with token data, isAdmin:", session.user.isAdmin);
             }
             return session
+        },
+    },
+    events: {
+        async signIn({ user }: { user: any }) {
+            console.log("SignIn event triggered, user:", {
+                id: user.id,
+                name: user.name,
+                isAdmin: user.isAdmin
+            });
         },
     },
     pages: {

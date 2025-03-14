@@ -4,43 +4,39 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Printer, Loader2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 interface PrintMailersButtonProps {
   meetingId: string;
-  onComplete: () => Promise<void> | void;
-  disabled?: boolean;
-  isPrinting?: boolean;
-  className?: string;
+  onComplete: () => void;
+  disabled: boolean;
 }
 
-export function PrintMailersButton({
-  meetingId,
-  onComplete,
-  disabled,
-  className,
-}: PrintMailersButtonProps) {
+export function PrintMailersButton({ meetingId, onComplete, disabled }: PrintMailersButtonProps) {
   const [isPrinting, setIsPrinting] = useState(false);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
   console.log("PrintMailersButton rendered with meetingId:", meetingId);
 
-  const handlePrintMailers = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    console.log("Button clicked - meetingId:", meetingId);
-    if (!meetingId) {
-      toast({
-        title: "Error",
-        description: "Meeting ID is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handlePrintMailers = async () => {
     setIsPrinting(true);
+    setProgress(10); // Start progress
 
     try {
       const payload = JSON.stringify({ meetingId });
-      console.log("Payload being sent:", payload);
+      
+      // Simulate progress during PDF generation
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
 
       const response = await fetch("/api/print-mailers", {
         method: "POST",
@@ -53,48 +49,24 @@ export function PrintMailersButton({
         credentials: "same-origin",
       });
 
-      console.log("Response received:", {
-        status: response.status,
-        contentType: response.headers.get("content-type"),
-      });
+      clearInterval(progressInterval);
 
-      if (!response.ok) {
-        let errorMessage = "Failed to generate mailers";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {}
-        throw new Error(errorMessage);
-      }
+      if (!response.ok) throw new Error("Failed to generate mailers");
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType?.includes("application/pdf")) {
-        throw new Error("Invalid response format");
-      }
-
+      setProgress(100);
       const blob = await response.blob();
-      console.log("PDF blob received, size:", blob.size);
       const url = window.URL.createObjectURL(blob);
-      console.log("PDF URL created:", url);
-
       const a = document.createElement("a");
       a.href = url;
-      a.download = "shareholder-mailers.pdf";
+      a.download = "meeting-invitations.pdf";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Success",
-        description: "Mailers generated successfully",
-      });
-
-      if (onComplete) {
-        await onComplete();
-      }
+      
+      onComplete();
     } catch (error) {
-      console.error("Print mailers error:", error);
+      console.error("Error generating mailers:", error);
       toast({
         title: "Error",
         description:
@@ -102,24 +74,53 @@ export function PrintMailersButton({
         variant: "destructive",
       });
     } finally {
-      setIsPrinting(false);
+      setTimeout(() => {
+        setIsPrinting(false);
+        setProgress(0);
+      }, 1000);
     }
   };
 
   return (
-    <Button
-      onClick={handlePrintMailers}
-      disabled={disabled || isPrinting}
-      className={className}
-      variant="default"
-      type="button"
-    >
-      {isPrinting ? (
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-      ) : (
-        <Printer className="h-4 w-4 mr-2" />
-      )}
-      {isPrinting ? "Generating..." : "Print Mailers"}
-    </Button>
+    <Card>
+      <CardHeader>
+        <CardTitle>Generate Meeting Invitations</CardTitle>
+        <CardDescription>
+          Create personalized invitations for all shareholders
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This will generate a PDF containing personalized meeting invitations for all shareholders. 
+            Each invitation includes the meeting details and a unique QR code for check-in.
+          </p>
+          
+          {isPrinting && (
+            <div className="space-y-2">
+              <Progress value={progress} className="w-full" />
+              <p className="text-sm text-muted-foreground text-center">
+                {progress < 100 ? 'Generating invitations...' : 'Download starting...'}
+              </p>
+            </div>
+          )}
+
+          <Button
+            onClick={handlePrintMailers}
+            disabled={disabled || isPrinting}
+            className="w-full"
+          >
+            {isPrinting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              'Generate Invitations'
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

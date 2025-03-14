@@ -8,6 +8,10 @@ import type { Shareholder } from "@/types/shareholder"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { useSession } from "next-auth/react"
 import { getShareholdersList } from "@/actions/getShareholdersList"
+import { Search, Filter, ChevronRight, ChevronLeft, Users, ArrowUpDown, Loader2 } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 interface ShareholderListProps {
     initialShareholders: Shareholder[]
@@ -28,14 +32,14 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const { data: session, status } = useSession()
     const router = useRouter()
 
-
     const [shareholders, setShareholders] = useState<Shareholder[]>(initialShareholders)
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("shareholderId")
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
-    const [barcodeInput, setBarcodeInput] = useState("")
     const [propertyFilter, setPropertyFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
+    const [isFilterOpen, setIsFilterOpen] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -46,10 +50,13 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     useEffect(() => {
         const fetchData = async () => {
             try {
+                setIsLoading(true)
                 const { shareholders: newShareholders } = await getShareholdersList(currentPage, itemsPerPage)
                 setShareholders(newShareholders)
             } catch (error) {
                 console.error("Failed to fetch shareholders:", error)
+            } finally {
+                setIsLoading(false)
             }
         }
 
@@ -113,21 +120,13 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
 
     if (status === "loading") {
         return (
-            <div className="flex items-center justify-center h-full">
-                <p className="text-lg text-gray-500">Loading...</p>
+            <div className="flex items-center justify-center h-full py-12">
+                <div className="text-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
+                    <p className="text-lg text-gray-600">Loading shareholders...</p>
+                </div>
             </div>
         )
-    }
-
-    const handleBarcodeSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        const shareholder = shareholders.find((s) => s.shareholderId === barcodeInput)
-        if (shareholder) {
-            router.push(`/shareholders/${shareholder.shareholderId}`)
-        } else {
-            alert("Shareholder not found")
-        }
-        setBarcodeInput("")
     }
 
     const handleRowClick = (shareholderId: string) => {
@@ -135,132 +134,233 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     }
 
     const totalPages = Math.ceil(totalShareholders / itemsPerPage)
+    
+    // Function to get status badge color
+    const getStatusBadge = (checkedIn: number, total: number) => {
+        const isFullyCheckedIn = checkedIn === total;
+        const isPartiallyCheckedIn = checkedIn > 0 && checkedIn < total;
+        
+        if (isFullyCheckedIn) {
+            return "bg-green-100 text-green-800";
+        } else if (isPartiallyCheckedIn) {
+            return "bg-amber-100 text-amber-800";
+        } else {
+            return "bg-gray-100 text-gray-800";
+        }
+    };
 
     return (
-        <div className="w-full bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Shareholder List</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <input
-                    type="text"
-                    placeholder="Search by name or ID"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <select
-                    className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={`${sortField}-${sortOrder}`}
-                    onChange={(e) => {
-                        const [field, order] = e.target.value.split("-")
-                        setSortField(field as SortField)
-                        setSortOrder(order as SortOrder)
-                    }}
-                >
-                    <option value="shareholderId-asc">ID (A-Z)</option>
-                    <option value="shareholderId-desc">ID (Z-A)</option>
-                    <option value="name-asc">Name (A-Z)</option>
-                    <option value="name-desc">Name (Z-A)</option>
-                    <option value="totalProperties-asc">Properties (Low to High)</option>
-                    <option value="totalProperties-desc">Properties (High to Low)</option>
-                </select>
-                <select
-                    className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={propertyFilter}
-                    onChange={(e) => setPropertyFilter(e.target.value)}
-                >
-                    <option value="all">All Properties</option>
-                    <option value="1">Single Property</option>
-                    <option value="2-5">2-5 Properties</option>
-                    <option value="6+">6+ Properties</option>
-                </select>
-                <select
-                    className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                    <option value="all">All Status</option>
-                    <option value="checked-in">Fully Checked In</option>
-                    <option value="not-checked-in">Partially/Not Checked In</option>
-                </select>
+        <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-4 md:p-6 mb-20 md:mb-6">
+            <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <Users className="h-6 w-6 text-blue-500" />
+                    Shareholder List
+                </h2>
+                <div className="relative flex w-full md:w-auto">
+                    <div className="relative w-full md:w-64">
+                        <Input
+                            type="text"
+                            placeholder="Search by name or ID"
+                            className="w-full pl-10 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    </div>
+                    <Button 
+                        variant="outline" 
+                        className="ml-2 px-3" 
+                        onClick={() => setIsFilterOpen(!isFilterOpen)}
+                    >
+                        <Filter className="h-4 w-4" />
+                        <span className="sr-only md:not-sr-only md:ml-2">Filters</span>
+                    </Button>
+                </div>
             </div>
-            <form onSubmit={handleBarcodeSubmit} className="mb-6">
-                <input
-                    type="text"
-                    placeholder="Scan barcode"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={barcodeInput}
-                    onChange={(e) => setBarcodeInput(e.target.value)}
-                />
-            </form>
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Total Properties
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+            
+            {/* Filters - Toggleable on mobile */}
+            <div className={`mb-6 ${isFilterOpen ? 'block' : 'hidden md:block'}`}>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-gray-700 mb-2">Filters & Sorting</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">Sort By</label>
+                            <select
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                value={`${sortField}-${sortOrder}`}
+                                onChange={(e) => {
+                                    const [field, order] = e.target.value.split("-")
+                                    setSortField(field as SortField)
+                                    setSortOrder(order as SortOrder)
+                                }}
+                            >
+                                <option value="shareholderId-asc">ID (A-Z)</option>
+                                <option value="shareholderId-desc">ID (Z-A)</option>
+                                <option value="name-asc">Name (A-Z)</option>
+                                <option value="name-desc">Name (Z-A)</option>
+                                <option value="totalProperties-asc">Properties (Low to High)</option>
+                                <option value="totalProperties-desc">Properties (High to Low)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">Property Count</label>
+                            <select
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                value={propertyFilter}
+                                onChange={(e) => setPropertyFilter(e.target.value)}
+                            >
+                                <option value="all">All Properties</option>
+                                <option value="1">Single Property</option>
+                                <option value="2-5">2-5 Properties</option>
+                                <option value="6+">6+ Properties</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">Check-in Status</label>
+                            <select
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="all">All Status</option>
+                                <option value="checked-in">Fully Checked In</option>
+                                <option value="not-checked-in">Partially/Not Checked In</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-500 mr-2" />
+                    <p>Loading shareholders...</p>
+                </div>
+            ) : filteredAndSortedShareholders.length === 0 ? (
+                <div className="text-center py-12 px-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900">No shareholders found</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                        Try adjusting your search or filter criteria
+                    </p>
+                </div>
+            ) : (
+                <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        ID
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Name
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total Properties
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredAndSortedShareholders.map((shareholder) => (
+                                    <tr
+                                        key={shareholder.shareholderId}
+                                        className="hover:bg-blue-50 cursor-pointer transition-colors duration-150"
+                                        onClick={() => handleRowClick(shareholder.shareholderId)}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.shareholderId}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{shareholder.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.totalProperties}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(shareholder.checkedInProperties, shareholder.totalProperties)}`}>
+                                                {shareholder.checkedInProperties} / {shareholder.totalProperties} Checked In
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-3">
                         {filteredAndSortedShareholders.map((shareholder) => (
-                            <tr
+                            <Card 
                                 key={shareholder.shareholderId}
-                                className="hover:bg-blue-50 cursor-pointer transition-colors duration-150"
+                                className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
                                 onClick={() => handleRowClick(shareholder.shareholderId)}
                             >
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.shareholderId}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.totalProperties}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    {shareholder.checkedInProperties === shareholder.totalProperties ? (
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            {shareholder.checkedInProperties} / {shareholder.totalProperties} Checked In
+                                <CardContent className="p-4">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="font-medium text-gray-900">{shareholder.name}</h3>
+                                            <p className="text-sm text-gray-500">ID: {shareholder.shareholderId}</p>
+                                        </div>
+                                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <div className="text-sm text-gray-600">
+                                            {shareholder.totalProperties} {shareholder.totalProperties === 1 ? 'property' : 'properties'}
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(shareholder.checkedInProperties, shareholder.totalProperties)}`}>
+                                            {shareholder.checkedInProperties}/{shareholder.totalProperties}
                                         </span>
-                                    ) : (
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                            {shareholder.checkedInProperties} / {shareholder.totalProperties} Checked In
-                                        </span>
-                                    )}
-                                </td>
-                            </tr>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="mt-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex gap-2">
-                    <button
+                    </div>
+                </>
+            )}
+
+            {/* Pagination Controls */}
+            <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => router.push(`/shareholders?page=${currentPage - 1}&itemsPerPage=${itemsPerPage}`)}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 hover:bg-gray-50"
+                        disabled={currentPage === 1 || isLoading}
+                        className="gap-1"
                     >
+                        <ChevronLeft className="h-4 w-4" />
                         Previous
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => router.push(`/shareholders?page=${currentPage + 1}&itemsPerPage=${itemsPerPage}`)}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 hover:bg-gray-50"
+                        disabled={currentPage === totalPages || isLoading}
+                        className="gap-1"
                     >
                         Next
-                    </button>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
                 </div>
-                <span className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                </span>
-                <select
-                    value={itemsPerPage}
-                    onChange={(e) => router.push(`/shareholders?page=1&itemsPerPage=${e.target.value}`)}
-                    className="px-4 py-2 border border-gray-300 rounded-md"
-                >
-                    <option value="10">10 per page</option>
-                    <option value="25">25 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
-                </select>
+                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                    <span className="text-sm text-gray-600">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <select
+                        value={itemsPerPage}
+                        onChange={(e) => router.push(`/shareholders?page=1&itemsPerPage=${e.target.value}`)}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                        disabled={isLoading}
+                    >
+                        <option value="10">10 per page</option>
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                </div>
             </div>
+            
+            {/* Mobile spacing for bottom nav */}
+            <div className="h-16 md:hidden"></div>
         </div>
     )
 }
