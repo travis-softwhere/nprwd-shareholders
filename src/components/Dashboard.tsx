@@ -52,6 +52,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     checkedIn: checkedInCount,
   });
 
+  // Update attendance when meetings or selectedMeeting changes
+  useEffect(() => {
+    if (meetings && meetings.length > 0) {
+      const latestMeeting = selectedMeeting || meetings[0];
+      setAttendance({
+        total: latestMeeting.totalShareholders || totalShareholders,
+        checkedIn: latestMeeting.checkedIn || checkedInCount,
+      });
+    }
+  }, [meetings, selectedMeeting, totalShareholders, checkedInCount]);
+
   // Redirect if unauthenticated
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -97,7 +108,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   ];
 
   const daysUntilMeeting = () => {
-    const meetingDate = new Date(nextMeetingDate);
+    // Use selected meeting date from context if available
+    const dateToUse = selectedMeeting ? selectedMeeting.date : nextMeetingDate;
+    const meetingDate = new Date(dateToUse);
     if (isNaN(meetingDate.getTime())) {
       // Return a default string if nextMeetingDate is invalid
       return "N/A";
@@ -110,7 +123,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
   
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Use selected meeting date from context if available and no dateString provided
+    const dateToFormat = selectedMeeting && !dateString ? selectedMeeting.date : dateString;
+    const date = new Date(dateToFormat);
     if (isNaN(date.getTime())) return "Not set";
     
     return new Intl.DateTimeFormat('en-US', {
@@ -169,16 +184,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handlePrintMailers = async () => {
     if (!selectedMeeting) {
       console.error("No meeting selected.");
+      setError("No meeting is currently selected. Please select a meeting first.");
       return;
     }
 
     setLoading(true);
 
-    // Build payload using meeting id from selectedMeeting
-    const payload = JSON.stringify({ meetingId: selectedMeeting.id });
-    console.log("Dashboard payload being sent:", payload);
-
     try {
+      const payload = JSON.stringify({ meetingId: selectedMeeting.id });
+      console.log("Dashboard payload being sent:", payload);
+
       const response = await fetch("/api/print-mailers", {
         method: "POST",
         headers: {
@@ -208,8 +223,10 @@ const Dashboard: React.FC<DashboardProps> = ({
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      setError("");
     } catch (error) {
       console.error("Error generating mailers:", error);
+      setError("Failed to generate mailers. Please try again later.");
     } finally {
       setLoading(false);
     }

@@ -12220,3 +12220,17 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-14T20:59:28.629Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 93,
+      "heapUsed": 85,
+      "external": 4,
+      "rss": 932
+    }
+  }
+}
