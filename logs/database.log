@@ -12276,3 +12276,45 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-14T21:35:29.718Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 93,
+      "heapUsed": 85,
+      "external": 4,
+      "rss": 932
+    }
+  }
+}
+{
+  "timestamp": "2025-03-14T21:37:32.385Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 130,
+      "heapUsed": 109,
+      "external": 4,
+      "rss": 1094
+    }
+  }
+}
+{
+  "timestamp": "2025-03-14T21:46:23.610Z",
+  "level": "INFO",
+  "category": "database",
+  "message": "Database connection initialized successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 180,
+      "heapUsed": 143,
+      "external": 4,
+      "rss": 1322
+    }
+  }
+}
