@@ -83,19 +83,19 @@ export async function POST(request: Request) {
 
         // generate a custom token for setting a new password.
         if (user.id) {
-            // Generate a JWT token with a 1-hour expiration
+            // Generate a JWT token with a 2-hour expiration
             if (!process.env.JWT_SECRET) {
                 throw new Error("JWT_SECRET is not configured");
             }
             const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "2h" });
             
-            // Build a reset URL that points to your custom "Set New Password" page.
-            // For example, if you want the page to be at /set-new-password:
-            const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/set-new-password?token=${token}`;
+            // Let the email service handle constructing the URL
+            // Just pass in a flag to indicate this is for setting a new password
+            const setPasswordToken = `set-new-password:${token}`;
             
             // Send the email with your custom email service
-            await sendResetEmail(email, resetUrl);
-            console.log('Successfully sent set-new-password email');
+            await sendResetEmail(email, setPasswordToken);
+            console.log('Successfully sent set-new-password email to:', email);
         }
 
         return NextResponse.json({ 

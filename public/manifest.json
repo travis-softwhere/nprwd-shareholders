@@ -1,0 +1,26 @@
+{
+  "name": "AquaShare - NPRWD Shareholder Portal",
+  "short_name": "AquaShare",
+  "description": "A portal for NPRWD shareholders to view and manage their accounts and meetings",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3498db",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+} 
