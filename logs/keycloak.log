@@ -54,3 +54,59 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-15T01:34:06.552Z",
+  "level": "INFO",
+  "category": "keycloak",
+  "message": "Authenticating admin client",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 158,
+      "external": 4,
+      "rss": 1455
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T01:34:07.010Z",
+  "level": "INFO",
+  "category": "keycloak",
+  "message": "Authentication successful with sufficient permissions",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 159,
+      "external": 4,
+      "rss": 1455
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T01:34:07.207Z",
+  "level": "INFO",
+  "category": "keycloak",
+  "message": "Authenticating admin client",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 162,
+      "external": 4,
+      "rss": 1455
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T01:34:07.356Z",
+  "level": "INFO",
+  "category": "keycloak",
+  "message": "Authentication successful with sufficient permissions",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 163,
+      "external": 4,
+      "rss": 1455
+    }
+  }
+}

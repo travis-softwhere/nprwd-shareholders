@@ -12,3 +12,17 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-15T01:34:06.539Z",
+  "level": "WARN",
+  "category": "security",
+  "message": "Running in development mode. Ensure valid SSL certificates are used in production.",
+  "metadata": {
+    "memory": {
+      "heapTotal": 191,
+      "heapUsed": 157,
+      "external": 4,
+      "rss": 1455
+    }
+  }
+}
