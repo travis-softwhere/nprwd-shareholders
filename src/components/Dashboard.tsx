@@ -207,12 +207,66 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Updated handlePrintMailers that uses selectedMeeting from context
   const handlePrintMailers = async () => {
+    // Fetch available meetings if we don't have a selected one
     if (!selectedMeeting) {
-      console.error("No meeting selected.");
-      setError("No meeting is currently selected. Please select a meeting first.");
-      return;
+      // Instead of showing an error, check if we have any available meetings
+      if (meetings && meetings.length > 0) {
+        // Use the most recent meeting by default
+        const latestMeeting = meetings[meetings.length - 1];
+        
+        try {
+          setLoading(true);
+          const payload = JSON.stringify({ meetingId: latestMeeting.id });
+          console.log("Dashboard payload being sent (using latest meeting):", payload);
+
+          const response = await fetch("/api/print-mailers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/pdf",
+            },
+            body: payload,
+          });
+
+          console.log("Response received:", {
+            status: response.status,
+            statusText: response.statusText,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to generate mailers: ${response.status} ${response.statusText}`);
+          }
+
+          const blob = await response.blob();
+          console.log("PDF blob received, size:", blob.size);
+          const url = window.URL.createObjectURL(blob);
+          console.log("PDF URL created:", url);
+          
+          // Create an invisible anchor to trigger download
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `${latestMeeting.year}-invitations.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          
+          // Clean up
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          setLoading(false);
+        } catch (error) {
+          console.error("Error generating mailers:", error);
+          setError(error instanceof Error ? error.message : "Failed to generate mailers");
+          setLoading(false);
+        }
+        return;
+      } else {
+        setError("No meetings are available. Please upload meeting data first.");
+        return;
+      }
     }
 
+    // Continue with selected meeting if available
     setLoading(true);
 
     try {
@@ -226,33 +280,37 @@ const Dashboard: React.FC<DashboardProps> = ({
           "Accept": "application/pdf",
         },
         body: payload,
-        cache: "no-cache",
-        credentials: "same-origin",
       });
 
       console.log("Response received:", {
         status: response.status,
-        contentType: response.headers.get("content-type"),
+        statusText: response.statusText,
       });
 
-      if (!response.ok) throw new Error("Failed to generate mailers");
+      if (!response.ok) {
+        throw new Error(`Failed to generate mailers: ${response.status} ${response.statusText}`);
+      }
 
       const blob = await response.blob();
       console.log("PDF blob received, size:", blob.size);
       const url = window.URL.createObjectURL(blob);
       console.log("PDF URL created:", url);
+      
+      // Create an invisible anchor to trigger download
       const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
-      a.download = "shareholder-mailers.pdf";
+      a.download = `${selectedMeeting.year}-invitations.pdf`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      
+      // Clean up
       window.URL.revokeObjectURL(url);
-      setError("");
+      document.body.removeChild(a);
+      setLoading(false);
     } catch (error) {
       console.error("Error generating mailers:", error);
-      setError("Failed to generate mailers. Please try again later.");
-    } finally {
+      setError(error instanceof Error ? error.message : "Failed to generate mailers");
       setLoading(false);
     }
   };

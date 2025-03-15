@@ -1,0 +1,58 @@
+{
+  "timestamp": "2025-03-15T00:36:03.021Z",
+  "level": "INFO",
+  "category": "checkin",
+  "message": "Check-in request received",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 123,
+      "external": 4,
+      "rss": 1364
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:36:03.041Z",
+  "level": "INFO",
+  "category": "checkin",
+  "message": "Request validation",
+  "metadata": {
+    "hasShareholderId": true,
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 123,
+      "external": 4,
+      "rss": 1364
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:36:03.243Z",
+  "level": "INFO",
+  "category": "checkin",
+  "message": "Shareholder lookup result",
+  "metadata": {
+    "shareholderFound": false,
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 124,
+      "external": 4,
+      "rss": 1364
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:36:03.247Z",
+  "level": "ERROR",
+  "category": "checkin",
+  "message": "Shareholder not found",
+  "metadata": {
+    "memory": {
+      "heapTotal": 132,
+      "heapUsed": 124,
+      "external": 4,
+      "rss": 1364
+    }
+  }
+}

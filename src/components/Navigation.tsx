@@ -17,10 +17,6 @@ export default function Navigation() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
 
-    // Debug session
-    console.log("Navigation - Session:", session);
-    console.log("Navigation - isAdmin:", session?.user?.isAdmin);
-
     // Check if the screen is mobile sized
     useEffect(() => {
         const checkIfMobile = () => {
@@ -57,15 +53,6 @@ export default function Navigation() {
                     const Icon = item.icon
                     const isAdminOnly = item.adminOnly
                     const isAdmin = session.user.isAdmin
-
-                    // Debug rendering logic
-                    if (isAdminOnly) {
-                        console.log("Admin menu item:", {
-                            name: item.name,
-                            isAdmin,
-                            shouldRender: !isAdminOnly || isAdmin
-                        });
-                    }
 
                     const shouldRender = !isAdminOnly || isAdmin
 

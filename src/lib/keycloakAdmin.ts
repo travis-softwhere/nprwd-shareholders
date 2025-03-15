@@ -1,4 +1,5 @@
 import KcAdminClient from '@keycloak/keycloak-admin-client';
+import { logToFile, LogLevel } from "@/utils/logger";
 
 /**
  * Keycloak Admin Client Configuration
@@ -7,12 +8,13 @@ import KcAdminClient from '@keycloak/keycloak-admin-client';
  * Admin verification is now based on the 'realm-admin' role in Keycloak rather than
  * a custom attribute. Make sure to assign this role to users who need administrative access.
  * 
- * In development, self-signed certificates are allowed for ease of testing.
+ * For production, ensure you're using valid SSL certificates instead of disabling verification.
  */
 
-// In development, allow self-signed certificates
+// In development, we'll log a warning but not disable certificate verification
 if (process.env.NODE_ENV === 'development') {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    // Instead of disabling TLS verification, we log a warning
+    logToFile("security", "Running in development mode. Ensure valid SSL certificates are used in production.", LogLevel.WARN);
 }
 
 // Check required environment variables
@@ -34,16 +36,6 @@ Object.entries(requiredEnvVars).forEach(([key, value]) => {
 const issuerUrl = new URL(requiredEnvVars.KEYCLOAK_ISSUER as string);
 const realmName = process.env.KEYCLOAK_REALM; // Directly use the realm name from .env 
 
-// Log configuration for debugging
-console.log('Keycloak configuration:', {
-    baseUrl: issuerUrl.origin,
-    realmName: realmName,
-    clientId: process.env.KEYCLOAK_CLIENT_ID,
-    // Log a few characters of the secret to verify it's set
-    clientSecretPreview: process.env.KEYCLOAK_CLIENT_SECRET?.substring(0, 4) + '...',
-    fullUrl: process.env.KEYCLOAK_ISSUER
-});
-
 // Initialize the Keycloak admin client
 const keycloakAdmin = new KcAdminClient({
     baseUrl: issuerUrl.origin,
@@ -53,13 +45,10 @@ const keycloakAdmin = new KcAdminClient({
 // Function to authenticate the admin client using client credentials
 export async function authenticateAdmin() {
     try {
-        console.log('Attempting to authenticate with client credentials');
-        console.log('Base URL:', issuerUrl.origin);
-        console.log('Realm:', realmName);
+        await logToFile("keycloak", "Authenticating admin client", LogLevel.INFO);
         
         const tokenEndpoint = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
-        console.log('Token endpoint:', tokenEndpoint);
-
+        
         const response = await fetch(tokenEndpoint, {
             method: 'POST',
             headers: {
@@ -73,38 +62,37 @@ export async function authenticateAdmin() {
         });
 
         const data = await response.json();
-        console.log('Keycloak response status:', response.status);
         
         if (!response.ok) {
-            console.error('Authentication failed:', data);
+            await logToFile("keycloak", "Authentication failed", LogLevel.ERROR, {
+                error: data.error_description || "Unknown error"
+            });
             throw new Error(data.error_description || 'Failed to authenticate with Keycloak');
         }
-
-        console.log('Successfully obtained access token');
 
         // Set the access token in the admin client
         keycloakAdmin.setAccessToken(data.access_token);
 
         // Test the connection and permissions
         try {
-            console.log('Testing connection and permissions...');
             // Try to list users as a test
             await keycloakAdmin.users.find({ max: 1 });
-            console.log('Successfully verified permissions');
+            await logToFile("keycloak", "Authentication successful with sufficient permissions", LogLevel.INFO);
         } catch (testError) {
-            console.error('Permission test failed:', testError);
+            await logToFile("keycloak", "Permission error after authentication", LogLevel.ERROR, {
+                errorMessage: testError instanceof Error ? testError.message : "Unknown error"
+            });
             throw new Error('Client lacks required permissions. Please check service account roles.');
         }
 
         return keycloakAdmin;
     } catch (error) {
-        console.error('Failed to authenticate Keycloak admin client:', error);
+        await logToFile("keycloak", "Authentication error", LogLevel.ERROR, {
+            errorType: error instanceof Error ? error.name : "Unknown error type",
+            errorMessage: error instanceof Error ? error.message : "Unknown error"
+        });
         if (error instanceof Error) {
-            console.error('Error details:', {
-                message: error.message,
-                name: error.name,
-                stack: error.stack,
-            });
+            throw new Error(`Keycloak authentication failed: ${error.message}`);
         }
         throw error;
     }

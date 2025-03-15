@@ -1,0 +1,87 @@
+{
+  "timestamp": "2025-03-15T00:09:51.459Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Deleting user",
+  "metadata": {
+    "userId": "498a79dc-d0f5-4ab9-a816-ee49fa890c34",
+    "memory": {
+      "heapTotal": 119,
+      "heapUsed": 91,
+      "external": 4,
+      "rss": 524
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:09:52.075Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "User deleted successfully",
+  "metadata": {
+    "memory": {
+      "heapTotal": 119,
+      "heapUsed": 92,
+      "external": 4,
+      "rss": 524
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:33:51.092Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Fetching user list",
+  "metadata": {
+    "memory": {
+      "heapTotal": 146,
+      "heapUsed": 122,
+      "external": 4,
+      "rss": 996
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:33:51.687Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Users fetched successfully",
+  "metadata": {
+    "userCount": 1,
+    "memory": {
+      "heapTotal": 147,
+      "heapUsed": 123,
+      "external": 4,
+      "rss": 996
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:33:51.844Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Fetching user list",
+  "metadata": {
+    "memory": {
+      "heapTotal": 145,
+      "heapUsed": 114,
+      "external": 4,
+      "rss": 994
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T00:33:52.082Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Users fetched successfully",
+  "metadata": {
+    "userCount": 1,
+    "memory": {
+      "heapTotal": 145,
+      "heapUsed": 115,
+      "external": 4,
+      "rss": 994
+    }
+  }
+}

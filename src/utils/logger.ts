@@ -54,6 +54,36 @@ function getMemoryUsage() {
     }
 }
 
+// Safer console methods for production
+export const safeConsole = {
+    log: (message: string, ...args: any[]) => {
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(message, ...args);
+        }
+    },
+    error: (message: string, ...args: any[]) => {
+        if (process.env.NODE_ENV !== 'production') {
+            console.error(message, ...args);
+        }
+        // In production, we could still write errors to file without exposing them in logs
+    },
+    warn: (message: string, ...args: any[]) => {
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn(message, ...args);
+        }
+    },
+    info: (message: string, ...args: any[]) => {
+        if (process.env.NODE_ENV !== 'production') {
+            console.info(message, ...args);
+        }
+    },
+    debug: (message: string, ...args: any[]) => {
+        if (process.env.NODE_ENV !== 'production') {
+            console.debug(message, ...args);
+        }
+    }
+};
+
 export async function logToFile(
     category: string,
     message: string,
@@ -74,11 +104,11 @@ export async function logToFile(
         },
     }
 
-    // In development, always log to console
+    // In development, log to console
     if (process.env.NODE_ENV === "development") {
-        console.log(`[${timestamp}] ${level} - ${category}: ${message}`)
+        safeConsole.log(`[${timestamp}] ${level} - ${category}: ${message}`)
         if (metadata) {
-            console.log("Metadata:", metadata)
+            safeConsole.log("Metadata:", metadata)
         }
     }
 
@@ -106,8 +136,10 @@ export async function logToFile(
 
             await fs.writeFile(filePath, logEntry, { flag: "a" })
         } catch (error) {
-            // Fallback to console.error if file operations fail
-            console.error("Error writing to log file:", error instanceof Error ? error.message : String(error))
+            // Fallback to console.error if file operations fail, but only in development
+            if (process.env.NODE_ENV !== 'production') {
+                safeConsole.error("Error writing to log file:", error instanceof Error ? error.message : String(error))
+            }
         }
     }
 }

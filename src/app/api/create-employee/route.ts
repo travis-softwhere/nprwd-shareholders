@@ -5,6 +5,7 @@ import { authenticateAdmin } from "@/lib/keycloakAdmin";
 import { auth } from "@/lib/auth";
 import jwt from "jsonwebtoken";
 import { sendResetEmail } from "@/utils/emailService";
+import { safeConsole, logToFile, LogLevel } from "@/utils/logger";
 
 // Function to generate a username from full name
 function generateUsername(firstName: string, lastName: string): string {
@@ -18,14 +19,15 @@ function generateUsername(firstName: string, lastName: string): string {
 
 export async function POST(request: Request) {
     try {
-        console.log('Starting create employee request...');
+        await logToFile("employees", "Starting create employee request");
         
         // Get the current session
         const session = await auth();
-        console.log('Session:', {
-            authenticated: !!session?.user,
-            isAdmin: session?.user?.isAdmin,
-            userId: session?.user?.id
+        
+        // Log minimal information without exposing sensitive details
+        await logToFile("employees", "Request authenticated", LogLevel.INFO, {
+            isAuthenticated: !!session?.user,
+            isAdmin: !!session?.user?.isAdmin,
         });
 
         if (!session?.user) {
@@ -40,7 +42,13 @@ export async function POST(request: Request) {
         // Get form data
         const data = await request.json();
         const { fullName, email, role } = data;
-        console.log('Received form data:', { fullName, email, role });
+        
+        // Log without exposing full details
+        await logToFile("employees", "Processing employee creation request", LogLevel.INFO, {
+            hasEmail: !!email,
+            hasFullName: !!fullName,
+            hasRole: !!role
+        });
 
         if (!fullName || !email) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -59,15 +67,15 @@ export async function POST(request: Request) {
 
         // Generate username
         const username = generateUsername(firstName, lastName);
-        console.log('Generated username:', username);
+        await logToFile("employees", "Username generated successfully");
 
-        console.log('Authenticating with Keycloak...');
         // Authenticate with Keycloak using client credentials
+        await logToFile("employees", "Authenticating with Keycloak");
         const kcAdmin = await authenticateAdmin();
-        console.log('Successfully authenticated with Keycloak');
+        await logToFile("employees", "Successfully authenticated with Keycloak");
 
         // Create user in Keycloak
-        console.log('Creating user in Keycloak...');
+        await logToFile("employees", "Creating user in Keycloak");
         const user = await kcAdmin.users.create({
             realm: process.env.KEYCLOAK_REALM || "nprwd-dev-realm",
             username: username,
@@ -79,7 +87,11 @@ export async function POST(request: Request) {
                 role: [role],
             },
         });
-        console.log('Successfully created user:', user.id);
+        
+        await logToFile("employees", "User created successfully", LogLevel.INFO, {
+            success: true,
+            // Don't log the actual user ID
+        });
 
         // generate a custom token for setting a new password.
         if (user.id) {
@@ -95,7 +107,7 @@ export async function POST(request: Request) {
             
             // Send the email with your custom email service
             await sendResetEmail(email, setPasswordToken);
-            console.log('Successfully sent set-new-password email to:', email);
+            await logToFile("employees", "Password reset email sent successfully");
         }
 
         return NextResponse.json({ 
@@ -104,14 +116,11 @@ export async function POST(request: Request) {
             username: username 
         });
     } catch (error) {
-        console.error('Error creating employee:', error);
-        if (error instanceof Error) {
-            console.error('Error details:', {
-                message: error.message,
-                name: error.name,
-                stack: error.stack,
-            });
-        }
+        await logToFile("employees", "Error creating employee", LogLevel.ERROR, {
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            errorType: error instanceof Error ? error.name : "Unknown type",
+            // Don't log stack traces in production
+        });
         
         // Determine if it's a permissions error
         const errorMessage = error instanceof Error ? error.message : 'Failed to create employee';

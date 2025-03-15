@@ -9,16 +9,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    console.log("Admin POST request received:", new Date().toISOString())
-
-    // Log the request body
+    // Process the request body without logging
     const body = await request.json()
-    console.log("Request body:", body)
-
-    // Log the request headers
-    const headers = Object.fromEntries(request.headers)
-    console.log("Request headers:", headers)
-
+    
     // For now, just return a success response
     return NextResponse.json({ success: true })
 }

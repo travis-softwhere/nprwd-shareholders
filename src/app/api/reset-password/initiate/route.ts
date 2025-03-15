@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { sendResetEmail } from "@/utils/emailService";
+import { logToFile, LogLevel } from "@/utils/logger";
 
 export async function POST(request: Request) {
   try {
@@ -22,10 +23,17 @@ export async function POST(request: Request) {
     // Let the email service handle the URL construction
     await sendResetEmail(email, token);
     
-    console.log("Password reset email initiated for:", email);
+    // Log without exposing the email address
+    await logToFile("password-reset", "Password reset email initiated", LogLevel.INFO, {
+      emailDomain: email.split('@')[1], // Only log domain part
+    });
+    
     return NextResponse.json({ success: true, message: "Reset email sent" });
   } catch (error: any) {
-    console.error("Error initiating password reset:", error);
+    await logToFile("password-reset", "Error initiating password reset", LogLevel.ERROR, {
+      error: error.message || "Unknown error",
+    });
+    
     return NextResponse.json(
       { error: error.message || "Failed to initiate reset" },
       { status: 500 }
