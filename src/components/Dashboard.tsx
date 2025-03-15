@@ -39,7 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   nextMeetingDate = "2024-06-15",
   mailersStatus = false,
 }) => {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const { meetings, selectedMeeting } = useMeeting();
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -88,25 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [meetings, selectedMeeting, totalShareholders, checkedInCount]);
 
-  // Redirect if unauthenticated
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-  }, [status, router]);
-
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if meetings have been loaded
+  // Show loading skeleton during data fetch, rather than for auth state
   if (!meetings || meetings.length === 0) {
     return (
       <div className="flex items-center justify-center h-full p-6">
@@ -217,7 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         try {
           setLoading(true);
           const payload = JSON.stringify({ meetingId: latestMeeting.id });
-          console.log("Dashboard payload being sent (using latest meeting):", payload);
+         
 
           const response = await fetch("/api/print-mailers", {
             method: "POST",
@@ -238,9 +220,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           }
 
           const blob = await response.blob();
-          console.log("PDF blob received, size:", blob.size);
+         
           const url = window.URL.createObjectURL(blob);
-          console.log("PDF URL created:", url);
+         
           
           // Create an invisible anchor to trigger download
           const a = document.createElement("a");
@@ -255,7 +237,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           document.body.removeChild(a);
           setLoading(false);
         } catch (error) {
-          console.error("Error generating mailers:", error);
           setError(error instanceof Error ? error.message : "Failed to generate mailers");
           setLoading(false);
         }
