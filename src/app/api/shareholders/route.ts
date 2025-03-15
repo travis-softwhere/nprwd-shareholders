@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
 import { parse } from "csv-parse/sync"
+import { logToFile, LogLevel } from "@/utils/logger"
 
 export interface Property {
     account: string
@@ -69,10 +70,17 @@ function getCSVData(): Property[] {
 
 export async function GET() {
     try {
+        await logToFile("shareholders", "Reading shareholders data from CSV", LogLevel.INFO);
         const data = getCSVData()
+        await logToFile("shareholders", "Successfully read shareholders data", LogLevel.INFO, {
+            recordCount: data.length
+        });
         return NextResponse.json(data)
     } catch (error) {
-        console.error("Error reading CSV:", error)
+        await logToFile("shareholders", "Error reading CSV data", LogLevel.ERROR, {
+            errorType: error instanceof Error ? error.name : "Unknown error type",
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
         return NextResponse.json({ error: "Failed to read data" }, { status: 500 })
     }
 }
@@ -80,6 +88,11 @@ export async function GET() {
 export async function PUT(request: Request) {
     try {
         const { shareholderId, isCheckedIn } = await request.json()
+        await logToFile("shareholders", "Updating shareholder check-in status", LogLevel.INFO, {
+            shareholderIdPresent: !!shareholderId,
+            newStatus: isCheckedIn
+        });
+        
         const filePath = path.join(process.cwd(), "public", "PropertyList.csv")
         const properties = getCSVData()
 
@@ -126,9 +139,13 @@ export async function PUT(request: Request) {
         ].join("\n")
 
         fs.writeFileSync(filePath, csvContent, "utf-8")
+        await logToFile("shareholders", "Successfully updated shareholder data", LogLevel.INFO);
         return NextResponse.json({ success: true })
     } catch (error) {
-        console.error("Error updating CSV:", error)
+        await logToFile("shareholders", "Error updating CSV data", LogLevel.ERROR, {
+            errorType: error instanceof Error ? error.name : "Unknown error type",
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
         return NextResponse.json({ error: "Failed to update data" }, { status: 500 })
     }
 }

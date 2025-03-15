@@ -195,12 +195,59 @@ export default function AdminPage() {
     }
   };
 
-  // Handle Print Mailers – only run if a meeting is selected.
+  // Handle Print Mailers – will try to use the latest meeting if no meeting is selected
   const handlePrintMailers = async () => {
     if (!selectedMeeting) {
-      console.error("No meeting selected.");
-      return;
+      // Instead of showing an error, check if we have any available meetings
+      if (meetings && meetings.length > 0) {
+        // Use the most recent meeting by default
+        const latestMeeting = meetings[meetings.length - 1];
+        
+        setIsPrinting(true);
+        try {
+          const payload = JSON.stringify({ meetingId: latestMeeting.id });
+          const response = await fetch("/api/print-mailers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/pdf",
+            },
+            body: payload,
+            cache: "no-cache",
+            credentials: "same-origin",
+          });
+          if (!response.ok) throw new Error("Failed to generate mailers");
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${latestMeeting.year}-invitations.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: error instanceof Error ? error.message : "Failed to generate mailers"
+          });
+        } finally {
+          setIsPrinting(false);
+        }
+        return;
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No meetings are available. Please upload meeting data first."
+        });
+        return;
+      }
     }
+
+    // Continue with selected meeting if available
     setIsPrinting(true);
     try {
       const payload = JSON.stringify({ meetingId: selectedMeeting.id });
@@ -220,7 +267,7 @@ export default function AdminPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "shareholder-mailers.pdf";
+      a.download = `${selectedMeeting.year}-invitations.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

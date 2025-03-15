@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import SMTPConnection from "nodemailer/lib/smtp-connection";
+import { safeConsole, logToFile, LogLevel } from "@/utils/logger";
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,                   // e.g., smtp.purelymail.com
@@ -32,7 +33,11 @@ export async function sendResetEmail(to: string, token: string) {
         resetUrl = `${baseUrl}/reset-password?token=${token}`;
     }
         
-    console.log(`Sending email with ${isNewPassword ? 'set password' : 'reset password'} URL: ${resetUrl}`);
+    // Instead of logging the full URL with token, just log the action type
+    await logToFile("email", `Sending ${isNewPassword ? 'set password' : 'reset password'} email`, LogLevel.INFO, {
+        recipientDomain: to.split('@')[1], // Only log the domain, not the full email
+        baseUrlUsed: !!baseUrl,
+    });
     
     // Customize subject and messages based on whether this is a password reset or new account setup
     const subject = isNewPassword ? "Set Your Password" : "Reset Your Password";
@@ -76,10 +81,16 @@ export async function sendResetEmail(to: string, token: string) {
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log("Email sent:", info.messageId);
+        // Log message ID without exposing full email content
+        await logToFile("email", "Email sent successfully", LogLevel.INFO, {
+            messageId: info.messageId,
+        });
         return info.messageId;
     } catch (error) {
-        console.error("Error sending email:", error);
+        // Log error without exposing sensitive details
+        await logToFile("email", "Error sending email", LogLevel.ERROR, {
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
         throw error;
     }
 }

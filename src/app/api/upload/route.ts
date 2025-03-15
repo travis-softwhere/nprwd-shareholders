@@ -14,11 +14,11 @@ export async function POST(request: Request) {
 
     try {
         await logToFile("upload", `Starting upload ${uploadId}`, LogLevel.INFO)
-        console.log("Starting upload process")
 
         // Check authentication
         const session = await getServerSession(authOptions)
         if (!session?.user?.isAdmin) {
+            await logToFile("upload", "Unauthorized upload attempt", LogLevel.ERROR)
             throw new Error("Unauthorized")
         }
 
@@ -26,10 +26,12 @@ export async function POST(request: Request) {
         let formData: FormData
         try {
             formData = await request.formData()
-            console.log("FormData received")
             await logToFile("upload", "FormData received", LogLevel.INFO)
         } catch (error) {
-            console.error("FormData error:", error)
+            await logToFile("upload", "FormData parsing error", LogLevel.ERROR, {
+                errorType: error instanceof Error ? error.name : "Unknown",
+                errorMessage: error instanceof Error ? error.message : "Unknown error"
+            })
             throw new Error(`Failed to parse form data: ${error}`)
         }
 
@@ -37,26 +39,30 @@ export async function POST(request: Request) {
         const meetingId = formData.get("meetingId") as string
 
         if (!file || !meetingId) {
+            await logToFile("upload", "Missing required fields", LogLevel.ERROR, {
+                hasFile: !!file,
+                hasMeetingId: !!meetingId
+            })
             throw new Error("Missing required fields")
         }
 
-        console.log("File details:", {
-            name: file.name,
-            size: file.size,
-            type: file.type,
+        await logToFile("upload", "File received", LogLevel.INFO, {
+            fileSize: file.size,
+            fileType: file.type
         })
 
         // Read file content with error boundary
         let content: string
         try {
             content = await file.text()
-            console.log("File content read, length:", content.length)
             await logToFile("upload", "File content read", LogLevel.INFO, {
-                contentLength: content.length,
-                firstLine: content.split("\n")[0],
+                contentLength: content.length
             })
         } catch (error) {
-            console.error("File reading error:", error)
+            await logToFile("upload", "File reading error", LogLevel.ERROR, {
+                errorType: error instanceof Error ? error.name : "Unknown",
+                errorMessage: error instanceof Error ? error.message : "Unknown error"
+            })
             throw new Error(`Failed to read file: ${error}`)
         }
 
@@ -68,12 +74,14 @@ export async function POST(request: Request) {
                 skip_empty_lines: true,
                 trim: true,
             })
-            console.log("CSV parsed, records:", records.length)
             await logToFile("upload", "CSV parsed", LogLevel.INFO, {
                 recordCount: records.length,
             })
         } catch (error) {
-            console.error("CSV parsing error:", error)
+            await logToFile("upload", "CSV parsing error", LogLevel.ERROR, {
+                errorType: error instanceof Error ? error.name : "Unknown",
+                errorMessage: error instanceof Error ? error.message : "Unknown error"
+            })
             throw new Error(`Failed to parse CSV: ${error}`)
         }
 
@@ -88,10 +96,15 @@ export async function POST(request: Request) {
                 const shareholderIds = existingShareholders.map((s) => s.shareholderId)
                 await db.delete(properties).where(inArray(properties.shareholderId, shareholderIds))
                 await db.delete(shareholders).where(eq(shareholders.meetingId, meetingId))
-                console.log("Existing data cleared")
+                await logToFile("upload", "Existing data cleared", LogLevel.INFO, {
+                    shareholderCount: existingShareholders.length
+                })
             }
         } catch (error) {
-            console.error("Database clear error:", error)
+            await logToFile("upload", "Database clear error", LogLevel.ERROR, {
+                errorType: error instanceof Error ? error.name : "Unknown",
+                errorMessage: error instanceof Error ? error.message : "Unknown error"
+            })
             throw new Error(`Failed to clear existing data: ${error}`)
         }
 
@@ -146,14 +159,18 @@ export async function POST(request: Request) {
                 }
 
                 processedCount += batch.length
-                console.log(`Processed ${processedCount}/${records.length} records`)
                 await logToFile("upload", "Batch processed", LogLevel.INFO, {
                     processedCount,
                     totalRecords: records.length,
+                    batchSize: batch.length
                 })
             }
         } catch (error) {
-            console.error("Processing error:", error)
+            await logToFile("upload", "Processing error", LogLevel.ERROR, {
+                errorType: error instanceof Error ? error.name : "Unknown",
+                errorMessage: error instanceof Error ? error.message : "Unknown error",
+                processedCount
+            })
             throw new Error(`Failed to process records: ${error}`)
         }
 
@@ -163,13 +180,20 @@ export async function POST(request: Request) {
                 .update(meetings)
                 .set({ totalShareholders: uniqueShareholders.size })
                 .where(eq(meetings.id, Number.parseInt(meetingId)))
+            
+            await logToFile("upload", "Meeting statistics updated", LogLevel.INFO, {
+                meetingId,
+                totalShareholders: uniqueShareholders.size
+            })
         } catch (error) {
-            console.error("Statistics update error:", error)
+            await logToFile("upload", "Statistics update error", LogLevel.ERROR, {
+                errorType: error instanceof Error ? error.name : "Unknown",
+                errorMessage: error instanceof Error ? error.message : "Unknown error"
+            })
             throw new Error(`Failed to update meeting statistics: ${error}`)
         }
 
         const totalTime = ((Date.now() - startTime) / 1000).toFixed(2)
-        console.log(`Upload completed in ${totalTime}s`)
         await logToFile("upload", "Upload completed", LogLevel.INFO, {
             duration: totalTime,
             totalRecords: records.length,
@@ -183,8 +207,10 @@ export async function POST(request: Request) {
             totalShareholders: uniqueShareholders.size,
         })
     } catch (error) {
-        console.error("Upload failed:", error)
-        await logToFile("upload", `Upload failed: ${error}`, LogLevel.ERROR)
+        await logToFile("upload", "Upload failed", LogLevel.ERROR, {
+            errorType: error instanceof Error ? error.name : "Unknown",
+            errorMessage: error instanceof Error ? error.message : "Unknown error"
+        })
 
         return NextResponse.json(
             {

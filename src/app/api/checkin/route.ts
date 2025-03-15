@@ -2,17 +2,20 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { meetings, properties, shareholders } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { logToFile, LogLevel } from "@/utils/logger";
 
 export async function POST(request: Request) {
     try {
-        console.log("Check-in API called");
+        await logToFile("checkin", "Check-in request received", LogLevel.INFO);
         
         // Parse the request body expecting a shareholderId string.
         const { shareholderId } = await request.json();
-        console.log("Received shareholderId:", shareholderId);
+        await logToFile("checkin", "Request validation", LogLevel.INFO, {
+            hasShareholderId: !!shareholderId
+        });
         
         if(!shareholderId){
-            console.log("Error: No shareholderId provided");
+            await logToFile("checkin", "Missing shareholderId", LogLevel.ERROR);
             return NextResponse.json({ error: "shareholderId is required" }, { status: 400 });
         }
 
@@ -22,10 +25,13 @@ export async function POST(request: Request) {
             .from(shareholders)
             .where(eq(shareholders.shareholderId, shareholderId));
 
-        console.log("Found shareholder:", foundShareholder);
+        // Log shareholder found status without exposing details
+        await logToFile("checkin", "Shareholder lookup result", LogLevel.INFO, {
+            shareholderFound: !!foundShareholder
+        });
 
         if (!foundShareholder) {
-            console.log("Error: Shareholder not found");
+            await logToFile("checkin", "Shareholder not found", LogLevel.ERROR);
             return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
         }
 
@@ -35,10 +41,14 @@ export async function POST(request: Request) {
             .from(meetings)
             .where(eq(meetings.id, Number(foundShareholder.meetingId)));
 
-        console.log("Found meeting:", foundMeeting);
+        // Log meeting found status without exposing details
+        await logToFile("checkin", "Meeting lookup result", LogLevel.INFO, {
+            meetingFound: !!foundMeeting,
+            meetingId: foundMeeting?.id
+        });
 
         if (!foundMeeting) {
-            console.log("Error: Meeting not found");
+            await logToFile("checkin", "Meeting not found", LogLevel.ERROR);
             return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
         }
 
@@ -48,55 +58,84 @@ export async function POST(request: Request) {
         let wasAlreadyCheckedIn = false;
 
         // Get safe values (if any field might be null)
-        const totalShareholders = foundMeeting.totalShareholders ?? 0;
-        console.log("Total shareholders:", totalShareholders);
+        const totalShareholders = foundMeeting.totalShareholders || 0;
+        const checkedIn = foundMeeting.checkedIn || 0;
+        
+        await logToFile("checkin", "Retrieved meeting attendance info", LogLevel.INFO, {
+            totalShareholders,
+            currentCheckedIn: checkedIn
+        });
 
-        // If the meeting is not already at maximum attendance and the shareholder wasn't already checked in, increment.
+        // Update the meeting check-in count if not already checked in
         if (!wasAlreadyCheckedIn) {
-            console.log("Updating meeting check-in count");
-            // Using SQL helper to atomically increment checkedIn count
-            // This ensures the increment happens in a single atomic operation
-            // Avoiding potential race conditions
-            await db 
+            await logToFile("checkin", "Updating meeting check-in count", LogLevel.INFO);
+            
+            // Update the meetings table
+            const [updatedMeeting] = await db
                 .update(meetings)
-                .set({ 
-                    checkedIn: sql`LEAST(COALESCE(${meetings.checkedIn}, 0) + 1, ${totalShareholders})`
+                .set({
+                    checkedIn: checkedIn + 1
                 })
-                .where(eq(meetings.id, Number(foundShareholder.meetingId)));
+                .where(eq(meetings.id, foundMeeting.id))
+                .returning();
+
+            // Update the status of ALL properties owned by this shareholder for the current meeting
+            await logToFile("checkin", "Updating property check-in status", LogLevel.INFO);
+            
+            // Now mark all of this shareholder's properties as checked in
+            await db
+                .update(properties)
+                .set({
+                    checkedIn: true
+                })
+                .where(eq(properties.shareholderId, shareholderId));
+
+            // Fetch the shareholder data with properties for the response
+            const shareholderWithProperties = await db
+                .select()
+                .from(shareholders)
+                .where(eq(shareholders.shareholderId, shareholderId));
+                
+            const propertiesForShareholder = await db
+                .select()
+                .from(properties)
+                .where(eq(properties.shareholderId, shareholderId));
+
+            // Log success without exposing the full data
+            await logToFile("checkin", "Check-in successful", LogLevel.INFO, {
+                propertyCount: propertiesForShareholder.length,
+                meetingYear: updatedMeeting.year
+            });
+
+            // Prepare response with minimal info needed
+            const response = {
+                success: true,
+                message: "Check-in successful",
+                meeting: {
+                    id: updatedMeeting.id,
+                    year: updatedMeeting.year,
+                    total_shareholders: updatedMeeting.totalShareholders,
+                    checked_in: updatedMeeting.checkedIn
+                },
+                shareholder: {
+                    id: shareholderId,
+                    // Avoid exposing full details in response logs
+                },
+                propertyCount: propertiesForShareholder.length
+            };
+            
+            await logToFile("checkin", "Sending success response", LogLevel.INFO);
+            return NextResponse.json(response);
         }
-
-        console.log("Updating properties check-in status");
-        // Update the checkedIn status in the properties table
-        await db
-            .update(properties)
-            .set({ checkedIn: true })
-            .where(eq(properties.shareholderId, shareholderId));
-
-        // Re-fetch the updated records.
-        const [updatedShareholder] = await db
-            .select()
-            .from(shareholders)
-            .where(eq(shareholders.shareholderId, shareholderId));
-
-        const [updatedMeeting] = await db
-            .select()
-            .from(meetings)
-            .where(eq(meetings.id, Number(updatedShareholder.meetingId)));
-
-        console.log("Updated meeting:", updatedMeeting);
-
-        // Return the updated meeting data in the format expected by the frontend
-        const response = {
-            meeting: {
-                total_shareholders: updatedMeeting.totalShareholders,
-                checked_in: updatedMeeting.checkedIn
-            },
-            message: "Successfully checked in"
-        };
-        console.log("Sending response:", response);
-        return NextResponse.json(response);
     } catch (error) {
-        console.error("Error in checkin:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        await logToFile("checkin", "Error processing check-in", LogLevel.ERROR, {
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            errorType: error instanceof Error ? error.name : "Unknown type"
+        });
+        
+        return NextResponse.json(
+            { error: "An error occurred during check-in" },
+            { status: 500 }
+        );
     }
 }
