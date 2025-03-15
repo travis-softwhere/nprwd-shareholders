@@ -151,7 +151,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setError("");
     
     try {
-      console.log("Attempting check-in for shareholder:", barcodeInput);
       const response = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,17 +158,14 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
       
       const data = await response.json();
-      console.log("Check-in response:", data);
       
       if (!response.ok) {
-        console.error("Check-in failed:", data.error);
         setError(data.error || "Check-in failed.");
         return;
       }
 
       // Update local attendance state with the returned meeting data
       if (data.meeting) {
-        console.log("Updating attendance with:", data.meeting);
         setAttendance({
           total: data.meeting.total_shareholders || attendance.total,
           checkedIn: data.meeting.checked_in || attendance.checkedIn,
@@ -180,7 +176,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       router.push(`/shareholders/${barcodeInput}`);
       setBarcodeInput("");
     } catch (err) {
-      console.error("Error during check-in", err);
       setError("An error occurred during check-in.");
     } finally {
       setLoading(false);
@@ -208,11 +203,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               "Accept": "application/pdf",
             },
             body: payload,
-          });
-
-          console.log("Response received:", {
-            status: response.status,
-            statusText: response.statusText,
           });
 
           if (!response.ok) {
@@ -252,7 +242,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     try {
       const payload = JSON.stringify({ meetingId: selectedMeeting.id });
-      console.log("Dashboard payload being sent:", payload);
 
       const response = await fetch("/api/print-mailers", {
         method: "POST",
@@ -263,19 +252,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         body: payload,
       });
 
-      console.log("Response received:", {
-        status: response.status,
-        statusText: response.statusText,
-      });
-
       if (!response.ok) {
         throw new Error(`Failed to generate mailers: ${response.status} ${response.statusText}`);
       }
 
       const blob = await response.blob();
-      console.log("PDF blob received, size:", blob.size);
+
       const url = window.URL.createObjectURL(blob);
-      console.log("PDF URL created:", url);
       
       // Create an invisible anchor to trigger download
       const a = document.createElement("a");
@@ -290,7 +273,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       document.body.removeChild(a);
       setLoading(false);
     } catch (error) {
-      console.error("Error generating mailers:", error);
       setError(error instanceof Error ? error.message : "Failed to generate mailers");
       setLoading(false);
     }

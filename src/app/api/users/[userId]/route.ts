@@ -3,13 +3,10 @@ import { authenticateAdmin } from "@/lib/keycloakAdmin";
 import { auth } from "@/lib/auth";
 import { logToFile, LogLevel } from "@/utils/logger";
 
-type RouteContext = {
-  params: Promise<{ userId: string }>;
-};
-
+// Next.js specifically expects params to be a Promise
 export async function DELETE(
     request: Request,
-    context: RouteContext
+    { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
         const session = await auth();
@@ -18,14 +15,18 @@ export async function DELETE(
             return NextResponse.json({ error: "Not authorized" }, { status: 403 });
         }
 
-        // Get the userId from params
-        const { userId } = await context.params;
+        // Resolve the params promise to get userId
+        const resolvedParams = await params;
+        const { userId } = resolvedParams;
+        
         if (!userId) {
             await logToFile("users", "Missing user ID in delete request", LogLevel.WARN);
-            return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+            return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
         }
 
         await logToFile("users", "Deleting user", LogLevel.INFO, { userId });
+
+        // Add your user deletion logic here
         const kcAdmin = await authenticateAdmin();
         await kcAdmin.users.del({ 
             id: userId,
@@ -36,8 +37,7 @@ export async function DELETE(
         return NextResponse.json({ success: true });
     } catch (error) {
         await logToFile("users", "Error deleting user", LogLevel.ERROR, {
-            errorType: error instanceof Error ? error.name : "Unknown error type",
-            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : String(error),
         });
         return NextResponse.json(
             { error: "Failed to delete user" },

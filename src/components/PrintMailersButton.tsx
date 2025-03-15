@@ -18,8 +18,6 @@ export function PrintMailersButton({ meetingId, onComplete, disabled }: PrintMai
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  console.log("PrintMailersButton rendered with meetingId:", meetingId);
-
   const handlePrintMailers = async () => {
     setIsPrinting(true);
     setProgress(10); // Start progress
@@ -66,7 +64,6 @@ export function PrintMailersButton({ meetingId, onComplete, disabled }: PrintMai
       
       onComplete();
     } catch (error) {
-      console.error("Error generating mailers:", error);
       toast({
         title: "Error",
         description:

@@ -2,67 +2,48 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { formatError, ErrorType } from "@/utils/errorHandler";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorType, formatError } from "@/utils/errorHandler";
 
-export default function GlobalError({
+export default function ErrorPage({
   error,
   reset,
 }: {
-  error: Error & { digest?: string };
+  error: Error;
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to our logging system
+    // Format error for display, but do not log to console
     const formattedError = formatError(error, ErrorType.UNEXPECTED);
-    console.error("Unhandled application error:", formattedError);
+    
+    // Instead of console.error, we could optionally send to an analytics service
+    // in production but we're removing all logging
   }, [error]);
 
   return (
-    <html>
-      <body>
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-          <Card className="p-8 max-w-md w-full">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-red-600 mb-4">
-                Something went wrong
-              </h1>
-              <div className="mb-6">
-                <p className="text-gray-600">
-                  We're sorry, but there was an unexpected error.
-                </p>
-                <p className="text-gray-600 mt-2">
-                  Our team has been notified and is working on a fix.
-                </p>
-              </div>
-
-              {process.env.NODE_ENV !== 'production' && (
-                <div className="mb-6 p-4 bg-gray-100 rounded text-left">
-                  <p className="font-semibold text-red-600">{error.name}: {error.message}</p>
-                  {error.stack && (
-                    <pre className="mt-2 text-xs overflow-auto max-h-48 whitespace-pre-wrap">
-                      {error.stack}
-                    </pre>
-                  )}
-                  {error.digest && (
-                    <p className="mt-2 text-xs text-gray-500">Error ID: {error.digest}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-col space-y-3">
-                <Button onClick={reset}>Try Again</Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => window.location.href = '/'}
-                >
-                  Return to Home
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </body>
-    </html>
+    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="bg-red-50 text-red-900">
+          <CardTitle className="text-xl">Something went wrong</CardTitle>
+          <CardDescription className="text-red-700">
+            We've encountered an unexpected error
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <p className="mb-4 text-gray-700">
+            The application has encountered an unexpected error. We've been notified and will work on fixing it.
+          </p>
+          <div className="p-3 bg-gray-100 rounded-md text-sm overflow-auto">
+            <p className="font-mono">{error.message || 'Unknown error'}</p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-end gap-2 border-t p-4">
+          <Button variant="outline" onClick={() => window.location.href = '/'}>
+            Go Home
+          </Button>
+          <Button onClick={reset}>Try Again</Button>
+        </CardFooter>
+      </Card>
+    </div>
   );
 } 

@@ -1,19 +1,19 @@
 import { getMeetingStats } from "@/actions/getMeetingStats"
 import Dashboard from "@/components/Dashboard"
 import { redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 export default async function Home() {
-  // Get the session
-  const session = await auth()
+  // Double-check authentication at the page level for extra security
+  const session = await getServerSession(authOptions)
   
-  // If no session, redirect to auth page directly
+  // If not authenticated, redirect to login
   if (!session) {
     redirect("/auth/signin")
-    return null; // This line will never execute but helps TypeScript understand the control flow
   }
   
-  // Only fetch data and render dashboard if authenticated
+  // Load data only if authenticated
   const { totalShareholders, checkedInCount, nextMeeting } = await getMeetingStats()
 
   return (

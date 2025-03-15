@@ -12,6 +12,7 @@ import { Search, Filter, ChevronRight, ChevronLeft, Users, ArrowUpDown, Loader2 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/components/ui/use-toast"
 
 interface ShareholderListProps {
     initialShareholders: Shareholder[]
@@ -42,19 +43,17 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        if (status === "unauthenticated") {
-            router.push("/auth/signin")
-        }
-    }, [status, router])
-
-    useEffect(() => {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
                 const { shareholders: newShareholders } = await getShareholdersList(currentPage, itemsPerPage)
                 setShareholders(newShareholders)
             } catch (error) {
-                console.error("Failed to fetch shareholders:", error)
+                toast({
+                    title: "Error",
+                    description: "Failed to fetch shareholders data. Please try again.",
+                    variant: "destructive",
+                })
             } finally {
                 setIsLoading(false)
             }

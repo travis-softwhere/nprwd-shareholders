@@ -5,6 +5,7 @@ export default withAuth(
     function middleware(req) {
         const token = req.nextauth.token as { isAdmin?: boolean } | null
         
+        // Admin route protection
         if (req.nextUrl.pathname.startsWith("/admin")) {
             if (!token?.isAdmin) {
                 return NextResponse.redirect(new URL("/", req.url))
@@ -25,6 +26,11 @@ export default withAuth(
     },
 )
 
+// Update matcher to protect all routes except authentication, API, and static assets
+// Using a simplified pattern that will definitely catch the root path
 export const config = {
-    matcher: ["/admin/:path*", "/shareholders/:path*"],
+    matcher: [
+        '/',
+        '/((?!api|auth|reset-password|_next/static|_next/image|favicon.ico|logo.png|manifest.json).*)',
+    ],
 }

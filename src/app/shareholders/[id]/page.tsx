@@ -1,10 +1,8 @@
 // [id]/page.tsx
 
 import { getShareholderDetails } from "@/actions/getShareholderDetails"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { notFound } from "next/navigation"
 import Link from "next/link"
-import { notFound, redirect } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -16,21 +14,15 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
-// Change the expected type so that params is a Promise<{ id: string }>
+// Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
-  // Resolve the params immediately (works even if params is already a plain object)
-  const resolvedParams = await Promise.resolve(params)
-  const { id: shareholderId } = resolvedParams
-
-  // Check authentication
-  const session = await getServerSession(authOptions)
-  if (!session) {
-    redirect("/auth/signin?callbackUrl=/shareholders")
-  }
+  // Await the params promise
+  const resolvedParams = await params;
+  const { id: shareholderId } = resolvedParams;
 
   try {
     const { shareholder, properties } = await getShareholderDetails(shareholderId)
@@ -121,7 +113,7 @@ export default async function ShareholderPage({
       </div>
     )
   } catch (error) {
-    console.error("Error in ShareholderPage:", error)
+    // Let Next.js error boundary handle this
     throw error
   }
 }

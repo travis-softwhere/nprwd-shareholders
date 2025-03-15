@@ -123,7 +123,6 @@ export default function AdminPage() {
   const handleUpload = useCallback(
     async (formData: FormData) => {
       if (uploadInProgressRef.current) {
-        console.log("Upload already in progress");
         return;
       }
 
@@ -310,7 +309,6 @@ export default function AdminPage() {
     setIsCreatingEmployee(true);
 
     try {
-      console.log("Making API call to create employee...");
       const response = await fetch("/api/create-employee", {
         method: "POST",
         headers: {

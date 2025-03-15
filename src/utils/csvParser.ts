@@ -66,9 +66,6 @@ export async function getProperties(
         trim: true,
     })
 
-    // Log the first record to debug column mapping
-    console.log("First record:", records[0])
-
     const totalProperties = records.length
     const startIndex = (page - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage

@@ -30,7 +30,8 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
         setSelectedMeeting(data[0]);
       }
     } catch (error) {
-      console.error("Error refreshing meetings:", error);
+      // Silent error handling - context refreshes might be triggered by automatic processes
+      // If a UI component needs to show an error, it should handle it itself
     }
   };
 
