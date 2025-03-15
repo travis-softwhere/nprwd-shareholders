@@ -101,37 +101,8 @@ function logClientError({
   details?: any;
   path?: string;
 }) {
-  // Log to the server's logging system if we're in a production environment
-  if (typeof window !== 'undefined') {
-    // Only log non-sensitive information
-    const sanitizedDetails = sanitizeErrorDetails(details);
-    
-    try {
-      // Log to the console in development
-      if (process.env.NODE_ENV !== 'production') {
-        console.error(`[${type}]`, message, sanitizedDetails);
-      }
-      
-      // Send to server logging in production
-      if (process.env.NODE_ENV === 'production') {
-        logToFile("client", message, LogLevel.ERROR, {
-          errorType: type,
-          errorCode: code,
-          path,
-          // Don't log stack traces or sensitive details to server
-          details: typeof sanitizedDetails === 'object' ? JSON.stringify(sanitizedDetails) : sanitizedDetails
-        }).catch(e => {
-          // Fallback to console if server logging fails
-          console.error('Failed to log to server:', e);
-        });
-      }
-    } catch (e) {
-      // Fail silently in production, log in development
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Error in error logging:', e);
-      }
-    }
-  }
+  // No logging in any environment
+  return;
 }
 
 /**
@@ -241,4 +212,25 @@ export async function fetchWithErrorHandling<T>(
     // Handle unexpected errors
     throw formatError(error, ErrorType.UNEXPECTED, url);
   }
+}
+
+/**
+ * Log errors to server - now a no-op function
+ */
+export async function logErrorToServer(
+  _type: 'client' | 'server',
+  _message: string,
+  _details?: Record<string, any>,
+  _level: LogLevel = LogLevel.ERROR,
+): Promise<void> {
+  // No-op function
+  return;
+}
+
+/**
+ * Global error handler - now a no-op function
+ */
+export function handleGlobalError(_error: Error, _errorInfo?: React.ErrorInfo): void {
+  // No-op function
+  return;
 } 

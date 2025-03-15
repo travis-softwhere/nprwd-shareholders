@@ -12,7 +12,8 @@ interface ShareholdersPageProps {
 }
 
 export default async function ShareholdersPage({ searchParams }: ShareholdersPageProps) {
-  const { page: pageParam, itemsPerPage: itemsPerPageParam } = await searchParams
+  const resolvedParams = await searchParams;
+  const { page: pageParam, itemsPerPage: itemsPerPageParam } = resolvedParams;
 
   const page = pageParam && !isNaN(Number(pageParam)) ? Math.max(1, Number.parseInt(pageParam, 10)) : 1
   const itemsPerPage =

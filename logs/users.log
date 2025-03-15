@@ -143,3 +143,119 @@
     }
   }
 }
+{
+  "timestamp": "2025-03-15T02:03:51.849Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Fetching user list",
+  "metadata": {
+    "memory": {
+      "heapTotal": 181,
+      "heapUsed": 151,
+      "external": 4,
+      "rss": 1440
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:03:52.402Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Users fetched successfully",
+  "metadata": {
+    "userCount": 1,
+    "memory": {
+      "heapTotal": 182,
+      "heapUsed": 152,
+      "external": 4,
+      "rss": 1441
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:03:52.546Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Fetching user list",
+  "metadata": {
+    "memory": {
+      "heapTotal": 182,
+      "heapUsed": 156,
+      "external": 4,
+      "rss": 1441
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:03:52.786Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Users fetched successfully",
+  "metadata": {
+    "userCount": 1,
+    "memory": {
+      "heapTotal": 182,
+      "heapUsed": 156,
+      "external": 4,
+      "rss": 1441
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:07:41.144Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Fetching user list",
+  "metadata": {
+    "memory": {
+      "heapTotal": 178,
+      "heapUsed": 153,
+      "external": 4,
+      "rss": 1470
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:07:41.723Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Users fetched successfully",
+  "metadata": {
+    "userCount": 1,
+    "memory": {
+      "heapTotal": 178,
+      "heapUsed": 154,
+      "external": 4,
+      "rss": 1470
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:07:41.857Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Fetching user list",
+  "metadata": {
+    "memory": {
+      "heapTotal": 178,
+      "heapUsed": 152,
+      "external": 4,
+      "rss": 1470
+    }
+  }
+}
+{
+  "timestamp": "2025-03-15T02:07:42.097Z",
+  "level": "INFO",
+  "category": "users",
+  "message": "Users fetched successfully",
+  "metadata": {
+    "userCount": 1,
+    "memory": {
+      "heapTotal": 178,
+      "heapUsed": 153,
+      "external": 4,
+      "rss": 1470
+    }
+  }
+}

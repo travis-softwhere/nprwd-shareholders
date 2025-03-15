@@ -17,6 +17,9 @@ export default function Navigation() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
 
+    // Return null if session doesn't exist (should never happen due to AuthGate)
+    if (!session) return null;
+
     // Check if the screen is mobile sized
     useEffect(() => {
         const checkIfMobile = () => {
@@ -38,8 +41,6 @@ export default function Navigation() {
         { name: "Shareholders", href: "/shareholders", icon: Users },
         { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
     ]
-
-    if (!session) return null
 
     // Desktop sidebar navigation
     const DesktopNavigation = () => (

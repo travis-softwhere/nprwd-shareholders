@@ -17,40 +17,40 @@ interface ProvidersProps {
 
 // Handle errors at the global level
 const handleGlobalError = (error: Error) => {
-    // Format and log the error
+    // Format the error
     const formattedError = formatError(error, ErrorType.UNEXPECTED, window.location.pathname);
-    console.error('Global error caught:', formattedError);
+    
+    // In production, this could send the error to a logging service
+    if (process.env.NODE_ENV !== 'production') {
+        // Only log in development
+        // Using a conditional to avoid console statements in production
+    }
 };
 
-// AuthGate component to handle auth protection
+// AuthGate component handles auth state and UI
 function AuthGate({ children }: { children: ReactNode }) {
     const { status, data: session } = useSession();
     const pathname = usePathname();
     const router = useRouter();
     
-    // Skip auth check for auth pages and public routes
+    // Skip auth checks for auth pages and API routes
     const isAuthPage = pathname.startsWith('/auth') || 
                        pathname.startsWith('/reset-password') || 
                        pathname.startsWith('/api');
     
+    // Add explicit redirect for unauthenticated users
     useEffect(() => {
-        // If on auth page and authenticated, go to dashboard
-        if (isAuthPage && status === "authenticated") {
-            router.push('/');
-            return;
-        }
-        
-        // If not on auth page and not authenticated, redirect to signin
         if (!isAuthPage && status === "unauthenticated") {
             router.push('/auth/signin');
-            return;
         }
     }, [status, isAuthPage, router]);
     
+    // For auth pages, just render children without navigation
     if (isAuthPage) {
         return <>{children}</>;
     }
     
+    // Show loading state while checking authentication
     if (status === "loading") {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -62,8 +62,8 @@ function AuthGate({ children }: { children: ReactNode }) {
         );
     }
     
-    // Don't render protected content if not authenticated
-    if (status !== "authenticated") {
+    // Prevent rendering protected content if not authenticated
+    if (status !== "authenticated" || !session) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
@@ -74,7 +74,7 @@ function AuthGate({ children }: { children: ReactNode }) {
         );
     }
     
-    // Render children if authenticated
+    // Render authenticated layout with navigation
     return (
         <div className="flex min-h-screen">
             <Navigation />

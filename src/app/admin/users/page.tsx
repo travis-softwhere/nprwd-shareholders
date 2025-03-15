@@ -48,18 +48,20 @@ export default function UsersPage() {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/users")
-            if (!response.ok) throw new Error("Failed to fetch users")
-            const data = await response.json()
-            console.log("Fetched users:", data)
-            setUsers(data.users)
+            setError('');
+            setLoading(true);
+            const response = await fetch('/api/users');
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch users: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            setUsers(data.users);
         } catch (err) {
-            console.error("Error fetching users:", err)
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to fetch users"
-            })
+            setError('Failed to load users. Please try again later.');
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -68,17 +70,9 @@ export default function UsersPage() {
         
         // Check if we have a session and if the user is an admin
         if (!session || !session.user?.isAdmin) {
-            console.error("No session or user is not admin");
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "You must be logged in as an admin to create users"
-            });
             return;
         }
 
-        console.log("Session check passed:", session);
-        console.log("Form submitted with data:", newUser);
         setLoading(true);
         setError(null);
 
@@ -94,7 +88,6 @@ export default function UsersPage() {
         }
 
         try {
-            console.log("Making API call to create employee...");
             const response = await fetch("/api/create-employee", {
                 method: "POST",
                 headers: {
@@ -104,24 +97,24 @@ export default function UsersPage() {
                 body: JSON.stringify(newUser),
             });
 
-            console.log("API response status:", response.status);
-            const responseText = await response.text();
-            console.log("Raw response:", responseText);
-
-            let responseData;
+            let responseData: { error?: string, message?: string, user?: User } = {};
             try {
-                responseData = JSON.parse(responseText);
-                console.log("API response data:", responseData);
+                const responseText = await response.text();
+                if (responseText) {
+                    responseData = JSON.parse(responseText);
+                }
             } catch (e) {
-                console.error("Failed to parse response as JSON:", e);
-                throw new Error("Invalid response from server");
+                throw new Error('Invalid response from server');
             }
 
             if (!response.ok) {
-                throw new Error(responseData.error || "Failed to create user");
+                throw new Error(responseData?.error || "Failed to create user");
             }
 
-            setUsers((prev) => [...prev, responseData.user]);
+            // Only add the user to the list if the response contains a user object
+            if (responseData.user) {
+                setUsers((prev) => [...prev, responseData.user as User]);
+            }
             setNewUser({ fullName: "", email: "" });
             toast({
                 title: "Success",
@@ -129,41 +122,34 @@ export default function UsersPage() {
             });
             fetchUsers(); // Refresh the user list
         } catch (err) {
-            console.error("Error creating user:", err);
-            const message = err instanceof Error ? err.message : "Failed to create user";
-            setError(message);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: message
-            });
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
     };
 
     const handleDeleteUser = async (userId: string) => {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        
         try {
+            setLoading(true);
             const response = await fetch(`/api/users/${userId}`, {
-                method: "DELETE",
-            })
-
+                method: 'DELETE',
+            });
+            
             if (!response.ok) {
-                throw new Error("Failed to delete user")
+                throw new Error('Failed to delete user');
             }
-
-            setUsers((prev) => prev.filter((user) => user.id !== userId))
+            
+            setUsers((prev) => prev.filter((user) => user.id !== userId));
             toast({
                 title: "Success",
                 description: "User deleted successfully"
-            })
+            });
         } catch (err) {
-            console.error("Error deleting user:", err)
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to delete user"
-            })
+            setError('Failed to delete user');
+        } finally {
+            setLoading(false);
         }
     }
 

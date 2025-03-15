@@ -1,12 +1,6 @@
-// Use the web Performance API instead of Node's perf_hooks
-const perf =
-    typeof performance !== "undefined"
-        ? performance
-        : {
-            now: () => Date.now(),
-        }
+// No logging for any environment
 
-// Log levels for better filtering
+// Log levels enum - keeping for type compatibility with existing code
 export enum LogLevel {
     DEBUG = "DEBUG",
     INFO = "INFO",
@@ -14,6 +8,7 @@ export enum LogLevel {
     ERROR = "ERROR",
 }
 
+// Empty interface for type compatibility
 interface LogEntry {
     timestamp: string
     level: LogLevel
@@ -22,132 +17,41 @@ interface LogEntry {
     metadata?: Record<string, any>
 }
 
-// Performance tracking using web Performance API
-const performanceMarkers = new Map<string, number>()
-
+// No-op performance tracking
 export function startTimer(markerId: string) {
-    performanceMarkers.set(markerId, perf.now())
+    // No-op implementation
+    return;
 }
 
 export function endTimer(markerId: string): number {
-    const start = performanceMarkers.get(markerId)
-    if (!start) return 0
-    const duration = perf.now() - start
-    performanceMarkers.delete(markerId)
-    return duration
+    // No-op implementation
+    return 0;
 }
 
-// Memory usage tracking (server-side only)
-function getMemoryUsage() {
-    if (typeof window !== "undefined") return null
-
-    try {
-        const used = process.memoryUsage()
-        return {
-            heapTotal: Math.round(used.heapTotal / 1024 / 1024),
-            heapUsed: Math.round(used.heapUsed / 1024 / 1024),
-            external: Math.round(used.external / 1024 / 1024),
-            rss: Math.round(used.rss / 1024 / 1024),
-        }
-    } catch {
-        return null
-    }
-}
-
-// Safer console methods for production
+// Empty console methods - no logging in any environment
 export const safeConsole = {
-    log: (message: string, ...args: any[]) => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(message, ...args);
-        }
-    },
-    error: (message: string, ...args: any[]) => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.error(message, ...args);
-        }
-        // In production, we could still write errors to file without exposing them in logs
-    },
-    warn: (message: string, ...args: any[]) => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.warn(message, ...args);
-        }
-    },
-    info: (message: string, ...args: any[]) => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.info(message, ...args);
-        }
-    },
-    debug: (message: string, ...args: any[]) => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.debug(message, ...args);
-        }
-    }
+    log: (_message: string, ..._args: any[]) => {},
+    error: (_message: string, ..._args: any[]) => {},
+    warn: (_message: string, ..._args: any[]) => {},
+    info: (_message: string, ..._args: any[]) => {},
+    debug: (_message: string, ..._args: any[]) => {}
 };
 
+// No-op file logging
 export async function logToFile(
-    category: string,
-    message: string,
-    level: LogLevel = LogLevel.INFO,
-    metadata?: Record<string, any>,
+    _category: string,
+    _message: string,
+    _level: LogLevel = LogLevel.INFO,
+    _metadata?: Record<string, any>,
 ) {
-    const timestamp = new Date().toISOString()
-    const memoryUsage = getMemoryUsage()
-
-    const entry: LogEntry = {
-        timestamp,
-        level,
-        category,
-        message,
-        metadata: {
-            ...metadata,
-            ...(memoryUsage ? { memory: memoryUsage } : {}),
-        },
-    }
-
-    // In development, log to console
-    if (process.env.NODE_ENV === "development") {
-        safeConsole.log(`[${timestamp}] ${level} - ${category}: ${message}`)
-        if (metadata) {
-            safeConsole.log("Metadata:", metadata)
-        }
-    }
-
-    // Only attempt file operations on server side
-    if (typeof window === "undefined") {
-        try {
-            // Dynamic import of node modules to avoid browser issues
-            const fs = await import("fs/promises")
-            const path = await import("path")
-
-            const logDirectory = path.join(process.cwd(), "logs")
-
-            // Ensure log directory exists
-            try {
-                await fs.mkdir(logDirectory, { recursive: true })
-            } catch (error) {
-                // Ignore error if directory already exists
-                if ((error as any).code !== "EEXIST") {
-                    throw error
-                }
-            }
-
-            const logEntry = JSON.stringify(entry, null, 2) + "\n"
-            const filePath = path.join(logDirectory, `${category}.log`)
-
-            await fs.writeFile(filePath, logEntry, { flag: "a" })
-        } catch (error) {
-            // Fallback to console.error if file operations fail, but only in development
-            if (process.env.NODE_ENV !== 'production') {
-                safeConsole.error("Error writing to log file:", error instanceof Error ? error.message : String(error))
-            }
-        }
-    }
+    // No-op implementation
+    return;
 }
 
-// Database operation logging
+// No-op database logging
 export async function logDbOperation(
-    operation: string,
-    details: {
+    _operation: string,
+    _details: {
         table: string
         action: string
         recordCount?: number
@@ -155,9 +59,6 @@ export async function logDbOperation(
         error?: Error
     },
 ) {
-    const level = details.error ? LogLevel.ERROR : LogLevel.INFO
-    await logToFile("database", `${operation} - ${details.table} - ${details.action}`, level, {
-        ...details,
-        error: details.error ? details.error.message : undefined,
-    })
+    // No-op implementation
+    return;
 }

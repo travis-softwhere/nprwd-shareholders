@@ -38,7 +38,6 @@ export function EmployeeList({ refreshTrigger = 0 }: EmployeeListProps) {
       setEmployees(data);
     } catch (error) {
       toast.error('Failed to load employees');
-      console.error('Error fetching employees:', error);
     } finally {
       setLoading(false);
     }
@@ -67,7 +66,6 @@ export function EmployeeList({ refreshTrigger = 0 }: EmployeeListProps) {
       toast.success('Password reset email sent');
     } catch (error) {
       toast.error('Failed to send password reset email');
-      console.error('Error resetting password:', error);
     } finally {
       setActionInProgress(null);
     }
@@ -86,7 +84,6 @@ export function EmployeeList({ refreshTrigger = 0 }: EmployeeListProps) {
       toast.success('Employee removed successfully');
     } catch (error) {
       toast.error('Failed to remove employee');
-      console.error('Error removing employee:', error);
     } finally {
       setActionInProgress(null);
     }
