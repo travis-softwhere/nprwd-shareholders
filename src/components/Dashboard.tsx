@@ -62,6 +62,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Mailer states
   const [isGeneratingMailers, setIsGeneratingMailers] = useState(false);
@@ -88,6 +89,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       const stats = await getMeetingStats();
       
+      // Log stats to verify updates
+      console.log("Updated property stats:", {
+        total: Number(stats.totalShareholders),
+        checkedIn: Number(stats.checkedInCount),
+        remaining: Number(stats.totalShareholders) - Number(stats.checkedInCount)
+      });
+      
       setPropertyStats({
         totalProperties: Number(stats.totalShareholders) || 1,
         checkedInProperties: Number(stats.checkedInCount) || 0,
@@ -102,16 +110,55 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Combined function to refresh dashboard data
   const refreshDashboard = useCallback(async () => {
+    // Declare interval variable outside try-catch block
+    let loadingInterval: NodeJS.Timeout | undefined;
+    
     try {
       setAttendanceLoading(true);
+      setLoadingProgress(0);
+      
+      // Set up a smooth loading animation like the PDF mailer
+      let animationProgress = 0;
+      loadingInterval = setInterval(() => {
+        // Smooth progress animation
+        if (animationProgress < 25) {
+          animationProgress += 0.5;
+        } else if (animationProgress < 60) {
+          animationProgress += 0.4;
+        } else if (animationProgress < 85) {
+          animationProgress += 0.3;
+        } else if (animationProgress < 95) {
+          animationProgress += 0.1;
+        }
+        
+        // Cap at 95% until we're actually done
+        if (animationProgress > 95) {
+          animationProgress = 95;
+        }
+        
+        // Update loading progress
+        setLoadingProgress(animationProgress);
+      }, 100);
+      
       // Refresh meetings first
       await refreshMeetings();
       // Then get property stats
       await fetchPropertyStats();
+      
+      // Clear loading interval and set to 100%
+      if (loadingInterval) clearInterval(loadingInterval);
+      setLoadingProgress(100);
+      
+      // Short delay before hiding loading indicator
+      setTimeout(() => {
+        setAttendanceLoading(false);
+      }, 500);
     } catch (error) {
       // Error handled silently
-    } finally {
+      if (loadingInterval) clearInterval(loadingInterval);
+      setLoadingProgress(0);
       setAttendanceLoading(false);
+    } finally {
       setInitialLoading(false);
     }
   }, [refreshMeetings, fetchPropertyStats]);
@@ -201,15 +248,27 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { innerRadius, outerRadius, height } = getPieChartDimensions();
   
   // Calculate property attendance stats
-  const checkedInPercentage = propertyStats.totalProperties > 0 && propertyStats.checkedInProperties > 0
-    ? Math.max(1, Math.round((propertyStats.checkedInProperties / propertyStats.totalProperties) * 100))
+  const checkedInPercentage = propertyStats.totalProperties > 0 
+    ? (propertyStats.checkedInProperties > 0 
+        ? Math.max(1, Math.round((propertyStats.checkedInProperties / propertyStats.totalProperties) * 100))
+        : 0)
     : 0;
     
-  const notCheckedInProperties = propertyStats.totalProperties - propertyStats.checkedInProperties;
+  // Calculate remaining properties - ensure this decrements properly
+  const notCheckedInProperties = Math.max(0, propertyStats.totalProperties - propertyStats.checkedInProperties);
+  const notCheckedInPercentage = propertyStats.totalProperties > 0
+    ? (notCheckedInProperties > 0
+        ? Math.min(99, Math.round((notCheckedInProperties / propertyStats.totalProperties) * 100))
+        : 0)
+    : 0;
+  
+  // Ensure percentages add up to 100%
+  const adjustedCheckedInPercentage = checkedInPercentage;
+  const adjustedNotCheckedInPercentage = checkedInPercentage > 0 ? 100 - checkedInPercentage : 100;
   
   const pieData = [
-    { name: "Checked In", value: propertyStats.checkedInProperties },
-    { name: "Not Checked", value: notCheckedInProperties }, // Shortened label
+    { name: "Checked In", value: propertyStats.checkedInProperties, percentage: adjustedCheckedInPercentage },
+    { name: "Remaining", value: notCheckedInProperties, percentage: adjustedNotCheckedInPercentage },
   ];
 
   // Format date helper functions
@@ -489,9 +548,12 @@ const Dashboard: React.FC<DashboardProps> = ({
             <CardContent className="px-4 py-5">
               {attendanceLoading ? (
                 <div className="h-48 md:h-64 lg:h-72 flex items-center justify-center">
-                  <div className="text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-green-500 mx-auto mb-3" />
-                    <p className="text-sm text-gray-500">Updating attendance data...</p>
+                  <div className="text-center space-y-4 w-64">
+                    <Loader2 className="h-10 w-10 animate-spin text-green-500 mx-auto" />
+                    <Progress value={loadingProgress} className="w-full h-2" />
+                    <p className="text-sm text-gray-500">
+                      {loadingProgress >= 95 ? "Finalizing..." : "Updating attendance data..."}
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -512,7 +574,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                           animationBegin={0}
                           animationDuration={1200}
                           animationEasing="ease-out"
-                          label={({ name, percent }) => windowSize.width >= 768 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''}
+                          label={({ name, cx, cy, midAngle, innerRadius, outerRadius, index }) => {
+                            // Use the pre-calculated percentages
+                            const pct = pieData[index].percentage;
+                            return windowSize.width >= 768 ? `${name}: ${pct}%` : '';
+                          }}
                           labelLine={windowSize.width >= 768 ? { stroke: "#9ca3af", strokeWidth: 0.5 } : false}
                         >
                           {pieData.map((entry, index) => (
@@ -526,12 +592,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: any, name: any) => {
-                            const pct =
-                              name === "Checked In"
-                                ? (propertyStats.checkedInProperties / propertyStats.totalProperties) * 100
-                                : (notCheckedInProperties / propertyStats.totalProperties) * 100;
-                            return [`${value} properties (${Math.round(pct)}%)`, name];
+                          formatter={(value: any, name: any, entry: any) => {
+                            const index = name === "Checked In" ? 0 : 1;
+                            return [`${value} properties (${pieData[index].percentage}%)`, name];
                           }}
                           contentStyle={{ 
                             fontSize: "13px", 
@@ -546,9 +609,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {windowSize.width < 768 && (
                           <Legend 
                             iconSize={16} 
-                            layout="horizontal" 
-                            verticalAlign="bottom" 
-                            align="center"
+                            layout="vertical" 
+                            verticalAlign="middle" 
+                            align="right"
                             wrapperStyle={{ paddingTop: "10px" }}
                             formatter={(value, entry) => (
                               <span style={{ color: "#374151", fontSize: "13px", fontWeight: 500 }}>
@@ -557,7 +620,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             )}
                           />
                         )}
-                        {windowSize.width >= 768 && propertyStats.checkedInProperties > 0 && (
+                        {windowSize.width >= 768 && (
                           <text
                             x="50%"
                             y="50%"
@@ -566,7 +629,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             style={{ 
                               fontSize: windowSize.width >= 1024 ? "2.5rem" : "2rem", 
                               fontWeight: "bold", 
-                              fill: "#10b981"
+                              fill: checkedInPercentage > 0 ? "#10b981" : "#ef4444"
                             }}
                           >
                             {checkedInPercentage}%
