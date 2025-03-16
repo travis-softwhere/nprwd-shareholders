@@ -82,19 +82,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     height: typeof window !== "undefined" ? window.innerHeight : 0,
   });
 
-  // Function to fetch the latest property stats
+  // Fetch property stats only when explicitly called
   const fetchPropertyStats = useCallback(async () => {
+    if (attendanceLoading) return; // Prevent multiple simultaneous fetches
+    
     setAttendanceLoading(true);
+    console.log("Dashboard: Manually fetching property stats");
     
     try {
       const stats = await getMeetingStats();
-      
-      // Log stats to verify updates
-      console.log("Updated property stats:", {
-        total: Number(stats.totalShareholders),
-        checkedIn: Number(stats.checkedInCount),
-        remaining: Number(stats.totalShareholders) - Number(stats.checkedInCount)
-      });
       
       setPropertyStats({
         totalProperties: Number(stats.totalShareholders) || 1,
@@ -106,10 +102,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       setAttendanceLoading(false);
       setInitialLoading(false); // Initial loading complete
     }
-  }, []);
+  }, [attendanceLoading]);
 
-  // Combined function to refresh dashboard data
+  // Manual refresh only - no automatic refresh
   const refreshDashboard = useCallback(async () => {
+    // Prevent multiple simultaneous refreshes
+    if (attendanceLoading) {
+      console.log("Dashboard: Already refreshing, ignoring request");
+      return;
+    }
+    
+    console.log("Dashboard: Manual refresh requested");
+    
     // Declare interval variable outside try-catch block
     let loadingInterval: NodeJS.Timeout | undefined;
     
@@ -140,8 +144,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         setLoadingProgress(animationProgress);
       }, 100);
       
-      // Refresh meetings first
-      await refreshMeetings();
+      // Refresh meetings first - with force flag to ensure refresh
+      await refreshMeetings(true);
       // Then get property stats
       await fetchPropertyStats();
       
@@ -161,40 +165,24 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
       setInitialLoading(false);
     }
-  }, [refreshMeetings, fetchPropertyStats]);
+  }, [refreshMeetings, fetchPropertyStats, attendanceLoading]);
 
-  // Refresh dashboard on initial load and when returning from shareholder page
+  // REMOVE ALL AUTOMATIC DATA FETCHING
+  // Just manually load data once when user clicks the refresh button
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const returnFromShareholder = localStorage.getItem(DASHBOARD_RETURN_KEY);
-        if (returnFromShareholder) {
-          refreshDashboard();
-          localStorage.removeItem(DASHBOARD_RETURN_KEY);
-        }
+    // One-time setup to check if returning from shareholder
+    const checkForReturnFlag = () => {
+      const returnFromShareholder = localStorage.getItem(DASHBOARD_RETURN_KEY);
+      if (returnFromShareholder) {
+        console.log("Found return flag - removing it");
+        localStorage.removeItem(DASHBOARD_RETURN_KEY);
+        // Note: We don't automatically refresh here anymore
       }
     };
     
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        refreshDashboard();
-      }
-    };
-    
-    // Initial load - get fresh data
-    refreshDashboard();
-    
-    // Set up event listeners for visibility and page show events
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pageshow", handlePageShow);
-    
-    // No periodic refresh - only refresh when necessary
-    
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pageshow", handlePageShow);
-    };
-  }, [refreshDashboard]);
+    checkForReturnFlag();
+    setInitialLoading(false);
+  }, []);
 
   // Handle window resize for responsive chart
   useEffect(() => {
