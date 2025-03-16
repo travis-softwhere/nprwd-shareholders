@@ -1,7 +1,7 @@
 {
-  "name": "AquaShare - NPRWD Shareholder Portal",
+  "name": "AquaShare",
   "short_name": "AquaShare",
-  "description": "A portal for NPRWD shareholders to view and manage their accounts and meetings",
+  "description": "NPRWD shareholder meeting management portal",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -10,6 +10,7 @@ import { formatError, ErrorType } from "@/utils/errorHandler"
 import { Loader2 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 
 interface ProvidersProps {
     children: ReactNode
@@ -52,26 +53,12 @@ function AuthGate({ children }: { children: ReactNode }) {
     
     // Show loading state while checking authentication
     if (status === "loading") {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-                    <p className="text-lg text-gray-600">Loading AquaShare...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="Authenticating..." />;
     }
     
     // Prevent rendering protected content if not authenticated
     if (status !== "authenticated" || !session) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-                    <p className="text-lg text-gray-600">Redirecting to login...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="Redirecting to login..." />;
     }
     
     // Render authenticated layout with navigation

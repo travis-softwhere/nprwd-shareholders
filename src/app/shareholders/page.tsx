@@ -1,8 +1,8 @@
 import { Suspense } from "react"
 import ShareholdersList from "@/components/ShareholderList"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
 import { getShareholdersList } from "@/actions/getShareholdersList"
+
 
 interface ShareholdersPageProps {
   searchParams: Promise<{
@@ -22,34 +22,20 @@ export default async function ShareholdersPage({ searchParams }: ShareholdersPag
   const { shareholders, totalShareholders } = await getShareholdersList(page, itemsPerPage)
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Shareholders</CardTitle>
-          <CardDescription>View and manage shareholder information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<ShareholdersListSkeleton />}>
+    <div className="w-full">
+      <div className="max-w-6xl mx-auto bg-white px-3 sm:px-6 lg:px-8 py-4 sm:py-6 mb-16 md:mb-6 shadow-sm rounded-lg">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 md:mb-4">Shareholders</h1>
+        
+        <Card className="border-0 shadow-none">
+          <CardContent className="p-0">
             <ShareholdersList
               initialShareholders={shareholders}
               totalShareholders={totalShareholders}
               currentPage={page}
               itemsPerPage={itemsPerPage}
             />
-          </Suspense>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function ShareholdersListSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

@@ -19,6 +19,7 @@ import { AlertCircle, Loader2, User, Lock, LogIn, Eye, EyeOff } from "lucide-rea
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function SignInContent() {
   const router = useRouter();
@@ -67,14 +68,7 @@ export default function SignInContent() {
 
   // If still checking auth status, show loading
   if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Authenticating..." />;
   }
 
   return (
