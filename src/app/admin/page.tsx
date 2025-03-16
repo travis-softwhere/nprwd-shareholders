@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -104,9 +104,28 @@ export default function AdminPage() {
     }
   }, [setMeetings, toast]);
 
+  // Add back controlled one-time data loading
   useEffect(() => {
-    refreshMeetings();
-  }, [refreshMeetings]);
+    // Use a local variable to prevent multiple fetches
+    let isMounted = true;
+    let hasLoaded = false;
+    
+    // Load data only once when component mounts
+    const loadInitialData = async () => {
+      if (!isMounted || hasLoaded || meetings.length > 0) return;
+      
+      console.log("Admin: Loading initial data (one-time only)");
+      hasLoaded = true;
+      await refreshMeetings();
+    };
+    
+    loadInitialData();
+    
+    // Cleanup
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshMeetings, meetings.length]);
 
   // Update selected meeting if selectedMeetingId changes
   useEffect(() => {
@@ -416,6 +435,16 @@ export default function AdminPage() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
           <Settings className="h-6 w-6 text-blue-500" />
           Admin Dashboard
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="ml-auto flex items-center gap-1" 
+            onClick={() => refreshMeetings()}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? 'Loading...' : 'Refresh'}
+          </Button>
         </h1>
         <p className="text-gray-600">
           Manage employees, meetings, and system settings

@@ -4,16 +4,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { LogOut, Users, Home, Settings, Menu, X } from "lucide-react"
+import { LogOut, Users, Home, Settings } from "lucide-react"
 import { signOut, useSession } from "next-auth/react"
-import { useMeeting } from "@/contexts/MeetingContext"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 
 export default function Navigation() {
     const pathname = usePathname()
     const { data: session } = useSession()
-    const { selectedMeeting } = useMeeting()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
 
@@ -76,24 +74,18 @@ export default function Navigation() {
                     )
                 })}
             </nav>
-            {selectedMeeting && (
-                <div className="px-2 py-4 border-t border-gray-200">
-                    <div className="text-xs text-gray-500 text-center">
-                        Meeting:
-                        <div className="font-medium text-gray-900">{selectedMeeting.year}</div>
-                    </div>
+            <div className="mt-auto">
+                <div className="flex shrink-0 justify-center px-2 pb-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                        className="text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                        <LogOut className="h-6 w-6" />
+                        <span className="sr-only">Sign out</span>
+                    </Button>
                 </div>
-            )}
-            <div className="flex shrink-0 justify-center px-2 pb-4">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-                    className="text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                >
-                    <LogOut className="h-6 w-6" />
-                    <span className="sr-only">Sign out</span>
-                </Button>
             </div>
         </div>
     )
@@ -134,11 +126,6 @@ export default function Navigation() {
                     <span className="text-xs mt-1">Sign Out</span>
                 </button>
             </div>
-            {selectedMeeting && (
-                <div className="p-1 text-center border-t text-xs bg-gray-50">
-                    Selected Meeting: <span className="font-medium">{selectedMeeting.year}</span>
-                </div>
-            )}
         </div>
     )
 
