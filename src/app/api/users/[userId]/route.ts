@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/keycloakAdmin";
-import { auth } from "@/lib/auth";
-import { logToFile, LogLevel } from "@/utils/logger";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // Next.js specifically expects params to be a Promise
 export async function DELETE(
@@ -9,38 +9,35 @@ export async function DELETE(
     { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
-        const session = await auth();
+        // Check if user is authenticated and is an admin
+        const session = await getServerSession(authOptions);
         if (!session?.user?.isAdmin) {
-            await logToFile("users", "Unauthorized delete attempt", LogLevel.WARN);
-            return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Resolve the params promise to get userId
         const resolvedParams = await params;
         const { userId } = resolvedParams;
         
         if (!userId) {
-            await logToFile("users", "Missing user ID in delete request", LogLevel.WARN);
-            return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
+            return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        await logToFile("users", "Deleting user", LogLevel.INFO, { userId });
+        // Get Keycloak admin client
+        const adminClient = await authenticateAdmin();
+        if (!adminClient) {
+            return NextResponse.json(
+                { error: "Failed to authenticate with Keycloak" },
+                { status: 500 }
+            );
+        }
 
-        // Add your user deletion logic here
-        const kcAdmin = await authenticateAdmin();
-        await kcAdmin.users.del({ 
-            id: userId,
-            realm: process.env.KEYCLOAK_REALM || "nprwd-dev-realm"
-        });
+        // Delete the user
+        await adminClient.users.del({ id: userId });
 
-        await logToFile("users", "User deleted successfully", LogLevel.INFO);
         return NextResponse.json({ success: true });
     } catch (error) {
-        await logToFile("users", "Error deleting user", LogLevel.ERROR, {
-            error: error instanceof Error ? error.message : String(error),
-        });
         return NextResponse.json(
-            { error: "Failed to delete user" },
+            { error: error instanceof Error ? error.message : "Failed to delete user" },
             { status: 500 }
         );
     }

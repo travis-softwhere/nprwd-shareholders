@@ -6,6 +6,7 @@ import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react"; // Import icons for password visibility
 import Image from "next/image";
 import Head from "next/head";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -16,16 +17,7 @@ export default function ResetPasswordPage() {
       <Head>
         <title>Set New Password | AquaShare</title>
       </Head>
-      <Suspense fallback={
-        <div className="flex justify-center items-center h-screen bg-gray-50">
-          <div className="text-center p-4">
-            <div className="animate-pulse mb-4">
-              <div className="h-12 w-12 bg-blue-100 rounded-full mx-auto"></div>
-            </div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
-        </div>
-      }>
+      <Suspense fallback={<LoadingScreen message="Loading..." />}>
         <SearchParamsComponent router={router} />
       </Suspense>
     </>

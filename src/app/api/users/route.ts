@@ -1,42 +1,42 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/keycloakAdmin";
-import { auth } from "@/lib/auth";
-import { logToFile, LogLevel } from "@/utils/logger";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
     try {
-        const session = await auth();
+        // Check if user is authenticated and is an admin
+        const session = await getServerSession(authOptions);
         if (!session?.user?.isAdmin) {
-            await logToFile("users", "Unauthorized users list attempt", LogLevel.WARN);
-            return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        await logToFile("users", "Fetching user list", LogLevel.INFO);
-        const kcAdmin = await authenticateAdmin();
-        const users = await kcAdmin.users.find();
-        
-        await logToFile("users", "Users fetched successfully", LogLevel.INFO, {
-            userCount: users.length
-        });
+        // Get Keycloak admin client
+        const adminClient = await authenticateAdmin();
+        if (!adminClient) {
+            return NextResponse.json(
+                { error: "Failed to authenticate with Keycloak" },
+                { status: 500 }
+            );
+        }
 
-        // Transform the user data to match our interface
-        const employees = users.map(user => ({
+        // Get all users
+        const users = await adminClient.users.find();
+
+        // Map users to a simpler format
+        const mappedUsers = users.map((user) => ({
             id: user.id,
             username: user.username,
+            email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
-            email: user.email,
-            role: user.attributes?.role?.[0],
+            enabled: user.enabled,
         }));
 
-        return NextResponse.json(employees);
+        return NextResponse.json(mappedUsers);
     } catch (error) {
-        await logToFile("users", "Error fetching users", LogLevel.ERROR, {
-            errorType: error instanceof Error ? error.name : "Unknown error type",
-            errorMessage: error instanceof Error ? error.message : "Unknown error",
-        });
         return NextResponse.json(
-            { error: "Failed to fetch users" },
+            { error: error instanceof Error ? error.message : "Failed to fetch users" },
             { status: 500 }
         );
     }

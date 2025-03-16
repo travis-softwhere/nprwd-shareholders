@@ -37,6 +37,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { EmployeeList } from "@/components/EmployeeList";
 import { Loader2 } from "lucide-react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function AdminPage() {
   const { data: session } = useSession();
@@ -133,10 +134,18 @@ export default function AdminPage() {
       uploadInProgressRef.current = true;
 
       try {
+        // Start with initial progress
+        setUploadProgress(10);
+        setCurrentStep("Validating file contents...");
+
         const response = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
+
+        // Update progress during upload
+        setUploadProgress(50);
+        setCurrentStep("Processing data...");
 
         const result = await response.json();
 
@@ -144,26 +153,24 @@ export default function AdminPage() {
           throw new Error(result.error || "Upload failed");
         }
 
-        setCurrentStep("Upload completed successfully!");
+        // Show completion
+        setCurrentStep("Finalizing...");
         setUploadProgress(100);
         await refreshMeetings();
-
-        // Reset state after a delay
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadProgress(0);
-          setCurrentStep("");
-        }, 2000);
       } catch (error) {
-        console.error("Upload failed:", error);
         setUploadError(error instanceof Error ? error.message : String(error));
         setCurrentStep("Upload failed");
-      } finally {
-        uploadInProgressRef.current = false;
       }
     },
     [refreshMeetings]
   );
+
+  const handleUploadComplete = useCallback(() => {
+    setIsUploading(false);
+    setUploadProgress(0);
+    setCurrentStep("");
+    uploadInProgressRef.current = false;
+  }, []);
 
   // Handle meeting deletion
   const handleDelete = async (meetingId: string) => {
@@ -370,14 +377,7 @@ export default function AdminPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
-          <p className="text-lg text-gray-600">Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Loading admin dashboard..." />;
   }
 
   return (
@@ -634,6 +634,7 @@ export default function AdminPage() {
                       progress={uploadProgress}
                       currentStep={currentStep}
                       error={uploadError}
+                      onComplete={handleUploadComplete}
                     />
                   </div>
                 </CardContent>

@@ -12,7 +12,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "AquaShare",
-  description: "A portal for NPRWD shareholders to view and manage their accounts and meetings",
+  description: "NPRWD shareholder meeting management portal",
   icons: {
     icon: [
       { url: "/favicon.png", type: "image/png" },
