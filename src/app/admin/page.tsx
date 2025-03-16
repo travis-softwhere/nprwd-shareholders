@@ -127,6 +127,9 @@ export default function AdminPage() {
         return;
       }
 
+      // Declare interval variable outside try-catch block
+      let progressInterval: NodeJS.Timeout | undefined;
+
       setIsUploading(true);
       setUploadProgress(0);
       setUploadError(null);
@@ -134,8 +137,30 @@ export default function AdminPage() {
       uploadInProgressRef.current = true;
 
       try {
-        // Start with initial progress
-        setUploadProgress(10);
+        // Set up a smooth loading animation
+        let animationProgress = 0;
+        progressInterval = setInterval(() => {
+          // Smooth progress animation with varying speeds
+          if (animationProgress < 25) {
+            animationProgress += 0.5;
+          } else if (animationProgress < 60) {
+            animationProgress += 0.4;
+          } else if (animationProgress < 85) {
+            animationProgress += 0.3;
+          } else if (animationProgress < 95) {
+            animationProgress += 0.1;
+          }
+          
+          // Cap at 95% until we're actually done
+          if (animationProgress > 95) {
+            animationProgress = 95;
+          }
+          
+          // Update loading progress
+          setUploadProgress(animationProgress);
+        }, 100);
+
+        // Update step
         setCurrentStep("Validating file contents...");
 
         const response = await fetch("/api/upload", {
@@ -143,8 +168,7 @@ export default function AdminPage() {
           body: formData,
         });
 
-        // Update progress during upload
-        setUploadProgress(50);
+        // Update progress message during different stages
         setCurrentStep("Processing data...");
 
         const result = await response.json();
@@ -155,9 +179,15 @@ export default function AdminPage() {
 
         // Show completion
         setCurrentStep("Finalizing...");
+        
+        // Clear animation interval and set to 100%
+        if (progressInterval) clearInterval(progressInterval);
         setUploadProgress(100);
+        
         await refreshMeetings();
       } catch (error) {
+        // Clear the interval if there's an error
+        if (progressInterval) clearInterval(progressInterval);
         setUploadError(error instanceof Error ? error.message : String(error));
         setCurrentStep("Upload failed");
       }
