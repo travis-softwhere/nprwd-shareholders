@@ -3,13 +3,18 @@ import { parse } from "csv-parse/sync"
 import { db } from "@/lib/db"
 import { shareholders, properties, meetings } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
-import { v4 as uuidv4 } from "uuid"
+//import { v4 as uuidv4 } from "uuid"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
 export async function POST(request: Request) {
-    const uploadId = uuidv4()
     const startTime = Date.now()
+
+    // Generate a random 6-digit numeric ID instead of UUID
+    const generateRandomId = () => {
+        return Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+    };
+
 
     try {
         // Check authentication
@@ -85,7 +90,7 @@ export async function POST(request: Request) {
                     let shareholderId = uniqueShareholders.get(ownerName)
 
                     if (!shareholderId) {
-                        shareholderId = uuidv4()
+                        shareholderId = generateRandomId()
                         uniqueShareholders.set(ownerName, shareholderId)
                         shareholderValues.push({
                             name: ownerName,

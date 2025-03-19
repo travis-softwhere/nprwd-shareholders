@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       await logToFile("mailers", "Missing content type header", LogLevel.ERROR);
       return NextResponse.json({ error: "Content-Type header is required" }, { status: 400 });
     }
-    
+
     if (!contentType.toLowerCase().includes("application/json")) {
       await logToFile("mailers", "Invalid content type", LogLevel.ERROR, {
         receivedType: contentType,
@@ -149,8 +149,8 @@ export async function POST(request: Request) {
             {
               bcid: "code128",
               text: shareholderId,
-              scale: 2,
-              height: 10,
+              scale: 4,
+              height: 20,
               includetext: true,
               textxalign: "center",
             },
