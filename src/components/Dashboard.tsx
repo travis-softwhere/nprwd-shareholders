@@ -29,8 +29,8 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { getMeetingStats } from "@/actions/getMeetingStats";
 
 interface DashboardProps {
-  totalShareholders: number;
-  checkedInCount: number;
+  totalShareholders?: number;
+  checkedInCount?: number;
   nextMeetingDate?: string;
   mailersStatus?: boolean;
 }
@@ -93,8 +93,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       const stats = await getMeetingStats();
       
       setPropertyStats({
-        totalProperties: Number(stats.totalShareholders) || 1,
-        checkedInProperties: Number(stats.checkedInCount) || 0,
+        totalProperties: Number(stats.totalShareholders) || Number(totalShareholders) || 0,
+        checkedInProperties: Number(stats.checkedInCount) || Number(checkedInCount) || 0,
       });
     } catch (error) {
       // Error handled silently
@@ -102,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       setAttendanceLoading(false);
       setInitialLoading(false); // Initial loading complete
     }
-  }, [attendanceLoading]);
+  }, [attendanceLoading, totalShareholders, checkedInCount]);
 
   // Manual refresh only - no automatic refresh
   const refreshDashboard = useCallback(async () => {
@@ -178,8 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [meetings, selectedMeeting, setSelectedMeeting]);
 
-  // REMOVE ALL AUTOMATIC DATA FETCHING
-  // Just manually load data once when user clicks the refresh button
+  // No automatic data loading - only manual refresh
   useEffect(() => {
     // One-time setup to check if returning from shareholder
     const checkForReturnFlag = () => {
@@ -187,12 +186,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (returnFromShareholder) {
         console.log("Found return flag - removing it");
         localStorage.removeItem(DASHBOARD_RETURN_KEY);
-        // Note: We don't automatically refresh here anymore
       }
     };
     
     checkForReturnFlag();
-    setInitialLoading(false);
+    setInitialLoading(false); // Mark initial loading as complete without fetching
   }, []);
 
   // Handle window resize for responsive chart
@@ -439,6 +437,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     setMailerProgress(0);
     setMailerStep("");
   };
+
+  // Ensure that we have initial property stats with context values - but only fetch once
+  useEffect(() => {
+    // Only fetch if not already loading and we don't have meaningful data yet
+    if (!initialLoading && !attendanceLoading && propertyStats.totalProperties <= 1 && meetings?.length > 0) {
+      console.log("Dashboard: Need to load initial property stats");
+      fetchPropertyStats();
+    }
+  }, [initialLoading, attendanceLoading, propertyStats.totalProperties, fetchPropertyStats, meetings?.length]);
 
   // Show loading screen until initial data is loaded
   if (initialLoading) {

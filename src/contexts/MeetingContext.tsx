@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { getMeetings } from "@/actions/getMeetings";
 import type { Meeting } from "@/types/meeting";
 
@@ -25,13 +25,14 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Start with loading state
-  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
+  const lastRefreshTimeRef = useRef<number>(0);
+  const initialLoadDoneRef = useRef<boolean>(false);
 
   // Function to refresh meetings data
   const refreshMeetings = async (force = false) => {
-    // Check if we recently refreshed (within last 10 seconds) and not forcing
+    // Skip if already loaded and not forcing refresh
     const now = Date.now();
-    if (!force && now - lastRefreshTime < 10000) {
+    if (!force && now - lastRefreshTimeRef.current < 10000) {
       console.log("Skipping refresh - recently refreshed");
       return meetings;
     }
@@ -42,7 +43,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     try {
       const data = await getMeetings();
       setMeetings(data);
-      setLastRefreshTime(now);
+      lastRefreshTimeRef.current = now;
       
       // If we have meetings but no meeting selected, select the first one
       if (data.length > 0 && !selectedMeeting) {
@@ -59,11 +60,16 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Load meetings data on initial mount
+  // Load meetings data on initial mount - ONLY ONCE
   useEffect(() => {
-    console.log("MeetingContext: Initial data loading");
-    refreshMeetings(true);
-  }, []);
+    if (!initialLoadDoneRef.current) {
+      console.log("MeetingContext: Initial data loading");
+      initialLoadDoneRef.current = true; // Set flag immediately to prevent double loading
+      refreshMeetings(true).then(() => {
+        console.log("MeetingContext: Initial load complete");
+      });
+    }
+  }, []); // No dependencies to ensure it only runs once on mount
 
   return (
     <MeetingContext.Provider
