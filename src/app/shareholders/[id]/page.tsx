@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import CheckInButton from "@/components/CheckInButton"
+import ManualCheckInButton from "@/components/ManualCheckInButton"
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
@@ -71,6 +73,10 @@ export default async function ShareholderPage({
                   >
                     {checkedInCount} / {properties.length} Checked In
                   </Badge>
+                  <ManualCheckInButton
+                  shareholderId={shareholder.shareholderId}
+                  isFullyCheckedIn={checkedInCount === properties.length}
+                  />
                 </div>
               </div>
             </div>

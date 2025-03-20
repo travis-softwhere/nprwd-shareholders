@@ -53,12 +53,14 @@ export default function AdminPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<string>("");
   const [isPrinting, setIsPrinting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
   const [employeeRefreshTrigger, setEmployeeRefreshTrigger] = useState(0);
 
-  // Refs to track ongoing upload
+  // Refs to track ongoing upload and initialization
   const abortControllerRef = useRef<AbortController | null>(null);
   const uploadInProgressRef = useRef<boolean>(false);
+  const initialLoadCompleteRef = useRef<boolean>(false);
 
   // Add Employee state
   const [newEmployee, setNewEmployee] = useState({
@@ -106,26 +108,39 @@ export default function AdminPage() {
 
   // Add back controlled one-time data loading
   useEffect(() => {
-    // Use a local variable to prevent multiple fetches
-    let isMounted = true;
-    let hasLoaded = false;
-    
-    // Load data only once when component mounts
-    const loadInitialData = async () => {
-      if (!isMounted || hasLoaded || meetings.length > 0) return;
-      
+    // Only load data on mount if we haven't already
+    if (!initialLoadCompleteRef.current && meetings.length === 0) {
       console.log("Admin: Loading initial data (one-time only)");
-      hasLoaded = true;
-      await refreshMeetings();
-    };
-    
-    loadInitialData();
-    
-    // Cleanup
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshMeetings, meetings.length]);
+      setInitialLoading(true);
+      
+      // Don't use full page loading state, let components show their own loading indicators
+      const loadInitialData = async () => {
+        try {
+          const allMeetings = await getMeetings();
+          setMeetings(allMeetings);
+          
+          // Auto-select the first meeting if data exists
+          if (allMeetings.length > 0 && !selectedMeetingId) {
+            setSelectedMeetingId(allMeetings[0].id);
+          }
+          
+          // Mark initial load as complete so we don't fetch again
+          initialLoadCompleteRef.current = true;
+        } catch (error) {
+          console.error("Error loading initial data:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load dashboard data"
+          });
+        } finally {
+          setInitialLoading(false);
+        }
+      };
+      
+      loadInitialData();
+    }
+  }, [meetings.length, selectedMeetingId, toast, setMeetings]);
 
   // Update selected meeting if selectedMeetingId changes
   useEffect(() => {
@@ -425,10 +440,6 @@ export default function AdminPage() {
     );
   }
 
-  if (isLoading) {
-    return <LoadingScreen message="Loading admin dashboard..." />;
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 mb-20 md:mb-6">
       <div className="space-y-2">
@@ -524,21 +535,32 @@ export default function AdminPage() {
             <CardDescription>Select or create a meeting to manage</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
-            {/* Create a new meeting */}
-            <CreateMeetingForm
-              onSuccess={(meeting) => {
-                setMeetings((prev: any[]) => [...prev, meeting]);
-                toast({
-                  title: "Success",
-                  description: "Meeting created successfully"
-                });
-              }}
-            />
+            {/* Create a new meeting - only show if no meetings exist */}
+            {meetings.length === 0 ? (
+              <CreateMeetingForm
+                onSuccess={(meeting) => {
+                  setMeetings((prev: any[]) => [...prev, meeting]);
+                  toast({
+                    title: "Success",
+                    description: "Meeting created successfully"
+                  });
+                }}
+              />
+            ) : (
+              <div className="p-4 rounded-lg bg-blue-50 text-center">
+                <p className="text-sm text-blue-600 mb-1 font-medium">Meeting Active</p>
+                <p className="text-xs text-blue-500">To create a new meeting, delete the existing one first.</p>
+              </div>
+            )}
 
             {/* List existing meetings */}
             <div className="space-y-3 mt-4">
               <h3 className="text-sm font-medium text-gray-700">Existing Meetings</h3>
-              {meetings.length === 0 ? (
+              {initialLoading ? (
+                <div className="flex justify-center items-center h-24">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                </div>
+              ) : meetings.length === 0 ? (
                 <div className="p-4 rounded-lg bg-gray-50 text-center text-gray-500 text-sm">
                   No meetings found. Create your first meeting above.
                 </div>
@@ -572,11 +594,6 @@ export default function AdminPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="text-right">
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">{meeting.checkedIn}</span> / {meeting.totalShareholders} Checked In
-                            </p>
-                          </div>
                           {selectedMeetingId === meeting.id && (
                             <Check className="h-5 w-5 text-blue-500" />
                           )}

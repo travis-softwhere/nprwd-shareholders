@@ -52,7 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const { data: session } = useSession();
   const router = useRouter();
-  const { meetings, selectedMeeting, refreshMeetings, isLoading: meetingsLoading } = useMeeting();
+  const { meetings, selectedMeeting, refreshMeetings, isLoading: meetingsLoading, setSelectedMeeting } = useMeeting();
 
   // Initial loading state
   const [initialLoading, setInitialLoading] = useState(true);
@@ -166,6 +166,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       setInitialLoading(false);
     }
   }, [refreshMeetings, fetchPropertyStats, attendanceLoading]);
+
+  // Effect to ensure that the meeting is always selected when meetings are available
+  useEffect(() => {
+    if (meetings?.length > 0 && !selectedMeeting) {
+      console.log("Dashboard: No meeting selected but meetings available - auto-selecting first meeting");
+      // If we have meetings but no meeting is selected, select the first one
+      if (setSelectedMeeting) {
+        setSelectedMeeting(meetings[0]);
+      }
+    }
+  }, [meetings, selectedMeeting, setSelectedMeeting]);
 
   // REMOVE ALL AUTOMATIC DATA FETCHING
   // Just manually load data once when user clicks the refresh button

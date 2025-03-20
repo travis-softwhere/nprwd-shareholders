@@ -14,15 +14,8 @@ export const metadata: Metadata = {
   title: "AquaShare",
   description: "NPRWD shareholder meeting management portal",
   icons: {
-    icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/logo.png", sizes: "32x32", type: "image/png" },
-      { url: "/logo.png", sizes: "16x16", type: "image/png" },
-    ],
-    apple: [
-      { url: "/logo.png", sizes: "180x180", type: "image/png" },
-    ],
-    shortcut: { url: "/favicon.png" },
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
   manifest: "/manifest.json",
   applicationName: "AquaShare",
@@ -43,9 +36,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/favicon.png" type="image/png" />
-      </head>
       <body>
         <Providers>{children}</Providers>
         <Toaster />

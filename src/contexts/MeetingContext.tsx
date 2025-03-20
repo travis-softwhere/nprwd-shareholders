@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getMeetings } from "@/actions/getMeetings";
 import type { Meeting } from "@/types/meeting";
 
@@ -11,7 +11,7 @@ export interface MeetingContextType {
   meetings: Meeting[];
   selectedMeeting: Meeting | null;
   setSelectedMeeting: (meeting: Meeting | null) => void;
-  refreshMeetings: (force?: boolean) => Promise<void>;
+  refreshMeetings: (force?: boolean) => Promise<Meeting[] | undefined>;
   setMeetings: React.Dispatch<React.SetStateAction<Meeting[]>>;
   isLoading: boolean;
 }
@@ -21,60 +21,49 @@ const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 // Cache timeout in milliseconds (5 minutes)
 const CACHE_TIMEOUT = 5 * 60 * 1000;
 
-export function MeetingProvider({ children }: { children: React.ReactNode }) {
+export function MeetingProvider({ children }: { children: ReactNode }) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Reference to track if data has been initially loaded
-  const initialLoadDoneRef = useRef<boolean>(false);
-  // Track the last time data was fetched
-  const lastFetchTimeRef = useRef<number>(0);
-  // Track if we're currently fetching data
-  const isFetchingRef = useRef<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with loading state
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
+  // Function to refresh meetings data
   const refreshMeetings = async (force = false) => {
-    // Skip if we're already fetching data
-    if (isFetchingRef.current) {
-      console.log("MeetingContext: Already fetching, skipping redundant request");
-      return;
-    }
-    
+    // Check if we recently refreshed (within last 10 seconds) and not forcing
     const now = Date.now();
-    const timeSinceLastFetch = now - lastFetchTimeRef.current;
-    
-    // Skip fetching if we already have data, not forced, and fetched recently
-    if (meetings.length > 0 && 
-        initialLoadDoneRef.current && 
-        !force && 
-        timeSinceLastFetch < CACHE_TIMEOUT) {
-      console.log(`MeetingContext: Using cached data (${Math.round(timeSinceLastFetch/1000)}s old)`);
-      return;
+    if (!force && now - lastRefreshTime < 10000) {
+      console.log("Skipping refresh - recently refreshed");
+      return meetings;
     }
+
+    console.log("MeetingContext: Refreshing meetings data...");
+    setIsLoading(true);
     
     try {
-      console.log("MeetingContext: Fetching fresh meeting data");
-      isFetchingRef.current = true;
-      setIsLoading(true);
-      
       const data = await getMeetings();
       setMeetings(data);
-      initialLoadDoneRef.current = true;
-      lastFetchTimeRef.current = Date.now();
+      setLastRefreshTime(now);
       
-      // Optionally, set the first meeting as selected if none is selected
+      // If we have meetings but no meeting selected, select the first one
       if (data.length > 0 && !selectedMeeting) {
+        console.log("MeetingContext: Auto-selecting first meeting");
         setSelectedMeeting(data[0]);
       }
+      
+      return data;
     } catch (error) {
-      // Silent error handling - context refreshes might be triggered by automatic processes
-      // If a UI component needs to show an error, it should handle it itself
-      console.error("Error fetching meetings:", error);
+      console.error("Failed to refresh meetings:", error);
+      return undefined;
     } finally {
       setIsLoading(false);
-      isFetchingRef.current = false;
     }
   };
+
+  // Load meetings data on initial mount
+  useEffect(() => {
+    console.log("MeetingContext: Initial data loading");
+    refreshMeetings(true);
+  }, []);
 
   return (
     <MeetingContext.Provider

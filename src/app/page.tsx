@@ -3,6 +3,7 @@ import Dashboard from "@/components/Dashboard"
 import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { getMeetings } from "@/actions/getMeetings"
 
 export default async function Home() {
   // Double-check authentication at the page level for extra security
@@ -13,7 +14,16 @@ export default async function Home() {
     redirect("/auth/signin")
   }
   
-  // Load data only if authenticated
+  // Check if there are any meetings
+  const meetings = await getMeetings()
+  const hasMeetingData = meetings && meetings.length > 0
+  
+  // If admin user and no meeting data, redirect to admin page to create meeting
+  if (session.user?.isAdmin && !hasMeetingData) {
+    redirect("/admin")
+  }
+  
+  // Load stats for the dashboard
   const { totalShareholders, checkedInCount, nextMeeting } = await getMeetingStats()
 
   return (
