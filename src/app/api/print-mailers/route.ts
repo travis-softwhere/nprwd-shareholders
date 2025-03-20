@@ -173,87 +173,10 @@ export async function POST(request: Request) {
         currentY += 80;
       }
 
-      // Print Properties header
-      doc.setFontSize(12);
-      doc.text("Properties:", 50, currentY);
-      currentY += 20;
+      // Skip printing properties and property barcodes
+      // We're now only including the shareholder name and barcode
 
-      // Set initial coordinates for property columns
-      const propertyStartX = 50;
-      const propertyWidth = 180; // Width for each property column
-      const propertiesPerRow = 3; // Number of properties to show per row
-      const rowHeight = 100; // Height needed for each row of properties
-
-      // Group properties into rows of 3
-      for (let i = 0; i < shareholder.properties.length; i += propertiesPerRow) {
-        const rowProperties = shareholder.properties.slice(i, i + propertiesPerRow);
-        let propertyX = propertyStartX;
-
-        // For each property in the current row
-        for (const property of rowProperties) {
-          const account = property.account?.substring(0, 30) || "N/A";
-          const mailingAddress = property.ownerMailingAddress?.substring(0, 50) || "";
-          const cityStateZip = property.ownerCityStateZip?.substring(0, 50) || "";
-
-          // Build property details text
-          let details = `Account: ${account}`;
-          if (mailingAddress) {
-            details += `\nAddress: ${mailingAddress}`;
-          }
-          if (cityStateZip) {
-            details += `\n${cityStateZip}`;
-          }
-
-          // Print property details in a small font
-          doc.setFontSize(8);
-          doc.text(details, propertyX, currentY);
-
-          // Generate barcode for the property (using "account" as the barcode text)
-          let propertyBarcode = "";
-          try {
-            const propBarcodeBuffer = await new Promise<Buffer>((resolve, reject) => {
-              bwip.toBuffer(
-                {
-                  bcid: "code128",
-                  text: account,
-                  scale: 1,
-                  height: 10,
-                  includetext: true,
-                  textxalign: "center",
-                },
-                (err: Error | null, png: Buffer) => {
-                  if (err) reject(err);
-                  else resolve(png);
-                },
-              );
-            });
-            propertyBarcode = `data:image/png;base64,${propBarcodeBuffer.toString("base64")}`;
-          } catch (error) {
-            await logToFile("mailers", "Error generating property barcode", LogLevel.ERROR, {
-              errorMessage: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
-
-          // Add the property barcode image below the details
-          if (propertyBarcode) {
-            doc.addImage(propertyBarcode, "PNG", propertyX, currentY + 50, 150, 20);
-          }
-
-          // Move to the next column
-          propertyX += propertyWidth;
-        }
-
-        // Move down for the next row
-        currentY += rowHeight;
-
-        // Check if we need a new page for the next row
-        if (currentY > doc.internal.pageSize.height - 100 && i + propertiesPerRow < shareholder.properties.length) {
-          doc.addPage();
-          currentY = 50; // Reset Y position for the new page
-        }
-      }
-
-      // Add a new page if not the last shareholder
+      // Add a new page for the next shareholder
       if (i < groupedData.length - 1) {
         doc.addPage();
       }
