@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/keycloakAdmin";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sendResetEmail } from "@/utils/emailService";
+import jwt from "jsonwebtoken";
+import { safeConsole, logToFile, LogLevel } from "@/utils/logger";
 
 export async function POST(request: Request) {
   try {
@@ -56,6 +59,29 @@ export async function POST(request: Request) {
       ],
     });
 
+    // Generate a JWT token for the new user to set their password
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+    
+    // Log that we're about to send the email
+    safeConsole.log(`Creating set-password token for new user: ${email}`);
+    logToFile(LogLevel.INFO, `Creating account and sending email for: ${email}`);
+    
+    // Create a token with "set-new-password" prefix to indicate this is for a new account
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "48h" });
+    
+    // Send password setup email using the token with a special prefix
+    try {
+      await sendResetEmail(email, `set-new-password:${token}`);
+      safeConsole.log(`Password setup email sent successfully to ${email}`);
+      logToFile(LogLevel.INFO, `Password setup email sent to: ${email}`);
+    } catch (emailError) {
+      // Log the error but don't fail the request
+      safeConsole.error(`Failed to send password setup email to ${email}:`, emailError);
+      logToFile(LogLevel.ERROR, `Failed to send password setup email to ${email}: ${emailError instanceof Error ? emailError.message : String(emailError)}`);
+    }
+
     return NextResponse.json({
       success: true,
       user: {
@@ -67,8 +93,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to create employee";
+    safeConsole.error("Error creating employee:", errorMessage);
+    logToFile(LogLevel.ERROR, `Error creating employee: ${errorMessage}`);
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create employee" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
