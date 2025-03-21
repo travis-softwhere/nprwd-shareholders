@@ -13,8 +13,19 @@ const transporter = nodemailer.createTransport({
 } as nodemailer.TransportOptions);
 
 export async function sendResetEmail(to: string, token: string) {
+    // Log the function call
+    safeConsole.log(`Attempting to send email to: ${to}`);
+    logToFile(LogLevel.INFO, `Email service: Sending ${token.startsWith('set-new-password:') ? 'new account' : 'reset'} email to ${to}`);
+    
+    // Log SMTP configuration
+    safeConsole.log(`SMTP Configuration: ${process.env.SMTP_HOST}, User: ${process.env.SMTP_USER ? '✓ Set' : '✗ Missing'}, Pass: ${process.env.SMTP_PASSWORD ? '✓ Set' : '✗ Missing'}`);
+    
     // Default to the development URL if NEXT_PUBLIC_BASE_URL is not set
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+        safeConsole.warn("NEXT_PUBLIC_BASE_URL environment variable is not set");
+        logToFile(LogLevel.WARN, "Email service: NEXT_PUBLIC_BASE_URL not set, urls may be incorrect");
+    }
     
     // Handle different token formats
     let resetUrl: string;
@@ -32,7 +43,9 @@ export async function sendResetEmail(to: string, token: string) {
         // Regular reset password token
         resetUrl = `${baseUrl}/reset-password?token=${token}`;
     }
-        
+    
+    // Log the constructed URL
+    safeConsole.log(`Generated URL: ${resetUrl}`);
     
     // Customize subject and messages based on whether this is a password reset or new account setup
     const subject = isNewPassword ? "Set Your Password" : "Reset Your Password";
@@ -75,9 +88,14 @@ export async function sendResetEmail(to: string, token: string) {
     };
 
     try {
+        safeConsole.log("Attempting to send email...");
         const info = await transporter.sendMail(mailOptions);
+        safeConsole.log(`Email sent successfully. Message ID: ${info.messageId}`);
+        logToFile(LogLevel.INFO, `Email service: Email sent successfully to ${to}, Message ID: ${info.messageId}`);
         return info.messageId;
-    } catch (error) {
+    } catch (error: any) {
+        safeConsole.error("Error sending email:", error);
+        logToFile(LogLevel.ERROR, `Email service: Failed to send email to ${to}: ${error.message}`);
         throw error;
     }
 }
