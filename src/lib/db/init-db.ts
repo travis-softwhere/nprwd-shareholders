@@ -62,6 +62,29 @@ export async function initDatabase() {
     `
     console.log("Properties table created successfully")
 
+    // Create property_transfers table
+    await sql`
+      CREATE TABLE IF NOT EXISTS property_transfers (
+        id SERIAL PRIMARY KEY,
+        property_id INTEGER NOT NULL REFERENCES properties(id),
+        from_shareholder_id TEXT NOT NULL,
+        to_shareholder_id TEXT NOT NULL,
+        transfer_date TIMESTAMP NOT NULL,
+        meeting_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `
+    console.log("Property transfers table created successfully")
+
+    // Add indexes for property_transfers
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_property_transfers_property_id ON property_transfers(property_id);
+      CREATE INDEX IF NOT EXISTS idx_property_transfers_meeting_id ON property_transfers(meeting_id);
+      CREATE INDEX IF NOT EXISTS idx_property_transfers_from_shareholder_id ON property_transfers(from_shareholder_id);
+      CREATE INDEX IF NOT EXISTS idx_property_transfers_to_shareholder_id ON property_transfers(to_shareholder_id);
+    `
+    console.log("Property transfers indexes created successfully")
+
     console.log("Database initialized successfully")
   } catch (error) {
     console.error("Failed to initialize database:", error)

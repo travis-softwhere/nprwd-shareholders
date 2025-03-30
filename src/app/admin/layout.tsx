@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard",
-  description: "Admin dashboard for managing employees and system settings",
+  description: "Manage shareholders and properties",
 };
 
 export default function AdminLayout({
@@ -10,5 +10,10 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      {children}
+    </>
+  );
 } 

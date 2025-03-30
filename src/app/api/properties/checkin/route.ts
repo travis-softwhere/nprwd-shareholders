@@ -1,3 +1,4 @@
+// Check-in for all properties owned by a shareholder.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { meetings, properties, shareholders } from "@/lib/db/schema";
