@@ -40,6 +40,17 @@ export const properties = pgTable("properties", {
     createdAt: timestamp("created_at").defaultNow(),
 })
 
+export const propertyTransfers = pgTable("property_transfers", {
+    id: serial("id").primaryKey(),
+    propertyId: integer("property_id").notNull().references(() => properties.id),
+    fromShareholderId: text("from_shareholder_id").notNull(),
+    toShareholderId: text("to_shareholder_id").notNull(),
+    transferredAt: timestamp("transferred_at").notNull().defaultNow(),
+    transferredBy: text("transferred_by").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+})
+
 // New table for tracking data snapshots
 export const snapshots = pgTable("snapshots", {
     id: serial("id").primaryKey(),

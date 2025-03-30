@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -38,6 +38,48 @@ import { Separator } from "@/components/ui/separator";
 import { EmployeeList } from "@/components/EmployeeList";
 import { Loader2 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+
+// Define Property interface
+interface Property {
+  id: number;
+  account: string;
+  ownerName: string;
+  ownerMailingAddress: string;
+  ownerCityStateZip: string;
+  customerName: string;
+  customerMailingAddress: string;
+  cityStateZip: string;
+  serviceAddress: string;
+  residentName?: string;
+  residentMailingAddress?: string;
+  residentCityStateZip?: string;
+  checkedIn: boolean;
+  shareholderId?: string;
+}
+
+interface ShareholderData {
+  name: string;
+  serviceAddress: string;
+  ownerName: string;
+  customerName: string;
+  ownerMailingAddress: string;
+  ownerCityStateZip: string;
+  customerMailingAddress: string;
+  cityStateZip: string;
+  residentName: string;
+  residentMailingAddress: string;
+  residentCityStateZip: string;
+}
 
 export default function AdminPage() {
   const { data: session } = useSession();
@@ -57,6 +99,151 @@ export default function AdminPage() {
   const [initialLoading, setInitialLoading] = useState(false);
   const [employeeRefreshTrigger, setEmployeeRefreshTrigger] = useState(0);
 
+  // Property Management states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [acquisitionType, setAcquisitionType] = useState<"new" | "existing">("new");
+  const [newShareholderData, setNewShareholderData] = useState<ShareholderData>({
+    name: "",
+    serviceAddress: "",
+    ownerName: "",
+    customerName: "",
+    ownerMailingAddress: "",
+    ownerCityStateZip: "",
+    customerMailingAddress: "",
+    cityStateZip: "",
+    residentName: "",
+    residentMailingAddress: "",
+    residentCityStateZip: "",
+  });
+  const [selectedExistingProperty, setSelectedExistingProperty] = useState<Property | null>(null);
+  const [existingPropertySearchQuery, setExistingPropertySearchQuery] = useState("");
+  const [transferType, setTransferType] = useState<"new" | "existing">("new");
+  const [transferData, setTransferData] = useState({
+    shareholderName: "",
+    email: "",
+    phone: ""
+  });
+  const [selectedExistingShareholder, setSelectedExistingShareholder] = useState<any>(null);
+  const [shareholderSearchQuery, setShareholderSearchQuery] = useState("");
+  const [shareholders, setShareholders] = useState<any[]>([]);
+  
+  // Add state for name copying
+  const [useShareholderForOwner, setUseShareholderForOwner] = useState(false)
+  const [useShareholderForCustomer, setUseShareholderForCustomer] = useState(false)
+  const [useShareholderForResident, setUseShareholderForResident] = useState(false)
+
+  // Add refreshProperties function to reuse in multiple places
+  const refreshProperties = async () => {
+    try {
+      // Clear the search query to ensure all properties are shown after refresh
+      setSearchQuery("");
+      
+      // Fetch the latest properties
+      const propertiesResponse = await fetch("/api/properties?limit=1000");
+      if (propertiesResponse.ok) {
+        const responseText = await propertiesResponse.text();
+        if (responseText) {
+          const propertiesData = JSON.parse(responseText);
+          console.log("Refreshed", propertiesData.properties.length, "properties from API");
+          setProperties(propertiesData.properties);
+          
+          // Directly update filteredProperties as well to ensure
+          // immediate display of new properties (since search is empty)
+          setFilteredProperties(propertiesData.properties);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing properties:", error);
+    }
+  };
+  
+  // Fetch properties on component mount
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        setIsLoading(true);
+        // Add a limit and include all properties
+        const response = await fetch("/api/properties?limit=1000");
+        if (!response.ok) throw new Error("Failed to fetch properties");
+        const data = await response.json();
+        console.log("Fetched", data.properties.length, "properties from API");
+        setProperties(data.properties);
+        
+        // Also update filtered properties based on current search
+        if (!searchQuery) {
+          setFilteredProperties(data.properties);
+        } else {
+          const filtered = data.properties.filter((property: Property) => {
+            const query = searchQuery.toLowerCase();
+            return (
+              property.account?.toLowerCase().includes(query) ||
+              property.ownerName?.toLowerCase().includes(query) ||
+              property.customerName?.toLowerCase().includes(query) ||
+              property.serviceAddress?.toLowerCase().includes(query)
+            );
+          });
+          setFilteredProperties(filtered);
+        }
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: "Error",
+          description: "Failed to load properties",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, [toast, searchQuery]);
+
+  // Filter properties based on search
+  useEffect(() => {
+    console.log("Properties changed or search updated:", properties.length, "properties, search:", searchQuery);
+    
+    const filtered = properties.filter(property => {
+      const query = searchQuery.toLowerCase();
+      return (
+        property.account?.toLowerCase().includes(query) ||
+        property.ownerName?.toLowerCase().includes(query) ||
+        property.customerName?.toLowerCase().includes(query) ||
+        property.serviceAddress?.toLowerCase().includes(query)
+      );
+    });
+    
+    console.log("Filtered to", filtered.length, "properties after filtering");
+    setFilteredProperties(filtered);
+  }, [properties, searchQuery]);
+
+  // Fetch shareholders
+  useEffect(() => {
+    const fetchShareholders = async () => {
+      try {
+        const response = await fetch("/api/shareholders?limit=100");
+        if (!response.ok) throw new Error("Failed to fetch shareholders");
+        const data = await response.json();
+        setShareholders(data.shareholders || []);
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: "Error",
+          description: "Failed to load shareholders",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchShareholders();
+  }, [toast]);
+
   // Refs to track ongoing upload and initialization
   const abortControllerRef = useRef<AbortController | null>(null);
   const uploadInProgressRef = useRef<boolean>(false);
@@ -68,6 +255,11 @@ export default function AdminPage() {
     email: "",
   });
   const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
+
+  // Add state for address copying
+  const [useServiceForCustomer, setUseServiceForCustomer] = useState(false)
+  const [useServiceForOwner, setUseServiceForOwner] = useState(false)
+  const [useServiceForResident, setUseServiceForResident] = useState(false)
 
   // Cleanup function for uploads
   const cleanupUpload = useCallback(() => {
@@ -114,7 +306,7 @@ export default function AdminPage() {
       setInitialLoading(true);
       
       // Don't use full page loading state, let components show their own loading indicators
-      const loadInitialData = async () => {
+    const loadInitialData = async () => {
         try {
           const allMeetings = await getMeetings();
           setMeetings(allMeetings);
@@ -136,9 +328,9 @@ export default function AdminPage() {
         } finally {
           setInitialLoading(false);
         }
-      };
-      
-      loadInitialData();
+    };
+    
+    loadInitialData();
     }
   }, [meetings.length, selectedMeetingId, toast, setMeetings]);
 
@@ -419,6 +611,190 @@ export default function AdminPage() {
     }
   };
 
+  // Function to format city/state/zip consistently (CITY STATE ZIP)
+  const formatCityStateZip = (value: string): string => {
+    if (!value) return '';
+    
+    // First, remove all commas and normalize existing spaces
+    let formatted = value.replace(/,/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+    
+    // Check if we have a string with no spaces (like MINOTND80000)
+    if (!formatted.includes(' ')) {
+      // Try to detect common state codes and split accordingly
+      const statePatterns = /([A-Z]+)(AK|AL|AR|AZ|CA|CO|CT|DC|DE|FL|GA|HI|IA|ID|IL|IN|KS|KY|LA|MA|MD|ME|MI|MN|MO|MS|MT|NC|ND|NE|NH|NJ|NM|NV|NY|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VA|VT|WA|WI|WV|WY)([0-9]+)/;
+      const match = formatted.match(statePatterns);
+      
+      if (match) {
+        // We found a pattern like MINOTND80000
+        const [_, city, state, zip] = match;
+        formatted = `${city} ${state} ${zip}`;
+      }
+    }
+    
+    return formatted;
+  };
+  
+  // Add handlers for address copying
+  const handleServiceAddressChange = (value: string) => {
+    // Convert to uppercase right away
+    const uppercaseValue = value.toUpperCase();
+    
+    setNewShareholderData(prev => ({
+      ...prev,
+      serviceAddress: uppercaseValue
+    }));
+    
+    // Update other addresses if copy options are enabled
+    if (useServiceForCustomer) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        customerMailingAddress: uppercaseValue
+      }));
+    }
+    
+    if (useServiceForOwner) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        ownerMailingAddress: uppercaseValue
+      }));
+    }
+    
+    if (useServiceForResident) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        residentMailingAddress: uppercaseValue
+      }));
+    }
+  };
+  
+  const handleCityStateZipChange = (value: string) => {
+    // Store the raw input with commas and spaces, just convert to uppercase
+    const uppercaseValue = value.toUpperCase();
+    
+    setNewShareholderData(prev => ({
+      ...prev,
+      cityStateZip: uppercaseValue
+    }));
+    
+    // Update other city/state/zip if copy options are enabled
+    if (useServiceForCustomer) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        cityStateZip: uppercaseValue
+      }));
+    }
+    
+    if (useServiceForOwner) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        ownerCityStateZip: uppercaseValue
+      }));
+    }
+    
+    if (useServiceForResident) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        residentCityStateZip: uppercaseValue
+      }));
+    }
+  };
+  
+  const handleUseServiceForCustomer = (checked: boolean) => {
+    setUseServiceForCustomer(checked);
+    if (checked) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        customerMailingAddress: prev.serviceAddress,
+        cityStateZip: prev.cityStateZip
+      }));
+    }
+  };
+  
+  const handleUseServiceForOwner = (checked: boolean) => {
+    setUseServiceForOwner(checked);
+    if (checked) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        ownerMailingAddress: prev.serviceAddress,
+        ownerCityStateZip: prev.cityStateZip
+      }));
+    }
+  };
+  
+  const handleUseServiceForResident = (checked: boolean) => {
+    setUseServiceForResident(checked);
+    if (checked) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        residentMailingAddress: prev.serviceAddress,
+        residentCityStateZip: prev.cityStateZip
+      }));
+    }
+  };
+
+  // Add handlers for name copying
+  const handleShareholderNameChange = (value: string) => {
+    // Convert to uppercase right away
+    const uppercaseValue = value.toUpperCase();
+    
+    setNewShareholderData(prev => ({
+      ...prev,
+      name: uppercaseValue
+    }));
+    
+    // Update other names if copy options are enabled
+    if (useShareholderForOwner) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        ownerName: uppercaseValue
+      }));
+    }
+    
+    if (useShareholderForCustomer) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        customerName: uppercaseValue
+      }));
+    }
+    
+    if (useShareholderForResident) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        residentName: uppercaseValue
+      }));
+    }
+  };
+  
+  const handleUseShareholderForOwner = (checked: boolean) => {
+    setUseShareholderForOwner(checked);
+    if (checked) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        ownerName: prev.name
+      }));
+    }
+  };
+  
+  const handleUseShareholderForCustomer = (checked: boolean) => {
+    setUseShareholderForCustomer(checked);
+    if (checked) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        customerName: prev.name
+      }));
+    }
+  };
+  
+  const handleUseShareholderForResident = (checked: boolean) => {
+    setUseShareholderForResident(checked);
+    if (checked) {
+      setNewShareholderData(prev => ({
+        ...prev,
+        residentName: prev.name
+      }));
+    }
+  };
+
   // Redirect if not admin
   if (session?.user?.isAdmin !== true) {
     return (
@@ -441,40 +817,45 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 mb-20 md:mb-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-          <Settings className="h-6 w-6 text-blue-500" />
+    <div className="w-full">
+      <div className="max-w-6xl mx-auto bg-white px-3 sm:px-6 lg:px-8 py-4 sm:py-6 mb-16 md:mb-6 shadow-sm rounded-lg">
+        <div className="space-y-6">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
+            <div className="space-y-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
           Admin Dashboard
+              </h1>
+              <p className="text-sm text-gray-500">
+                Manage employees, meetings, and system settings
+              </p>
+            </div>
           <Button 
             variant="outline" 
             size="sm" 
-            className="ml-auto flex items-center gap-1" 
+              className="w-full sm:w-auto flex items-center justify-center gap-1" 
             onClick={() => refreshMeetings()}
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             {isLoading ? 'Loading...' : 'Refresh'}
           </Button>
-        </h1>
-        <p className="text-gray-600">
-          Manage employees, meetings, and system settings
-        </p>
       </div>
-      <Separator className="my-6" />
       
       {/* Employee Section */}
       <div className="space-y-6">
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white rounded-lg border">
           <EmployeeList refreshTrigger={employeeRefreshTrigger} />
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+          {/* Cards Grid Section */}
+          <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
         {/* Add Employee Card */}
-        <Card className="overflow-hidden hover:shadow-md transition-all">
+            <Card>
           <CardHeader className="bg-gradient-to-r from-green-50 to-white pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
+                <CardTitle className="text-lg flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-green-600" />
               Add Employee
             </CardTitle>
@@ -491,7 +872,7 @@ export default function AdminPage() {
                     value={newEmployee.fullName}
                     onChange={(e) => setNewEmployee(prev => ({ ...prev, fullName: e.target.value }))}
                     required
-                    className="border-gray-300 focus:border-green-500 focus:ring-green-500"
+                        className="border-gray-200 focus:border-green-500 focus:ring-green-500"
                   />
                 </div>
                 <div className="space-y-2">
@@ -503,7 +884,7 @@ export default function AdminPage() {
                     value={newEmployee.email}
                     onChange={(e) => setNewEmployee(prev => ({ ...prev, email: e.target.value }))}
                     required
-                    className="border-gray-300 focus:border-green-500 focus:ring-green-500"
+                        className="border-gray-200 focus:border-green-500 focus:ring-green-500"
                   />
                 </div>
               </div>
@@ -526,41 +907,41 @@ export default function AdminPage() {
         </Card>
 
         {/* Shareholder Meetings Card */}
-        <Card className="overflow-hidden hover:shadow-md transition-all">
+            <Card>
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
+                <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-600" />
               Shareholder Meetings
             </CardTitle>
             <CardDescription>Select or create a meeting to manage</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
-            {/* Create a new meeting - only show if no meetings exist */}
-            {meetings.length === 0 ? (
-              <CreateMeetingForm
-                onSuccess={(meeting) => {
-                  setMeetings((prev: any[]) => [...prev, meeting]);
-                  toast({
-                    title: "Success",
-                    description: "Meeting created successfully"
-                  });
-                }}
-              />
-            ) : (
-              <div className="p-4 rounded-lg bg-blue-50 text-center">
-                <p className="text-sm text-blue-600 mb-1 font-medium">Meeting Active</p>
-                <p className="text-xs text-blue-500">To create a new meeting, delete the existing one first.</p>
-              </div>
-            )}
+                {/* Create a new meeting - only show if no meetings exist */}
+                {meetings.length === 0 ? (
+            <CreateMeetingForm
+              onSuccess={(meeting) => {
+                setMeetings((prev: any[]) => [...prev, meeting]);
+                toast({
+                  title: "Success",
+                  description: "Meeting created successfully"
+                });
+              }}
+            />
+                ) : (
+                  <div className="p-4 rounded-lg bg-blue-50 text-center">
+                    <p className="text-sm text-blue-600 mb-1 font-medium">Meeting Active</p>
+                    <p className="text-xs text-blue-500">To create a new meeting, delete the existing one first.</p>
+                  </div>
+                )}
 
             {/* List existing meetings */}
             <div className="space-y-3 mt-4">
               <h3 className="text-sm font-medium text-gray-700">Existing Meetings</h3>
-              {initialLoading ? (
-                <div className="flex justify-center items-center h-24">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                </div>
-              ) : meetings.length === 0 ? (
+                  {initialLoading ? (
+                    <div className="flex justify-center items-center h-24">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                    </div>
+                  ) : meetings.length === 0 ? (
                 <div className="p-4 rounded-lg bg-gray-50 text-center text-gray-500 text-sm">
                   No meetings found. Create your first meeting above.
                 </div>
@@ -639,16 +1020,16 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      {/* Data Management Cards - Only Show When Relevant */}
+          {/* Data Management Section */}
       {(showUploadComponent || showMailersButton || showDataChanges) && (
-        <div className="mt-6 space-y-6">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-blue-500" />
-            Data Management
-          </h2>
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-gray-900">Data Management</h2>
+              </div>
           <Separator />
           
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
             {/* Upload Data Card */}
             {showUploadComponent && (
               <Card className="overflow-hidden hover:shadow-md transition-all">
@@ -774,8 +1155,1114 @@ export default function AdminPage() {
         </div>
       )}
       
-      {/* Mobile spacing for bottom nav */}
-      <div className="h-16 md:hidden"></div>
+          {/* Property Management Section */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-gray-900">Property Management</h2>
+            </div>
+            <Separator />
+            <div className="bg-white rounded-lg border">
+              <div className="w-full p-4 space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by owner, address..."
+                      className="pl-10 border-gray-200 focus:border-primary"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="ml-2 flex items-center gap-1" 
+                    onClick={() => setShowAddDialog(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">Add</span>
+                  </Button>
+                </div>
+                
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : filteredProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Search className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                    <p>No properties found</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredProperties.map((property) => (
+                      <Card 
+                        key={property.id}
+                        className="overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => {
+                          setSelectedProperty(property);
+                          setShowDetails(true);
+                        }}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="font-medium text-gray-900">{property.ownerName || property.customerName}</h3>
+                              <p className="text-sm text-gray-500">{property.serviceAddress}</p>
+                              <p className="text-xs text-gray-400">{property.account}</p>
+                            </div>
+                            <Badge 
+                              variant={property.checkedIn ? "success" : "secondary"}
+                              className={property.checkedIn ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}
+                            >
+                              {property.checkedIn ? "Checked In" : "Not Checked In"}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Property Details Dialog */}
+      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Property Details</DialogTitle>
+            <DialogDescription>
+              View property information
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProperty && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500">Account</Label>
+                  <p className="font-medium">{selectedProperty.account}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Status</Label>
+                  <Badge 
+                    variant={selectedProperty.checkedIn ? "success" : "secondary"}
+                    className={selectedProperty.checkedIn ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}
+                  >
+                    {selectedProperty.checkedIn ? "Checked In" : "Not Checked In"}
+                  </Badge>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div>
+                <Label className="text-xs text-gray-500">Owner</Label>
+                <p className="font-medium">{selectedProperty.ownerName}</p>
+                <p className="text-sm text-gray-600">{selectedProperty.ownerMailingAddress}</p>
+                <p className="text-sm text-gray-600">{selectedProperty.ownerCityStateZip}</p>
+              </div>
+              
+              <div>
+                <Label className="text-xs text-gray-500">Customer</Label>
+                <p className="font-medium">{selectedProperty.customerName}</p>
+                <p className="text-sm text-gray-600">{selectedProperty.customerMailingAddress}</p>
+                <p className="text-sm text-gray-600">{selectedProperty.cityStateZip}</p>
+              </div>
+              
+              <div>
+                <Label className="text-xs text-gray-500">Service Address</Label>
+                <p className="font-medium">{selectedProperty.serviceAddress}</p>
+              </div>
+              
+              <div>
+                <Label className="text-xs text-gray-500">Resident</Label>
+                <p className="font-medium">{selectedProperty.residentName || "Same as owner"}</p>
+                {selectedProperty.residentName && (
+                  <>
+                    <p className="text-sm text-gray-600">{selectedProperty.residentMailingAddress}</p>
+                    <p className="text-sm text-gray-600">{selectedProperty.residentCityStateZip}</p>
+                  </>
+                )}
+              </div>
+
+              <div className="pt-4">
+                <Separator className="mb-4" />
+                <Button 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setShowDetails(false);
+                    setShowTransferDialog(true);
+                  }}
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Transfer Property
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={() => setShowDetails(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Shareholder/Property Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={(open) => {
+        if (!open) {
+          // Reset form when closing
+          setAcquisitionType("new");
+          setNewShareholderData({
+            name: "",
+            serviceAddress: "",
+            ownerName: "",
+            customerName: "",
+            ownerMailingAddress: "",
+            ownerCityStateZip: "",
+            customerMailingAddress: "",
+            cityStateZip: "",
+            residentName: "",
+            residentMailingAddress: "",
+            residentCityStateZip: "",
+          });
+          setSelectedExistingProperty(null);
+          setExistingPropertySearchQuery("");
+          setShowAddDialog(false);
+          setUseServiceForCustomer(false);
+          setUseServiceForOwner(false);
+          setUseServiceForResident(false);
+          setUseShareholderForOwner(false);
+          setUseShareholderForCustomer(false);
+          setUseShareholderForResident(false);
+        }
+        setShowAddDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Shareholder</DialogTitle>
+            <DialogDescription>
+              Create a new shareholder with property
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Shareholder Name</Label>
+              <Input 
+                value={newShareholderData.name}
+                onChange={(e) => handleShareholderNameChange(e.target.value)}
+                placeholder="Enter full name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Acquisition Type</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  variant={acquisitionType === "new" ? "default" : "outline"} 
+                  className={acquisitionType === "new" ? "border-primary bg-primary text-white" : "justify-start"}
+                  onClick={() => setAcquisitionType("new")}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Property
+                </Button>
+                <Button 
+                  variant={acquisitionType === "existing" ? "default" : "outline"} 
+                  className={acquisitionType === "existing" ? "border-primary bg-primary text-white" : "justify-start"}
+                  onClick={() => setAcquisitionType("existing")}
+                >
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  Existing Property
+                </Button>
+              </div>
+            </div>
+            
+            {acquisitionType === "new" && (
+              <div className="space-y-2">
+                <Label>New Property Details</Label>
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-500">Account number will be auto-generated</p>
+                  
+                  {/* Service Address Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Service Address</h3>
+                    <Input 
+                      placeholder="Service Address" 
+                      value={newShareholderData.serviceAddress}
+                      onChange={(e) => handleServiceAddressChange(e.target.value)}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP" 
+                      value={newShareholderData.cityStateZip}
+                      onChange={(e) => handleCityStateZipChange(e.target.value)}
+                    />
+                  </div>
+                  
+                  {/* Owner Information Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Owner Information</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-shareholder-for-owner" 
+                        checked={useShareholderForOwner}
+                        onCheckedChange={(checked) => handleUseShareholderForOwner(!!checked)} 
+                      />
+                      <Label htmlFor="use-shareholder-for-owner" className="text-xs text-gray-700">Owner name same as shareholder</Label>
+                    </div>
+                    <Input 
+                      placeholder="Owner Name" 
+                      value={newShareholderData.ownerName}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
+                      disabled={useShareholderForOwner}
+                      className={useShareholderForOwner ? "bg-gray-100" : ""}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-service-for-owner" 
+                        checked={useServiceForOwner}
+                        onCheckedChange={(checked) => handleUseServiceForOwner(!!checked)} 
+                      />
+                      <Label htmlFor="use-service-for-owner" className="text-xs text-gray-700">Owner mailing address same as service address</Label>
+                    </div>
+                    <Input 
+                      placeholder="Owner Mailing Address" 
+                      value={newShareholderData.ownerMailingAddress}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForOwner}
+                      className={useServiceForOwner ? "bg-gray-100" : ""}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                      value={newShareholderData.ownerCityStateZip}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForOwner}
+                      className={useServiceForOwner ? "bg-gray-100" : ""}
+                    />
+                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                  </div>
+                  
+                  {/* Customer Information Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Customer Information</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-shareholder-for-customer" 
+                        checked={useShareholderForCustomer}
+                        onCheckedChange={(checked) => handleUseShareholderForCustomer(!!checked)} 
+                      />
+                      <Label htmlFor="use-shareholder-for-customer" className="text-xs text-gray-700">Customer name same as shareholder</Label>
+                    </div>
+                    <Input 
+                      placeholder="Customer Name" 
+                      value={newShareholderData.customerName}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerName: e.target.value.toUpperCase()}))}
+                      disabled={useShareholderForCustomer}
+                      className={useShareholderForCustomer ? "bg-gray-100" : ""}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-service-for-customer" 
+                        checked={useServiceForCustomer}
+                        onCheckedChange={(checked) => handleUseServiceForCustomer(!!checked)} 
+                      />
+                      <Label htmlFor="use-service-for-customer" className="text-xs text-gray-700">Customer mailing address same as service address</Label>
+                    </div>
+                    <Input 
+                      placeholder="Customer Mailing Address" 
+                      value={newShareholderData.customerMailingAddress}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerMailingAddress: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForCustomer}
+                      className={useServiceForCustomer ? "bg-gray-100" : ""}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                      value={newShareholderData.cityStateZip}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, cityStateZip: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForCustomer}
+                      className={useServiceForCustomer ? "bg-gray-100" : ""}
+                    />
+                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                  </div>
+                  
+                  {/* Resident Information Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Resident Information (Optional)</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-shareholder-for-resident" 
+                        checked={useShareholderForResident}
+                        onCheckedChange={(checked) => handleUseShareholderForResident(!!checked)} 
+                      />
+                      <Label htmlFor="use-shareholder-for-resident" className="text-xs text-gray-700">Resident name same as shareholder</Label>
+                    </div>
+                    <Input 
+                      placeholder="Resident Name (LASTNAME, FIRSTNAME)" 
+                      value={newShareholderData.residentName}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentName: e.target.value.toUpperCase()}))}
+                      disabled={useShareholderForResident}
+                      className={useShareholderForResident ? "bg-gray-100" : ""}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-service-for-resident" 
+                        checked={useServiceForResident}
+                        onCheckedChange={(checked) => handleUseServiceForResident(!!checked)} 
+                      />
+                      <Label htmlFor="use-service-for-resident" className="text-xs text-gray-700">Resident mailing address same as service address</Label>
+                    </div>
+                    <Input 
+                      placeholder="Resident Mailing Address" 
+                      value={newShareholderData.residentMailingAddress}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentMailingAddress: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForResident}
+                      className={useServiceForResident ? "bg-gray-100" : ""}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                      value={newShareholderData.residentCityStateZip}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentCityStateZip: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForResident}
+                      className={useServiceForResident ? "bg-gray-100" : ""}
+                    />
+                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {acquisitionType === "existing" && (
+              <div className="space-y-3">
+                <Label>Select Existing Property</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by address or owner name..."
+                    className="pl-10 border-gray-200"
+                    value={existingPropertySearchQuery}
+                    onChange={(e) => setExistingPropertySearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="border rounded-md overflow-hidden max-h-60 overflow-y-auto">
+                  {filteredProperties
+                    .filter(property => {
+                      const query = existingPropertySearchQuery.toLowerCase();
+                      return !query || 
+                        property.serviceAddress?.toLowerCase().includes(query) ||
+                        property.ownerName?.toLowerCase().includes(query) ||
+                        property.customerName?.toLowerCase().includes(query);
+                    })
+                    .map(property => (
+                      <div 
+                        key={property.id} 
+                        className={`p-2 cursor-pointer hover:bg-gray-50 ${
+                          selectedExistingProperty?.id === property.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-b'
+                        }`}
+                        onClick={() => setSelectedExistingProperty(property)}
+                      >
+                        <p className="font-medium">{property.ownerName || property.customerName}</p>
+                        <p className="text-sm text-gray-600">{property.serviceAddress}</p>
+                        <p className="text-xs text-gray-400">{property.account}</p>
+                      </div>
+                    ))
+                  }
+                  {filteredProperties.length === 0 && (
+                    <div className="p-4 text-center text-gray-500">
+                      <p>No properties found</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              className="w-full sm:w-auto"
+              onClick={() => setShowAddDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={async () => {
+                try {
+                  // Set loading state
+                  setIsLoading(true);
+                  
+                  if (acquisitionType === "new") {
+                    // Create new property and shareholder
+                    // Make sure we have required fields
+                    if (!newShareholderData.name || !newShareholderData.serviceAddress) {
+                      throw new Error("Shareholder name and service address are required");
+                    }
+
+                    // Step 1: Generate a random shareholder ID
+                    const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
+                    
+                    // Step 2: Create the shareholder first
+                    const shareholderResponse = await fetch("/api/shareholders", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        name: newShareholderData.name.trim(),
+                        shareholderId,
+                        // The first active meeting ID would be used automatically by the API
+                      }),
+                    });
+                    
+                    if (!shareholderResponse.ok) {
+                      let errorMessage = "Failed to create shareholder";
+                      try {
+                        const errorData = await shareholderResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${shareholderResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                    
+                    // Step 3: Create the property associated with this shareholder
+                    const propertyResponse = await fetch("/api/properties", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        shareholderId,
+                        account: Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString(), // Generate random account number
+                        serviceAddress: newShareholderData.serviceAddress.trim().toUpperCase(),
+                        ownerName: (newShareholderData.ownerName || newShareholderData.name).trim().toUpperCase(),
+                        ownerMailingAddress: newShareholderData.ownerMailingAddress.trim().toUpperCase(),
+                        ownerCityStateZip: formatCityStateZip(newShareholderData.ownerCityStateZip),
+                        customerName: (newShareholderData.customerName || newShareholderData.name).trim().toUpperCase(),
+                        customerMailingAddress: newShareholderData.customerMailingAddress.trim().toUpperCase(),
+                        cityStateZip: formatCityStateZip(newShareholderData.cityStateZip),
+                        residentName: newShareholderData.residentName.trim().toUpperCase(),
+                        residentMailingAddress: newShareholderData.residentMailingAddress.trim().toUpperCase(),
+                        residentCityStateZip: formatCityStateZip(newShareholderData.residentCityStateZip),
+                      }),
+                    });
+                    
+                    if (!propertyResponse.ok) {
+                      let errorMessage = "Failed to create property";
+                      try {
+                        const errorData = await propertyResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${propertyResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                    
+                    toast({
+                      title: "Success",
+                      description: "Shareholder and property added successfully",
+                    });
+                    
+                    // Refresh properties
+                    await refreshProperties();
+                  } else {
+                    // Transfer existing property to new shareholder
+                    if (!selectedExistingProperty) {
+                      throw new Error("Please select a property to transfer");
+                    }
+                    
+                    if (!newShareholderData.name) {
+                      throw new Error("Shareholder name is required");
+                    }
+                    
+                    // Step 1: Generate a random shareholder ID
+                    const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
+                    
+                    // Step 2: Create the shareholder first
+                    const shareholderResponse = await fetch("/api/shareholders", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        name: newShareholderData.name.trim(),
+                        shareholderId,
+                        // The first active meeting ID would be used automatically by the API
+                      }),
+                    });
+                    
+                    if (!shareholderResponse.ok) {
+                      let errorMessage = "Failed to create shareholder";
+                      try {
+                        const errorData = await shareholderResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${shareholderResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                    
+                    // Step 3: Transfer the existing property to this new shareholder
+                    const transferResponse = await fetch(`/api/properties/${selectedExistingProperty.id}/transfer`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        newShareholderId: shareholderId,
+                      }),
+                    });
+                    
+                    if (!transferResponse.ok) {
+                      let errorMessage = "Failed to transfer property";
+                      try {
+                        const errorData = await transferResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${transferResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                    
+                    toast({
+                      title: "Success",
+                      description: "Property assigned to new shareholder successfully",
+                    });
+                    
+                    // Refresh properties
+                    await refreshProperties();
+                  }
+                  
+                  // Close dialog and reset form
+                  setShowAddDialog(false);
+                  
+                  // Reset form data
+                  setAcquisitionType("new");
+                  setNewShareholderData({
+                    name: "",
+                    serviceAddress: "",
+                    ownerName: "",
+                    customerName: "",
+                    ownerMailingAddress: "",
+                    ownerCityStateZip: "",
+                    customerMailingAddress: "",
+                    cityStateZip: "",
+                    residentName: "",
+                    residentMailingAddress: "",
+                    residentCityStateZip: "",
+                  });
+                  setSelectedExistingProperty(null);
+                  setExistingPropertySearchQuery("");
+                  setUseServiceForCustomer(false);
+                  setUseServiceForOwner(false);
+                  setUseServiceForResident(false);
+                  setUseShareholderForOwner(false);
+                  setUseShareholderForCustomer(false);
+                  setUseShareholderForResident(false);
+                } catch (error) {
+                  console.error("Error adding shareholder:", error);
+                  toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to add shareholder",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={
+                isLoading ||
+                (acquisitionType === "new" && (!newShareholderData.name || !newShareholderData.serviceAddress)) ||
+                (acquisitionType === "existing" && (!newShareholderData.name || !selectedExistingProperty))
+              }
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Add Shareholder"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Property Dialog */}
+      <Dialog open={showTransferDialog} onOpenChange={(open) => {
+        if (!open) {
+          // Reset form when closing
+          setTransferType("new");
+          setTransferData({
+            shareholderName: "",
+            email: "",
+            phone: ""
+          });
+          setSelectedExistingShareholder(null);
+          setShareholderSearchQuery("");
+          setUseShareholderForOwner(false);
+          setUseShareholderForCustomer(false);
+          setUseShareholderForResident(false);
+          setUseServiceForOwner(false);
+          setUseServiceForCustomer(false);
+          setUseServiceForResident(false);
+          // Reset shareholder data form
+          setNewShareholderData({
+            name: "",
+            serviceAddress: "",
+            ownerName: "",
+            customerName: "",
+            ownerMailingAddress: "",
+            ownerCityStateZip: "",
+            customerMailingAddress: "",
+            cityStateZip: "",
+            residentName: "",
+            residentMailingAddress: "",
+            residentCityStateZip: "",
+          });
+        } else if (open && selectedProperty) {
+          // Initialize the form with existing property data
+          setNewShareholderData(prev => ({
+            ...prev,
+            serviceAddress: selectedProperty.serviceAddress || "",
+            cityStateZip: selectedProperty.cityStateZip || ""
+          }));
+        }
+        setShowTransferDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transfer Property</DialogTitle>
+            <DialogDescription>
+              Transfer property to a new or existing shareholder
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProperty && (
+            <div className="space-y-4 py-2">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-sm font-medium text-gray-700">Current Property</p>
+                <p className="text-sm">{selectedProperty.account} - {selectedProperty.serviceAddress}</p>
+                <p className="text-xs text-gray-500 mt-1">Currently owned by: {selectedProperty.ownerName}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Transfer To</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant={transferType === "new" ? "default" : "outline"} 
+                    className={transferType === "new" ? "border-primary bg-primary text-white" : "justify-start"}
+                    onClick={() => setTransferType("new")}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    New Shareholder
+                  </Button>
+                  <Button 
+                    variant={transferType === "existing" ? "default" : "outline"} 
+                    className={transferType === "existing" ? "border-primary bg-primary text-white" : "justify-start"}
+                    onClick={() => setTransferType("existing")}
+                  >
+                    <Search className="mr-2 h-4 w-4" />
+                    Existing Shareholder
+                  </Button>
+                </div>
+              </div>
+              
+              {transferType === "new" && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Shareholder Name</Label>
+                    <Input 
+                      value={newShareholderData.name}
+                      onChange={(e) => handleShareholderNameChange(e.target.value)}
+                      placeholder="Enter full name"
+                    />
+                  </div>
+                  
+                  {/* Service Address Section - Copy from existing property */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Service Address</h3>
+                    <Input 
+                      placeholder="Service Address" 
+                      value={selectedProperty.serviceAddress}
+                      onChange={(e) => handleServiceAddressChange(e.target.value)}
+                      disabled
+                      className="bg-gray-100"
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP" 
+                      value={selectedProperty.cityStateZip}
+                      disabled
+                      className="bg-gray-100"
+                    />
+                    <p className="text-xs text-gray-500">Service address from existing property (cannot be changed)</p>
+                  </div>
+                  
+                  {/* Owner Information Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Owner Information</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-shareholder-for-owner-transfer" 
+                        checked={useShareholderForOwner}
+                        onCheckedChange={(checked) => handleUseShareholderForOwner(!!checked)} 
+                      />
+                      <Label htmlFor="use-shareholder-for-owner-transfer" className="text-xs text-gray-700">Owner name same as shareholder</Label>
+                    </div>
+                    <Input 
+                      placeholder="Owner Name" 
+                      value={newShareholderData.ownerName}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
+                      disabled={useShareholderForOwner}
+                      className={useShareholderForOwner ? "bg-gray-100" : ""}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-service-for-owner-transfer" 
+                        checked={useServiceForOwner}
+                        onCheckedChange={(checked) => handleUseServiceForOwner(!!checked)} 
+                      />
+                      <Label htmlFor="use-service-for-owner-transfer" className="text-xs text-gray-700">Owner mailing address same as service address</Label>
+                    </div>
+                    <Input 
+                      placeholder="Owner Mailing Address" 
+                      value={newShareholderData.ownerMailingAddress}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForOwner}
+                      className={useServiceForOwner ? "bg-gray-100" : ""}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                      value={newShareholderData.ownerCityStateZip}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForOwner}
+                      className={useServiceForOwner ? "bg-gray-100" : ""}
+                    />
+                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                  </div>
+                  
+                  {/* Customer Information Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Customer Information</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-shareholder-for-customer-transfer" 
+                        checked={useShareholderForCustomer}
+                        onCheckedChange={(checked) => handleUseShareholderForCustomer(!!checked)} 
+                      />
+                      <Label htmlFor="use-shareholder-for-customer-transfer" className="text-xs text-gray-700">Customer name same as shareholder</Label>
+                    </div>
+                    <Input 
+                      placeholder="Customer Name" 
+                      value={newShareholderData.customerName}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerName: e.target.value.toUpperCase()}))}
+                      disabled={useShareholderForCustomer}
+                      className={useShareholderForCustomer ? "bg-gray-100" : ""}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-service-for-customer-transfer" 
+                        checked={useServiceForCustomer}
+                        onCheckedChange={(checked) => handleUseServiceForCustomer(!!checked)} 
+                      />
+                      <Label htmlFor="use-service-for-customer-transfer" className="text-xs text-gray-700">Customer mailing address same as service address</Label>
+                    </div>
+                    <Input 
+                      placeholder="Customer Mailing Address" 
+                      value={newShareholderData.customerMailingAddress}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerMailingAddress: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForCustomer}
+                      className={useServiceForCustomer ? "bg-gray-100" : ""}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                      value={newShareholderData.cityStateZip}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, cityStateZip: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForCustomer}
+                      className={useServiceForCustomer ? "bg-gray-100" : ""}
+                    />
+                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                  </div>
+                  
+                  {/* Resident Information Section */}
+                  <div className="border p-3 rounded-md space-y-2">
+                    <h3 className="text-sm font-medium">Resident Information (Optional)</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-shareholder-for-resident-transfer" 
+                        checked={useShareholderForResident}
+                        onCheckedChange={(checked) => handleUseShareholderForResident(!!checked)} 
+                      />
+                      <Label htmlFor="use-shareholder-for-resident-transfer" className="text-xs text-gray-700">Resident name same as shareholder</Label>
+                    </div>
+                    <Input 
+                      placeholder="Resident Name (LASTNAME, FIRSTNAME)" 
+                      value={newShareholderData.residentName}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentName: e.target.value.toUpperCase()}))}
+                      disabled={useShareholderForResident}
+                      className={useShareholderForResident ? "bg-gray-100" : ""}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="use-service-for-resident-transfer" 
+                        checked={useServiceForResident}
+                        onCheckedChange={(checked) => handleUseServiceForResident(!!checked)} 
+                      />
+                      <Label htmlFor="use-service-for-resident-transfer" className="text-xs text-gray-700">Resident mailing address same as service address</Label>
+                    </div>
+                    <Input 
+                      placeholder="Resident Mailing Address" 
+                      value={newShareholderData.residentMailingAddress}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentMailingAddress: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForResident}
+                      className={useServiceForResident ? "bg-gray-100" : ""}
+                    />
+                    <Input 
+                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                      value={newShareholderData.residentCityStateZip}
+                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentCityStateZip: e.target.value.toUpperCase()}))}
+                      disabled={useServiceForResident}
+                      className={useServiceForResident ? "bg-gray-100" : ""}
+                    />
+                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                  </div>
+                </div>
+              )}
+
+              {transferType === "existing" && (
+                <div className="space-y-3">
+                  <Label>Select Existing Shareholder</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by name..."
+                      className="pl-10 border-gray-200"
+                      value={shareholderSearchQuery}
+                      onChange={(e) => setShareholderSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="border rounded-md overflow-hidden max-h-60 overflow-y-auto">
+                    {shareholders
+                      .filter(shareholder => {
+                        const query = shareholderSearchQuery.toLowerCase();
+                        return !query || shareholder.name?.toLowerCase().includes(query);
+                      })
+                      .map(shareholder => (
+                        <div 
+                          key={shareholder.id} 
+                          className={`p-2 cursor-pointer hover:bg-gray-50 ${
+                            selectedExistingShareholder?.id === shareholder.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-b'
+                          }`}
+                          onClick={() => {
+                            console.log("Selected shareholder:", shareholder);
+                            setSelectedExistingShareholder(shareholder);
+                          }}
+                        >
+                          <p className="font-medium">{shareholder.name}</p>
+                          <p className="text-xs text-gray-400">Shareholder ID: {shareholder.shareholderId}</p>
+                        </div>
+                      ))
+                    }
+                    {shareholders.length === 0 && (
+                      <div className="p-4 text-center text-gray-500">
+                        <p>No shareholders found</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm">
+                    <h4 className="font-medium text-blue-800">Transfer Information</h4>
+                    <p className="mt-1 text-blue-700">When transferring to an existing shareholder:</p>
+                    <ul className="mt-2 space-y-1 text-blue-600 list-disc pl-5">
+                      <li>The property will be linked to the selected shareholder</li>
+                      <li>Owner, customer, and resident names will all be set to the shareholder's name</li>
+                      <li>All mailing addresses will be set to the property's service address</li>
+                      <li>The previous shareholder will be deleted if they no longer own any properties</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              className="w-full sm:w-auto"
+              onClick={() => setShowTransferDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={async () => {
+                if (!selectedProperty) return;
+                
+                try {
+                  // Set loading state
+                  setIsLoading(true);
+                  
+                  // Log the selected property and its addresses
+                  console.log("TRANSFER: Selected property service address:", selectedProperty.serviceAddress);
+                  console.log("TRANSFER: Selected property city/state/zip:", selectedProperty.cityStateZip);
+                  
+                  if (transferType === "new") {
+                    // Create new shareholder and transfer property
+                    if (!newShareholderData.name) {
+                      throw new Error("Shareholder name is required");
+                    }
+                    
+                    // Step 1: Generate a random shareholder ID
+                    const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
+                    
+                    // Step 2: Create the shareholder first
+                    const shareholderResponse = await fetch("/api/shareholders", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        name: newShareholderData.name.trim().toUpperCase(),
+                        shareholderId,
+                        // The first active meeting ID would be used automatically by the API
+                      }),
+                    });
+                    
+                    if (!shareholderResponse.ok) {
+                      let errorMessage = "Failed to create shareholder";
+                      try {
+                        const errorData = await shareholderResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${shareholderResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                    
+                    // Step 3: Transfer the property via the proper transfer endpoint
+                    const transferResponse = await fetch(`/api/properties/${selectedProperty.id}/transfer`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        newShareholderId: shareholderId,
+                        newOwnerName: newShareholderData.ownerName || newShareholderData.name,
+                        newOwnerMailingAddress: newShareholderData.ownerMailingAddress || selectedProperty.serviceAddress,
+                        newOwnerCityStateZip: formatCityStateZip(newShareholderData.ownerCityStateZip || selectedProperty.cityStateZip),
+                        newCustomerName: newShareholderData.customerName || newShareholderData.name,
+                        newCustomerMailingAddress: newShareholderData.customerMailingAddress || selectedProperty.serviceAddress,
+                        newCustomerCityStateZip: formatCityStateZip(newShareholderData.cityStateZip || selectedProperty.cityStateZip),
+                        newResidentName: newShareholderData.residentName || newShareholderData.name,
+                        newResidentMailingAddress: newShareholderData.residentMailingAddress || selectedProperty.serviceAddress,
+                        newResidentCityStateZip: formatCityStateZip(newShareholderData.residentCityStateZip || selectedProperty.cityStateZip)
+                      }),
+                    });
+                    
+                    if (!transferResponse.ok) {
+                      let errorMessage = "Failed to transfer property";
+                      try {
+                        const errorData = await transferResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${transferResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                    
+                    // No need for a separate property update since the transfer API now handles all the updates
+                  } else {
+                    // Transfer to existing shareholder
+                    if (!selectedExistingShareholder) {
+                      throw new Error("Please select a shareholder");
+                    }
+                    
+                    // Transfer the property to the existing shareholder
+                    console.log("TRANSFER: Transferring to existing shareholder:", selectedExistingShareholder);
+                    const transferResponse = await fetch(`/api/properties/${selectedProperty.id}/transfer`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        newShareholderId: selectedExistingShareholder.shareholderId,
+                        newOwnerName: selectedExistingShareholder.name,
+                        newCustomerName: selectedExistingShareholder.name,
+                        newResidentName: selectedExistingShareholder.name,
+                        // Use the service address for all mailing addresses by default
+                        newOwnerMailingAddress: selectedProperty.serviceAddress, // explicitly set
+                        newCustomerMailingAddress: selectedProperty.serviceAddress, // explicitly set
+                        newResidentMailingAddress: selectedProperty.serviceAddress, // explicitly set
+                        newOwnerCityStateZip: selectedProperty.cityStateZip, // explicitly set
+                        newCustomerCityStateZip: selectedProperty.cityStateZip, // explicitly set
+                        newResidentCityStateZip: selectedProperty.cityStateZip // explicitly set
+                      }),
+                    });
+
+                    console.log("TRANSFER: Transfer response status:", transferResponse.status);
+                    
+                    if (!transferResponse.ok) {
+                      let errorMessage = "Failed to transfer property";
+                      try {
+                        const errorData = await transferResponse.json();
+                        errorMessage = errorData.error || errorMessage;
+                      } catch (parseError) {
+                        errorMessage = `${errorMessage}: ${transferResponse.statusText}`;
+                      }
+                      throw new Error(errorMessage);
+                    }
+                  }
+                  
+                  toast({
+                    title: "Success",
+                    description: "Property transferred successfully",
+                  });
+                  
+                  // Refresh properties
+                  await refreshProperties();
+                  
+                  // Close dialog
+                  setShowTransferDialog(false);
+                } catch (error) {
+                  console.error("Error transferring property:", error);
+                  toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to transfer property",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={
+                isLoading ||
+                !selectedProperty ||
+                (transferType === "new" && !newShareholderData.name) ||
+                (transferType === "existing" && !selectedExistingShareholder)
+              }
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Transfer Property"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

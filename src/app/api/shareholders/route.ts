@@ -2,6 +2,13 @@ import { NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
 import { parse } from "csv-parse/sync"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { shareholders } from "@/lib/db/schema"
+import { meetings } from "@/lib/db/schema" 
+import { logToFile, LogLevel } from "@/utils/logger"
+import { desc } from "drizzle-orm"
 
 
 export interface Property {
@@ -68,14 +75,90 @@ function getCSVData(): Property[] {
     }))
 }
 
-export async function GET() {
+// GET endpoint for retrieving shareholder data
+export async function GET(request: Request) {
     try {
-        const data = getCSVData()
-       
-        return NextResponse.json(data)
-    } catch (error) {
+        // Authentication check
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
         
-        return NextResponse.json({ error: "Failed to read data" }, { status: 500 })
+        // Get shareholders from the database
+        const allShareholders = await db.select().from(shareholders);
+        
+        return NextResponse.json({ shareholders: allShareholders })
+    } catch (error) {
+        console.error("Error fetching shareholders:", error)
+        return NextResponse.json({ error: "Failed to fetch shareholders" }, { status: 500 })
+    }
+}
+
+// POST endpoint for creating a new shareholder
+export async function POST(request: Request) {
+    try {
+        // Authentication check
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            await logToFile("shareholders", "Unauthorized access attempt", LogLevel.ERROR)
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
+        // Get request body
+        const body = await request.json()
+        const { name, shareholderId } = body
+
+        if (!name || !shareholderId) {
+            return NextResponse.json(
+                { error: "Shareholder name and ID are required" },
+                { status: 400 }
+            )
+        }
+
+        // Format name in uppercase to maintain consistency
+        const formattedName = name.trim().toUpperCase()
+
+        // Get the latest active meeting
+        const latestMeetings = await db
+            .select()
+            .from(meetings)
+            .orderBy(desc(meetings.year))
+            .limit(1)
+
+        if (!latestMeetings || latestMeetings.length === 0) {
+            return NextResponse.json(
+                { error: "No active meeting found to associate shareholder with" },
+                { status: 400 }
+            )
+        }
+
+        const meetingId = latestMeetings[0].id.toString()
+
+        // Create new shareholder
+        const [newShareholder] = await db
+            .insert(shareholders)
+            .values({
+                name: formattedName,
+                shareholderId,
+                meetingId
+            })
+            .returning()
+
+        await logToFile("shareholders", "New shareholder created", LogLevel.INFO, {
+            shareholderId
+        })
+
+        return NextResponse.json(newShareholder)
+    } catch (error) {
+        await logToFile("shareholders", "Error creating shareholder", LogLevel.ERROR, {
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            errorType: error instanceof Error ? error.name : "Unknown type"
+        })
+
+        return NextResponse.json(
+            { error: "Failed to create shareholder" },
+            { status: 500 }
+        )
     }
 }
 
