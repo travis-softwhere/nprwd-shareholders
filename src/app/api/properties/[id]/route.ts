@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { properties } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
@@ -8,12 +9,15 @@ import { logToFile, LogLevel } from "@/utils/logger"
 
 // Get a single property
 export async function GET(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const resolvedParams = await params;
+        const { id } = resolvedParams;
+        
         await logToFile("properties", "Single property request received", LogLevel.INFO, {
-            propertyId: params.id
+            propertyId: id
         })
 
         // Authentication check
@@ -27,25 +31,28 @@ export async function GET(
         const [property] = await db
             .select()
             .from(properties)
-            .where(eq(properties.id, parseInt(params.id)))
+            .where(eq(properties.id, parseInt(id)))
 
         if (!property) {
             await logToFile("properties", "Property not found", LogLevel.ERROR, {
-                propertyId: params.id
+                propertyId: id
             })
             return NextResponse.json({ error: "Property not found" }, { status: 404 })
         }
 
         await logToFile("properties", "Property fetched successfully", LogLevel.INFO, {
-            propertyId: params.id
+            propertyId: id
         })
 
         return NextResponse.json(property)
     } catch (error) {
+        const resolvedParams = await params;
+        const { id } = resolvedParams;
+        
         await logToFile("properties", "Error fetching property", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type",
-            propertyId: params.id
+            propertyId: id
         })
 
         return NextResponse.json(
@@ -57,12 +64,12 @@ export async function GET(
 
 // Update a property
 export async function PUT(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        // Get the property ID safely
-        const propertyId = params.id;
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
         
         await logToFile("properties", "Property update request received", LogLevel.INFO, {
             propertyId
@@ -162,11 +169,14 @@ export async function PUT(
 
         return NextResponse.json(updatedProperty)
     } catch (error) {
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
+      
         console.error("Error updating property:", error)
         await logToFile("properties", "Error updating property", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type",
-            propertyId: params.id
+            propertyId
         })
 
         return NextResponse.json(
@@ -178,12 +188,15 @@ export async function PUT(
 
 // Delete a property
 export async function DELETE(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
+      
         await logToFile("properties", "Property deletion request received", LogLevel.INFO, {
-            propertyId: params.id
+            propertyId
         })
 
         // Authentication check
@@ -196,26 +209,29 @@ export async function DELETE(
         // Delete property
         const [deletedProperty] = await db
             .delete(properties)
-            .where(eq(properties.id, parseInt(params.id)))
+            .where(eq(properties.id, parseInt(propertyId)))
             .returning()
 
         if (!deletedProperty) {
             await logToFile("properties", "Property not found for deletion", LogLevel.ERROR, {
-                propertyId: params.id
+                propertyId
             })
             return NextResponse.json({ error: "Property not found" }, { status: 404 })
         }
 
         await logToFile("properties", "Property deleted successfully", LogLevel.INFO, {
-            propertyId: params.id
+            propertyId
         })
 
         return NextResponse.json({ success: true })
     } catch (error) {
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
+        
         await logToFile("properties", "Error deleting property", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type",
-            propertyId: params.id
+            propertyId
         })
 
         return NextResponse.json(

@@ -1841,27 +1841,27 @@ export default function AdminPage() {
         setShowTransferDialog(open);
       }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Transfer Property</DialogTitle>
-            <DialogDescription>
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-xl">Transfer Property</DialogTitle>
+            <DialogDescription className="text-gray-600">
               Transfer property to a new or existing shareholder
             </DialogDescription>
           </DialogHeader>
           
           {selectedProperty && (
-            <div className="space-y-4 py-2">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm font-medium text-gray-700">Current Property</p>
-                <p className="text-sm">{selectedProperty.account} - {selectedProperty.serviceAddress}</p>
-                <p className="text-xs text-gray-500 mt-1">Currently owned by: {selectedProperty.ownerName}</p>
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Current Property</h3>
+                <p className="text-sm font-mono">{selectedProperty.account} - {selectedProperty.serviceAddress}</p>
+                <p className="text-xs text-gray-500 mt-1.5">Currently owned by: {selectedProperty.ownerName}</p>
               </div>
               
-              <div className="space-y-2">
-                <Label>Transfer To</Label>
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Transfer To</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <Button 
                     variant={transferType === "new" ? "default" : "outline"} 
-                    className={transferType === "new" ? "border-primary bg-primary text-white" : "justify-start"}
+                    className={transferType === "new" ? "border-primary bg-primary text-white shadow-sm" : "justify-start bg-white"}
                     onClick={() => setTransferType("new")}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
@@ -1869,7 +1869,7 @@ export default function AdminPage() {
                   </Button>
                   <Button 
                     variant={transferType === "existing" ? "default" : "outline"} 
-                    className={transferType === "existing" ? "border-primary bg-primary text-white" : "justify-start"}
+                    className={transferType === "existing" ? "border-primary bg-primary text-white shadow-sm" : "justify-start bg-white"}
                     onClick={() => setTransferType("existing")}
                   >
                     <Search className="mr-2 h-4 w-4" />
@@ -1879,13 +1879,14 @@ export default function AdminPage() {
               </div>
               
               {transferType === "new" && (
-                <div className="space-y-3">
+                <div className="space-y-4 mt-1">
                   <div className="space-y-2">
-                    <Label>Shareholder Name</Label>
+                    <Label className="text-sm font-medium">Shareholder Name</Label>
                     <Input 
                       value={newShareholderData.name}
                       onChange={(e) => handleShareholderNameChange(e.target.value)}
                       placeholder="Enter full name"
+                      className="bg-white"
                     />
                   </div>
                   
@@ -1895,17 +1896,16 @@ export default function AdminPage() {
                     <Input 
                       placeholder="Service Address" 
                       value={selectedProperty.serviceAddress}
-                      onChange={(e) => handleServiceAddressChange(e.target.value)}
                       disabled
-                      className="bg-gray-100"
+                      className="bg-gray-50 border-gray-200"
                     />
                     <Input 
                       placeholder="City, State, ZIP" 
                       value={selectedProperty.cityStateZip}
                       disabled
-                      className="bg-gray-100"
+                      className="bg-gray-50 border-gray-200"
                     />
-                    <p className="text-xs text-gray-500">Service address from existing property (cannot be changed)</p>
+                    <p className="text-xs text-gray-500 mt-1">Service address from existing property (cannot be changed)</p>
                   </div>
                   
                   {/* Owner Information Section */}
@@ -1924,7 +1924,7 @@ export default function AdminPage() {
                       value={newShareholderData.ownerName}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
                       disabled={useShareholderForOwner}
-                      className={useShareholderForOwner ? "bg-gray-100" : ""}
+                      className={useShareholderForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
                     <div className="flex items-center space-x-2">
                       <Checkbox 
@@ -1939,16 +1939,16 @@ export default function AdminPage() {
                       value={newShareholderData.ownerMailingAddress}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
                       disabled={useServiceForOwner}
-                      className={useServiceForOwner ? "bg-gray-100" : ""}
+                      className={useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
                     <Input 
                       placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
                       value={newShareholderData.ownerCityStateZip}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
                       disabled={useServiceForOwner}
-                      className={useServiceForOwner ? "bg-gray-100" : ""}
+                      className={useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
-                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                    <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
                   </div>
                   
                   {/* Customer Information Section */}
@@ -1967,7 +1967,7 @@ export default function AdminPage() {
                       value={newShareholderData.customerName}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, customerName: e.target.value.toUpperCase()}))}
                       disabled={useShareholderForCustomer}
-                      className={useShareholderForCustomer ? "bg-gray-100" : ""}
+                      className={useShareholderForCustomer ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
                     <div className="flex items-center space-x-2">
                       <Checkbox 
@@ -1982,16 +1982,16 @@ export default function AdminPage() {
                       value={newShareholderData.customerMailingAddress}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, customerMailingAddress: e.target.value.toUpperCase()}))}
                       disabled={useServiceForCustomer}
-                      className={useServiceForCustomer ? "bg-gray-100" : ""}
+                      className={useServiceForCustomer ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
                     <Input 
                       placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
                       value={newShareholderData.cityStateZip}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, cityStateZip: e.target.value.toUpperCase()}))}
                       disabled={useServiceForCustomer}
-                      className={useServiceForCustomer ? "bg-gray-100" : ""}
+                      className={useServiceForCustomer ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
-                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                    <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
                   </div>
                   
                   {/* Resident Information Section */}
@@ -2010,7 +2010,7 @@ export default function AdminPage() {
                       value={newShareholderData.residentName}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, residentName: e.target.value.toUpperCase()}))}
                       disabled={useShareholderForResident}
-                      className={useShareholderForResident ? "bg-gray-100" : ""}
+                      className={useShareholderForResident ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
                     <div className="flex items-center space-x-2">
                       <Checkbox 
@@ -2025,69 +2025,76 @@ export default function AdminPage() {
                       value={newShareholderData.residentMailingAddress}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, residentMailingAddress: e.target.value.toUpperCase()}))}
                       disabled={useServiceForResident}
-                      className={useServiceForResident ? "bg-gray-100" : ""}
+                      className={useServiceForResident ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
                     <Input 
                       placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
                       value={newShareholderData.residentCityStateZip}
                       onChange={(e) => setNewShareholderData(prev => ({...prev, residentCityStateZip: e.target.value.toUpperCase()}))}
                       disabled={useServiceForResident}
-                      className={useServiceForResident ? "bg-gray-100" : ""}
+                      className={useServiceForResident ? "bg-gray-50 border-gray-200" : "bg-white"}
                     />
-                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+                    <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
                   </div>
                 </div>
               )}
 
               {transferType === "existing" && (
-                <div className="space-y-3">
-                  <Label>Select Existing Shareholder</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search by name..."
-                      className="pl-10 border-gray-200"
-                      value={shareholderSearchQuery}
-                      onChange={(e) => setShareholderSearchQuery(e.target.value)}
-                    />
+                <div className="space-y-3 mt-1">
+                  <div>
+                    <Label className="text-sm font-medium">Select Existing Shareholder</Label>
+                    <div className="mt-2 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search by name..."
+                        className="pl-10 border-gray-200 bg-white"
+                        value={shareholderSearchQuery}
+                        onChange={(e) => setShareholderSearchQuery(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="border rounded-md overflow-hidden max-h-60 overflow-y-auto">
-                    {shareholders
-                      .filter(shareholder => {
-                        const query = shareholderSearchQuery.toLowerCase();
-                        return !query || shareholder.name?.toLowerCase().includes(query);
-                      })
-                      .map(shareholder => (
-                        <div 
-                          key={shareholder.id} 
-                          className={`p-2 cursor-pointer hover:bg-gray-50 ${
-                            selectedExistingShareholder?.id === shareholder.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-b'
-                          }`}
-                          onClick={() => {
-                            console.log("Selected shareholder:", shareholder);
-                            setSelectedExistingShareholder(shareholder);
-                          }}
-                        >
-                          <p className="font-medium">{shareholder.name}</p>
-                          <p className="text-xs text-gray-400">Shareholder ID: {shareholder.shareholderId}</p>
+                  <div className="border rounded-md overflow-hidden">
+                    <div className="max-h-[240px] overflow-y-auto bg-white">
+                      {shareholders
+                        .filter(shareholder => {
+                          const query = shareholderSearchQuery.toLowerCase();
+                          return !query || shareholder.name?.toLowerCase().includes(query);
+                        })
+                        .map(shareholder => (
+                          <div 
+                            key={shareholder.id} 
+                            className={`px-3 py-2 border-b ${
+                              selectedExistingShareholder?.id === shareholder.id 
+                                ? 'bg-blue-50' 
+                                : 'hover:bg-gray-50'
+                            }`}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => {
+                              console.log("Selected shareholder:", shareholder);
+                              setSelectedExistingShareholder(shareholder);
+                            }}
+                          >
+                            <div className="text-gray-900" style={{ fontSize: '14px', fontWeight: 500 }}>{shareholder.name}</div>
+                            <div className="text-gray-500" style={{ fontSize: '12px' }}>Shareholder ID: {shareholder.shareholderId}</div>
+                          </div>
+                        ))
+                      }
+                      {shareholders.length === 0 && (
+                        <div className="p-4 text-center text-gray-500">
+                          <p>No shareholders found</p>
                         </div>
-                      ))
-                    }
-                    {shareholders.length === 0 && (
-                      <div className="p-4 text-center text-gray-500">
-                        <p>No shareholders found</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm">
-                    <h4 className="font-medium text-blue-800">Transfer Information</h4>
-                    <p className="mt-1 text-blue-700">When transferring to an existing shareholder:</p>
-                    <ul className="mt-2 space-y-1 text-blue-600 list-disc pl-5">
+                  <div className="p-4 bg-blue-50 rounded-md border border-blue-100 mt-4">
+                    <h4 className="text-sm font-medium text-blue-800 mb-2">Transfer Information</h4>
+                    <p className="text-xs text-blue-600 mb-2">When transferring to an existing shareholder:</p>
+                    <ul className="space-y-1.5 text-xs text-blue-600 list-disc pl-5">
                       <li>The property will be linked to the selected shareholder</li>
-                      <li>Owner, customer, and resident names will all be set to the shareholder's name</li>
-                      <li>All mailing addresses will be set to the property's service address</li>
-                      <li>The previous shareholder will be deleted if they no longer own any properties</li>
+                      <li>Owner, customer, and resident names will be updated</li>
+                      <li>Resident address will be updated</li>
+                      <li>Owner and customer addresses will remain unchanged</li>
                     </ul>
                   </div>
                 </div>
@@ -2095,10 +2102,10 @@ export default function AdminPage() {
             </div>
           )}
           
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 border-t pt-4 mt-2">
             <Button 
               variant="outline" 
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto bg-white"
               onClick={() => setShowTransferDialog(false)}
             >
               Cancel

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { properties, propertyTransfers, shareholders } from "@/lib/db/schema"
 import { eq, sql, count } from "drizzle-orm"
@@ -7,12 +8,13 @@ import { authOptions } from "@/lib/auth"
 import { logToFile, LogLevel } from "@/utils/logger"
 
 export async function POST(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         // Get the property ID safely
-        const propertyId = params.id;
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
         
         await logToFile("properties", "Property transfer request received", LogLevel.INFO, {
             propertyId
@@ -257,11 +259,14 @@ export async function POST(
 
         return NextResponse.json(updatedProperty)
     } catch (error) {
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
+        
         console.error("Error transferring property:", error)
         await logToFile("properties", "Error transferring property", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type",
-            propertyId: params.id
+            propertyId
         })
 
         return NextResponse.json(

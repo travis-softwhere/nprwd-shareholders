@@ -1,28 +1,45 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { propertyTransfers, shareholders } from "@/lib/db/schema"
+import { properties, propertyTransfers, shareholders } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { logToFile, LogLevel } from "@/utils/logger"
 
+// Get transfer history for a property
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        await logToFile("properties", "Property transfer history request received", LogLevel.INFO, {
-            propertyId: params.id
-        })
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
+        
+        await logToFile("properties", "Property transfers request received", LogLevel.INFO, {
+            propertyId
+        });
 
         // Authentication check
-        const session = await getServerSession(authOptions)
+        const session = await getServerSession(authOptions);
         if (!session?.user) {
-            await logToFile("properties", "Unauthorized access attempt", LogLevel.ERROR)
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+            await logToFile("properties", "Unauthorized access attempt", LogLevel.ERROR);
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Get transfer history with related data
+        // Make sure property exists
+        const [property] = await db
+            .select()
+            .from(properties)
+            .where(eq(properties.id, parseInt(propertyId)));
+
+        if (!property) {
+            await logToFile("properties", "Property not found for transfer history", LogLevel.ERROR, {
+                propertyId
+            });
+            return NextResponse.json({ error: "Property not found" }, { status: 404 });
+        }
+
+        // Get transfer history
         const transfers = await db
             .select({
                 id: propertyTransfers.id,
@@ -40,25 +57,28 @@ export async function GET(
             .from(propertyTransfers)
             .leftJoin(shareholders, eq(propertyTransfers.fromShareholderId, shareholders.shareholderId))
             .leftJoin(shareholders, eq(propertyTransfers.toShareholderId, shareholders.shareholderId))
-            .where(eq(propertyTransfers.propertyId, parseInt(params.id)))
+            .where(eq(propertyTransfers.propertyId, parseInt(propertyId)))
             .orderBy(propertyTransfers.transferredAt)
 
-        await logToFile("properties", "Property transfer history retrieved successfully", LogLevel.INFO, {
-            propertyId: params.id,
-            transferCount: transfers.length
-        })
+        await logToFile("properties", "Property transfers fetched successfully", LogLevel.INFO, {
+            propertyId,
+            transfersCount: transfers.length
+        });
 
-        return NextResponse.json(transfers)
+        return NextResponse.json({ transfers });
     } catch (error) {
-        await logToFile("properties", "Error fetching property transfer history", LogLevel.ERROR, {
+        const resolvedParams = await params;
+        const propertyId = resolvedParams.id;
+        
+        await logToFile("properties", "Error fetching property transfers", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type",
-            propertyId: params.id
-        })
+            propertyId
+        });
 
         return NextResponse.json(
-            { error: "Failed to fetch property transfer history" },
+            { error: "Failed to fetch property transfers" },
             { status: 500 }
-        )
+        );
     }
 } 
