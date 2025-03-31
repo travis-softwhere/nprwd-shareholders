@@ -1,14 +1,43 @@
 import { NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { properties } from "@/lib/db/schema"
-import { eq, sql, and, ilike, or } from "drizzle-orm"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { properties } from "@/lib/db/schema"
+import { desc, sql, and, eq, like } from "drizzle-orm"
 import { logToFile, LogLevel } from "@/utils/logger"
 
+// Define interface for properties to make TypeScript happy
+export interface Property {
+    id: number
+    account: string
+    shareholderId: string
+    serviceAddress: string
+    cityStateZip: string
+    numOf: string
+    ownerName: string
+    ownerMailingAddress: string
+    ownerCityStateZip: string
+    customerName: string
+    customerMailingAddress: string
+    residentName: string
+    residentMailingAddress: string
+    residentCityStateZip: string
+    checkedIn: boolean
+}
+
+// GET endpoint for retrieving properties
 export async function GET(request: Request) {
     try {
-        await logToFile("properties", "Properties list request received", LogLevel.INFO)
+        const url = new URL(request.url)
+        const limit = url.searchParams.get("limit") || "100" // Default to 100 properties
+        const searchTerm = url.searchParams.get("search") || ""
+        const checkedInFilter = url.searchParams.get("checkedIn")
+        
+        await logToFile("properties", "Properties request received", LogLevel.INFO, {
+            limit,
+            hasSearchTerm: !!searchTerm,
+            checkedInFilter
+        })
 
         // Authentication check
         const session = await getServerSession(authOptions)
@@ -17,73 +46,48 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        // Parse query parameters
-        const { searchParams } = new URL(request.url)
-        const page = parseInt(searchParams.get("page") || "1")
-        const limit = parseInt(searchParams.get("limit") || "10")
-        const shareholderId = searchParams.get("shareholderId")
-        const search = searchParams.get("search")
-        const checkedIn = searchParams.get("checkedIn") === "true"
-
-        await logToFile("properties", "Query parameters parsed", LogLevel.INFO, {
-            page,
-            limit,
-            hasShareholderId: !!shareholderId,
-            hasSearch: !!search,
-            checkedIn
-        })
-
-        // Build where conditions
-        const whereConditions = []
-
-        if (shareholderId) {
-            whereConditions.push(eq(properties.shareholderId, shareholderId))
-        }
-
-        if (search) {
-            whereConditions.push(
-                or(
-                    ilike(properties.account, `%${search}%`),
-                    ilike(properties.customerName, `%${search}%`),
-                    ilike(properties.serviceAddress, `%${search}%`)
-                )
+        // Build the query based on filters
+        let whereConditions = undefined;
+        
+        const conditions = []
+        
+        // Add search condition
+        if (searchTerm) {
+            conditions.push(
+                sql`(
+                    ${properties.serviceAddress} ILIKE ${`%${searchTerm}%`} OR
+                    ${properties.ownerName} ILIKE ${`%${searchTerm}%`} OR
+                    ${properties.customerName} ILIKE ${`%${searchTerm}%`} OR
+                    ${properties.account} ILIKE ${`%${searchTerm}%`}
+                )`
             )
         }
-
-        if (checkedIn !== null) {
-            whereConditions.push(eq(properties.checkedIn, checkedIn))
+        
+        // Add checked-in filter
+        if (checkedInFilter === "true") {
+            conditions.push(eq(properties.checkedIn, true))
+        } else if (checkedInFilter === "false") {
+            conditions.push(eq(properties.checkedIn, false))
         }
-
-        // Get total count
-        const [{ count }] = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(properties)
-            .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-
-        // Get paginated results
-        const results = await db
+        
+        // Apply all conditions if any
+        if (conditions.length > 0) {
+            whereConditions = and(...conditions);
+        }
+        
+        // Execute the query
+        const propertyList = await db
             .select()
             .from(properties)
-            .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-            .limit(limit)
-            .offset((page - 1) * limit)
+            .where(whereConditions)
+            .limit(parseInt(limit))
+            .orderBy(desc(properties.id));
 
         await logToFile("properties", "Properties fetched successfully", LogLevel.INFO, {
-            totalCount: count,
-            returnedCount: results.length
+            propertiesCount: propertyList.length
         })
 
-        // Return response
-        return NextResponse.json({
-            properties: results,
-            pagination: {
-                total: count,
-                page,
-                limit,
-                totalPages: Math.ceil(count / limit)
-            }
-        })
-
+        return NextResponse.json(propertyList)
     } catch (error) {
         await logToFile("properties", "Error fetching properties", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -97,59 +101,32 @@ export async function GET(request: Request) {
     }
 }
 
+// POST endpoint for creating a property
 export async function POST(request: Request) {
     try {
-        await logToFile("properties", "Create property request received", LogLevel.INFO);
+        await logToFile("properties", "Property creation request received", LogLevel.INFO)
 
         // Authentication check
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession(authOptions)
         if (!session?.user) {
-            await logToFile("properties", "Unauthorized access attempt", LogLevel.ERROR);
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            await logToFile("properties", "Unauthorized access attempt", LogLevel.ERROR)
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        // Parse request body
-        const body = await request.json();
+        // Get request body
+        const body = await request.json()
         
-        // Log the exact raw property data received
-        console.log("RECEIVED RAW PROPERTY DATA:", JSON.stringify(body, null, 2));
-        await logToFile("properties", "Received raw property data", LogLevel.INFO, {
-            rawData: JSON.stringify(body)
-        });
-
-        const { 
-            shareholderId, 
-            account, 
-            serviceAddress, 
-            ownerName, 
-            customerName, 
-            numOf, 
-            customerMailingAddress, 
-            cityStateZip, 
-            ownerMailingAddress, 
-            ownerCityStateZip, 
-            residentName, 
-            residentMailingAddress, 
-            residentCityStateZip,
-            checkedIn = false
-        } = body;
-
-        // Validate required fields
-        if (!shareholderId || !account) {
-            await logToFile("properties", "Missing required fields", LogLevel.ERROR, {
-                hasShareholderId: !!shareholderId,
-                hasAccount: !!account,
-            });
-            return NextResponse.json({ error: "Shareholder ID and account number are required" }, { status: 400 });
-        }
-
-        // Format account number consistently (if not already formatted)
-        let formattedAccount = account;
-        if (!account.includes('-')) {
-            // Format like "0000000001-00" as in examples
-            formattedAccount = account.padStart(10, '0') + '-00';
-        }
+        // Log receipt of creation data (without showing sensitive data)
+        await logToFile("properties", "Property creation data received", LogLevel.INFO)
         
+        // Validation for minimum required fields
+        if (!body.account || !body.serviceAddress || !body.shareholderId) {
+            return NextResponse.json(
+                { error: "Account number, service address and shareholder ID are required" },
+                { status: 400 }
+            )
+        }
+
         // Function to format city/state/zip consistently (CITY STATE ZIP)
         const formatCityStateZip = (value: string): string => {
             if (!value) return '';
@@ -172,71 +149,46 @@ export async function POST(request: Request) {
             
             return formatted;
         };
-
-        // Format names consistently in uppercase
-        const formattedOwnerName = ownerName ? ownerName.trim().toUpperCase() : '';
-        const formattedCustomerName = customerName ? customerName.trim().toUpperCase() : '';
-        const formattedResidentName = residentName ? residentName.trim().toUpperCase() : '';
         
-        // Format addresses consistently - ensure all text is uppercase
-        const formattedServiceAddress = serviceAddress ? serviceAddress.trim().toUpperCase() : '';
-        const formattedCustomerMailingAddress = customerMailingAddress ? customerMailingAddress.trim().toUpperCase() : '';
-        const formattedCityStateZip = cityStateZip ? formatCityStateZip(cityStateZip) : '';
-        const formattedOwnerMailingAddress = ownerMailingAddress ? ownerMailingAddress.trim().toUpperCase() : '';
-        const formattedOwnerCityStateZip = ownerCityStateZip ? formatCityStateZip(ownerCityStateZip) : '';
-        const formattedResidentMailingAddress = residentMailingAddress ? residentMailingAddress.trim().toUpperCase() : '';
-        const formattedResidentCityStateZip = residentCityStateZip ? formatCityStateZip(residentCityStateZip) : '';
-        
-        // Create new property with properly formatted data
-        const propertyData = {
-            account: formattedAccount,
-            shareholderId,
-            serviceAddress: formattedServiceAddress,
-            ownerName: formattedOwnerName,
-            customerName: formattedCustomerName,
-            numOf: numOf || '',
-            customerMailingAddress: formattedCustomerMailingAddress,
-            cityStateZip: formattedCityStateZip,
-            ownerMailingAddress: formattedOwnerMailingAddress,
-            ownerCityStateZip: formattedOwnerCityStateZip,
-            residentName: formattedResidentName,
-            residentMailingAddress: formattedResidentMailingAddress,
-            residentCityStateZip: formattedResidentCityStateZip,
-            checkedIn: !!checkedIn
+        // Format all input values to uppercase for consistency
+        const formattedData = {
+            account: body.account?.trim().toUpperCase() || '',
+            shareholderId: body.shareholderId?.trim() || '',
+            serviceAddress: body.serviceAddress?.trim().toUpperCase() || '',
+            cityStateZip: formatCityStateZip(body.cityStateZip),
+            numOf: body.numOf?.trim() || '',
+            ownerName: body.ownerName?.trim().toUpperCase() || '',
+            ownerMailingAddress: body.ownerMailingAddress?.trim().toUpperCase() || '',
+            ownerCityStateZip: formatCityStateZip(body.ownerCityStateZip),
+            customerName: body.customerName?.trim().toUpperCase() || '',
+            customerMailingAddress: body.customerMailingAddress?.trim().toUpperCase() || '',
+            residentName: body.residentName?.trim().toUpperCase() || '',
+            residentMailingAddress: body.residentMailingAddress?.trim().toUpperCase() || '',
+            residentCityStateZip: formatCityStateZip(body.residentCityStateZip),
+            checkedIn: false, // New properties always start unchecked
         };
-        
-        // Log the final property data that will be inserted
-        console.log("FINAL PROPERTY DATA FOR DB:", JSON.stringify(propertyData, null, 2));
-        await logToFile("properties", "Final property data for insertion", LogLevel.INFO, {
-            propertyData: JSON.stringify(propertyData)
-        });
 
+        // Create property
         const [newProperty] = await db
             .insert(properties)
-            .values(propertyData)
-            .returning();
+            .values(formattedData)
+            .returning()
 
-        // Log the created property returned from the database
-        console.log("CREATED PROPERTY:", JSON.stringify(newProperty, null, 2));
         await logToFile("properties", "Property created successfully", LogLevel.INFO, {
             propertyId: newProperty.id,
-            shareholderId,
-            propertyData: JSON.stringify(newProperty),
-            createdAt: newProperty.createdAt
-        });
+            account: newProperty.account
+        })
 
-        return NextResponse.json(newProperty);
+        return NextResponse.json(newProperty)
     } catch (error) {
-        console.error("Error creating property:", error);
         await logToFile("properties", "Error creating property", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
-            errorType: error instanceof Error ? error.name : "Unknown type",
-            stack: error instanceof Error ? error.stack : undefined
-        });
+            errorType: error instanceof Error ? error.name : "Unknown type"
+        })
 
         return NextResponse.json(
             { error: "Failed to create property" },
             { status: 500 }
-        );
+        )
     }
 }

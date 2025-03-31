@@ -59,7 +59,7 @@ export function DataChanges({ meetingId }: DataChangesProps) {
             case "remove":
                 return <Badge variant="destructive">Removed</Badge>
             case "modify":
-                return <Badge variant="warning">Modified</Badge>
+                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">Modified</Badge>
             default:
                 return null
         }
