@@ -150,12 +150,12 @@ export default function AdminPage() {
         const responseText = await propertiesResponse.text();
         if (responseText) {
           const propertiesData = JSON.parse(responseText);
-          console.log("Refreshed", propertiesData.properties.length, "properties from API");
-          setProperties(propertiesData.properties);
+          console.log("Refreshed", propertiesData.length, "properties from API");
+          setProperties(propertiesData);
           
           // Directly update filteredProperties as well to ensure
           // immediate display of new properties (since search is empty)
-          setFilteredProperties(propertiesData.properties);
+          setFilteredProperties(propertiesData);
         }
       }
     } catch (error) {
@@ -172,14 +172,14 @@ export default function AdminPage() {
         const response = await fetch("/api/properties?limit=1000");
         if (!response.ok) throw new Error("Failed to fetch properties");
         const data = await response.json();
-        console.log("Fetched", data.properties.length, "properties from API");
-        setProperties(data.properties);
+        console.log("Fetched", data.length, "properties from API");
+        setProperties(data);
         
         // Also update filtered properties based on current search
         if (!searchQuery) {
-          setFilteredProperties(data.properties);
+          setFilteredProperties(data);
         } else {
-          const filtered = data.properties.filter((property: Property) => {
+          const filtered = data.filter((property: Property) => {
             const query = searchQuery.toLowerCase();
             return (
               property.account?.toLowerCase().includes(query) ||
