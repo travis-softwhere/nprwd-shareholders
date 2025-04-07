@@ -30,7 +30,7 @@ export function DataChanges({ meetingId }: DataChangesProps) {
                 const data = await response.json()
                 setChanges(data.changes)
             } catch (error) {
-                console.error("Failed to fetch changes:", error)
+                // Remove console.error statements
             } finally {
                 setLoading(false)
             }

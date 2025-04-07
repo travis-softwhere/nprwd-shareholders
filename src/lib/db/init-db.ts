@@ -1,7 +1,6 @@
 import { sql } from "@vercel/postgres"
 
 export async function initDatabase() {
-  console.log("Initializing database...")
   try {
     // Create users table
     await sql`
@@ -13,7 +12,6 @@ export async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Users table created successfully")
 
     // Create meetings table
     await sql`
@@ -25,7 +23,6 @@ export async function initDatabase() {
         checked_in INTEGER DEFAULT 0
       );
     `
-    console.log("Meetings table created successfully")
 
     // Create shareholders table
     await sql`
@@ -37,7 +34,6 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Shareholders table created successfully")
 
     // Create properties table
     await sql`
@@ -60,7 +56,6 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Properties table created successfully")
 
     // Create property_transfers table
     await sql`
@@ -74,7 +69,6 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Property transfers table created successfully")
 
     // Add indexes for property_transfers
     await sql`
@@ -83,11 +77,7 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_property_transfers_from_shareholder_id ON property_transfers(from_shareholder_id);
       CREATE INDEX IF NOT EXISTS idx_property_transfers_to_shareholder_id ON property_transfers(to_shareholder_id);
     `
-    console.log("Property transfers indexes created successfully")
-
-    console.log("Database initialized successfully")
   } catch (error) {
-    console.error("Failed to initialize database:", error)
     throw error
   }
 }

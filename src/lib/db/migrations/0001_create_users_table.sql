@@ -11,9 +11,7 @@ export async function createUsersTable() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Users table created successfully")
   } catch (error) {
-    console.error("Error creating users table:", error)
     throw error
   }
 }

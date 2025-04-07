@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -150,7 +150,6 @@ export default function AdminPage() {
         const responseText = await propertiesResponse.text();
         if (responseText) {
           const propertiesData = JSON.parse(responseText);
-          console.log("Refreshed", propertiesData.length, "properties from API");
           setProperties(propertiesData);
           
           // Directly update filteredProperties as well to ensure
@@ -159,7 +158,11 @@ export default function AdminPage() {
         }
       }
     } catch (error) {
-      console.error("Error refreshing properties:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh properties",
+        variant: "destructive",
+      });
     }
   };
   
@@ -172,7 +175,6 @@ export default function AdminPage() {
         const response = await fetch("/api/properties?limit=1000");
         if (!response.ok) throw new Error("Failed to fetch properties");
         const data = await response.json();
-        console.log("Fetched", data.length, "properties from API");
         setProperties(data);
         
         // Also update filtered properties based on current search
@@ -191,7 +193,6 @@ export default function AdminPage() {
           setFilteredProperties(filtered);
         }
       } catch (error) {
-        console.error(error);
         toast({
           title: "Error",
           description: "Failed to load properties",
@@ -201,26 +202,30 @@ export default function AdminPage() {
         setIsLoading(false);
       }
     };
-
+    
     fetchProperties();
-  }, [toast, searchQuery]);
+  }, [searchQuery, toast]);
 
   // Filter properties based on search
   useEffect(() => {
-    console.log("Properties changed or search updated:", properties.length, "properties, search:", searchQuery);
+    // Skip if properties aren't loaded yet
+    if (properties.length === 0) return;
     
-    const filtered = properties.filter(property => {
-      const query = searchQuery.toLowerCase();
-      return (
-        property.account?.toLowerCase().includes(query) ||
-        property.ownerName?.toLowerCase().includes(query) ||
-        property.customerName?.toLowerCase().includes(query) ||
-        property.serviceAddress?.toLowerCase().includes(query)
-      );
-    });
-    
-    console.log("Filtered to", filtered.length, "properties after filtering");
-    setFilteredProperties(filtered);
+    if (!searchQuery) {
+      setFilteredProperties(properties);
+    } else {
+      const filtered = properties.filter(property => {
+        const query = searchQuery.toLowerCase();
+        return (
+          property.account?.toLowerCase().includes(query) ||
+          property.ownerName?.toLowerCase().includes(query) ||
+          property.customerName?.toLowerCase().includes(query) ||
+          property.serviceAddress?.toLowerCase().includes(query)
+        );
+      });
+      
+      setFilteredProperties(filtered);
+    }
   }, [properties, searchQuery]);
 
   // Fetch shareholders
@@ -232,7 +237,6 @@ export default function AdminPage() {
         const data = await response.json();
         setShareholders(data.shareholders || []);
       } catch (error) {
-        console.error(error);
         toast({
           title: "Error",
           description: "Failed to load shareholders",
@@ -287,7 +291,6 @@ export default function AdminPage() {
       const allMeetings = await getMeetings();
       setMeetings(allMeetings);
     } catch (error) {
-      console.error("Error fetching meetings:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -302,9 +305,6 @@ export default function AdminPage() {
   useEffect(() => {
     // Only load data on mount if we haven't already
     if (!initialLoadCompleteRef.current && meetings.length === 0) {
-      console.log("Admin: Loading initial data (one-time only)");
-      setInitialLoading(true);
-      
       // Don't use full page loading state, let components show their own loading indicators
     const loadInitialData = async () => {
         try {
@@ -319,7 +319,6 @@ export default function AdminPage() {
           // Mark initial load as complete so we don't fetch again
           initialLoadCompleteRef.current = true;
         } catch (error) {
-          console.error("Error loading initial data:", error);
           toast({
             variant: "destructive",
             title: "Error",
@@ -433,119 +432,81 @@ export default function AdminPage() {
     try {
       const formData = new FormData();
       formData.append("id", meetingId);
-
+      
       const result = await deleteMeeting(formData);
+      
       if (result.success) {
-        setSelectedMeetingId(null);
-        setMeetings((prev: any[]) => prev.filter((m) => m.id !== meetingId));
-        
         toast({
           title: "Success",
-          description: "Meeting deleted successfully"
+          description: "Meeting deleted successfully",
+          variant: "default",
         });
+        
+        // Refresh meetings after deletion
+        await refreshMeetings();
       } else {
-        throw new Error(result.error);
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete meeting",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error("Failed to delete meeting:", error);
-      
       toast({
-        variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete meeting"
+        description: "Failed to delete meeting",
+        variant: "destructive",
       });
     }
   };
 
   // Handle Print Mailers – will try to use the latest meeting if no meeting is selected
   const handlePrintMailers = async () => {
-    if (!selectedMeeting) {
-      // Instead of showing an error, check if we have any available meetings
-      if (meetings && meetings.length > 0) {
-        // Use the most recent meeting by default
-        const latestMeeting = meetings[meetings.length - 1];
-        
-        setIsPrinting(true);
-        try {
-          const payload = JSON.stringify({ meetingId: latestMeeting.id });
-          const response = await fetch("/api/print-mailers", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/pdf",
-            },
-            body: payload,
-            cache: "no-cache",
-            credentials: "same-origin",
-          });
-          if (!response.ok) throw new Error("Failed to generate mailers");
-
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${latestMeeting.year}-invitations.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        } catch (error) {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: error instanceof Error ? error.message : "Failed to generate mailers"
-          });
-        } finally {
-          setIsPrinting(false);
-        }
-        return;
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No meetings are available. Please upload meeting data first."
-        });
-        return;
-      }
-    }
-
-    // Continue with selected meeting if available
     setIsPrinting(true);
     try {
-      const payload = JSON.stringify({ meetingId: selectedMeeting.id });
+      if (!selectedMeeting) {
+        throw new Error("No meeting selected");
+      }
+      
       const response = await fetch("/api/print-mailers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/pdf",
         },
-        body: payload,
-        cache: "no-cache",
-        credentials: "same-origin",
+        body: JSON.stringify({
+          meetingId: selectedMeeting.id,
+        }),
       });
-      if (!response.ok) throw new Error("Failed to generate mailers");
 
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF");
+      }
+
+      // Get the PDF blob
       const blob = await response.blob();
+      
+      // Create download link and trigger download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${selectedMeeting.year}-invitations.pdf`;
+      a.download = `shareholders-mailers-${selectedMeeting.date.toString().substring(0, 10)}.pdf`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      
+      // Clean up
       window.URL.revokeObjectURL(url);
+      a.remove();
       
       toast({
         title: "Success",
-        description: "Mailers generated successfully"
+        description: "Mailers generated successfully",
+        variant: "default",
       });
     } catch (error) {
-      console.error("Error generating mailers:", error);
-      
       toast({
-        variant: "destructive",
         title: "Error",
-        description: "Failed to generate mailers"
+        description: "Failed to generate mailers",
+        variant: "destructive",
       });
     } finally {
       setIsPrinting(false);
@@ -569,45 +530,44 @@ export default function AdminPage() {
   // Handle employee creation
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsCreatingEmployee(true);
-
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
     try {
       const response = await fetch("/api/create-employee", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(newEmployee),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create employee");
-      }
-
-      toast({
-        title: "Success",
-        description: "Employee created successfully"
-      });
-
-      // Reset form
-      setNewEmployee({
-        fullName: "",
-        email: "",
+        body: JSON.stringify({
+          name: formData.get("name"),
+          email: formData.get("email"),
+          isAdmin: formData.get("isAdmin") === "on",
+        }),
       });
       
-      // Trigger employee list refresh
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create employee");
+      }
+      
+      // Reset form
+      form.reset();
+      
+      // Trigger refresh of employee list
       setEmployeeRefreshTrigger(prev => prev + 1);
-    } catch (error) {
-      console.error("Error creating employee:", error);
+      
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create employee"
+        title: "Success",
+        description: "Employee created successfully",
+        variant: "default",
       });
-    } finally {
-      setIsCreatingEmployee(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create employee",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1174,14 +1134,6 @@ export default function AdminPage() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  <Button 
-                    size="sm" 
-                    className="ml-2 flex items-center gap-1" 
-                    onClick={() => setShowAddDialog(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">Add</span>
-                  </Button>
                 </div>
                 
                 {isLoading ? (
@@ -1291,17 +1243,21 @@ export default function AdminPage() {
 
               <div className="pt-4">
                 <Separator className="mb-4" />
-                <Button 
-                  variant="outline" 
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => {
-                    setShowDetails(false);
-                    setShowTransferDialog(true);
-                  }}
-                >
-                  <ArrowRightLeft className="h-4 w-4" />
-                  Transfer Property
-                </Button>
+                <div className="flex gap-2 mt-3 border-t pt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center gap-1 w-full"
+                    onClick={() => {
+                      setSelectedProperty(selectedProperty);
+                      setTransferType("new");
+                      setShowTransferDialog(true);
+                    }}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Transfer
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -1388,154 +1344,49 @@ export default function AdminPage() {
             </div>
             
             {acquisitionType === "new" && (
-              <div className="space-y-2">
-                <Label>New Property Details</Label>
-                <div className="space-y-3">
-                  <p className="text-xs text-gray-500">Account number will be auto-generated</p>
-                  
-                  {/* Service Address Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Service Address</h3>
-                    <Input 
-                      placeholder="Service Address" 
-                      value={newShareholderData.serviceAddress}
-                      onChange={(e) => handleServiceAddressChange(e.target.value)}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP" 
-                      value={newShareholderData.cityStateZip}
-                      onChange={(e) => handleCityStateZipChange(e.target.value)}
-                    />
-                  </div>
-                  
-                  {/* Owner Information Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Owner Information</h3>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-shareholder-for-owner" 
-                        checked={useShareholderForOwner}
-                        onCheckedChange={(checked) => handleUseShareholderForOwner(!!checked)} 
-                      />
-                      <Label htmlFor="use-shareholder-for-owner" className="text-xs text-gray-700">Owner name same as shareholder</Label>
-                    </div>
-                    <Input 
-                      placeholder="Owner Name" 
-                      value={newShareholderData.ownerName}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
-                      disabled={useShareholderForOwner}
-                      className={useShareholderForOwner ? "bg-gray-100" : ""}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-service-for-owner" 
-                        checked={useServiceForOwner}
-                        onCheckedChange={(checked) => handleUseServiceForOwner(!!checked)} 
-                      />
-                      <Label htmlFor="use-service-for-owner" className="text-xs text-gray-700">Owner mailing address same as service address</Label>
-                    </div>
-                    <Input 
-                      placeholder="Owner Mailing Address" 
-                      value={newShareholderData.ownerMailingAddress}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForOwner}
-                      className={useServiceForOwner ? "bg-gray-100" : ""}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
-                      value={newShareholderData.ownerCityStateZip}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForOwner}
-                      className={useServiceForOwner ? "bg-gray-100" : ""}
-                    />
-                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
-                  </div>
-                  
-                  {/* Customer Information Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Customer Information</h3>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-shareholder-for-customer" 
-                        checked={useShareholderForCustomer}
-                        onCheckedChange={(checked) => handleUseShareholderForCustomer(!!checked)} 
-                      />
-                      <Label htmlFor="use-shareholder-for-customer" className="text-xs text-gray-700">Customer name same as shareholder</Label>
-                    </div>
-                    <Input 
-                      placeholder="Customer Name" 
-                      value={newShareholderData.customerName}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerName: e.target.value.toUpperCase()}))}
-                      disabled={useShareholderForCustomer}
-                      className={useShareholderForCustomer ? "bg-gray-100" : ""}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-service-for-customer" 
-                        checked={useServiceForCustomer}
-                        onCheckedChange={(checked) => handleUseServiceForCustomer(!!checked)} 
-                      />
-                      <Label htmlFor="use-service-for-customer" className="text-xs text-gray-700">Customer mailing address same as service address</Label>
-                    </div>
-                    <Input 
-                      placeholder="Customer Mailing Address" 
-                      value={newShareholderData.customerMailingAddress}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerMailingAddress: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForCustomer}
-                      className={useServiceForCustomer ? "bg-gray-100" : ""}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
-                      value={newShareholderData.cityStateZip}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, cityStateZip: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForCustomer}
-                      className={useServiceForCustomer ? "bg-gray-100" : ""}
-                    />
-                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
-                  </div>
-                  
-                  {/* Resident Information Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Resident Information (Optional)</h3>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-shareholder-for-resident" 
-                        checked={useShareholderForResident}
-                        onCheckedChange={(checked) => handleUseShareholderForResident(!!checked)} 
-                      />
-                      <Label htmlFor="use-shareholder-for-resident" className="text-xs text-gray-700">Resident name same as shareholder</Label>
-                    </div>
-                    <Input 
-                      placeholder="Resident Name (LASTNAME, FIRSTNAME)" 
-                      value={newShareholderData.residentName}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentName: e.target.value.toUpperCase()}))}
-                      disabled={useShareholderForResident}
-                      className={useShareholderForResident ? "bg-gray-100" : ""}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-service-for-resident" 
-                        checked={useServiceForResident}
-                        onCheckedChange={(checked) => handleUseServiceForResident(!!checked)} 
-                      />
-                      <Label htmlFor="use-service-for-resident" className="text-xs text-gray-700">Resident mailing address same as service address</Label>
-                    </div>
-                    <Input 
-                      placeholder="Resident Mailing Address" 
-                      value={newShareholderData.residentMailingAddress}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentMailingAddress: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForResident}
-                      className={useServiceForResident ? "bg-gray-100" : ""}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
-                      value={newShareholderData.residentCityStateZip}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentCityStateZip: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForResident}
-                      className={useServiceForResident ? "bg-gray-100" : ""}
-                    />
-                    <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
-                  </div>
+              <div className="space-y-4 mt-1">
+                {/* Owner Information Section */}
+                <div className="border p-3 rounded-md space-y-2">
+                  <h3 className="text-sm font-medium">Owner Information</h3>
+                  <Input 
+                    placeholder="Owner Name" 
+                    value={newShareholderData.ownerName}
+                    onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
+                    className="bg-white"
+                  />
+                  <Input 
+                    placeholder="Owner Mailing Address" 
+                    value={newShareholderData.ownerMailingAddress}
+                    onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
+                    disabled={useServiceForOwner}
+                    className={useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
+                  />
+                  <Input 
+                    placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                    value={newShareholderData.ownerCityStateZip}
+                    onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
+                    disabled={useServiceForOwner}
+                    className={useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
+                </div>
+                
+                {/* Service Address Section - Copy from existing property */}
+                <div className="border p-3 rounded-md space-y-2">
+                  <h3 className="text-sm font-medium">Service Address</h3>
+                  <Input 
+                    placeholder="Service Address" 
+                    value={selectedProperty?.serviceAddress || ""}
+                    disabled
+                    className="bg-gray-50 border-gray-200"
+                  />
+                  <Input 
+                    placeholder="City, State, ZIP" 
+                    value={selectedProperty?.cityStateZip || ""}
+                    disabled
+                    className="bg-gray-50 border-gray-200"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Service address from existing property (cannot be changed)</p>
                 </div>
               </div>
             )}
@@ -1543,41 +1394,71 @@ export default function AdminPage() {
             {acquisitionType === "existing" && (
               <div className="space-y-3">
                 <Label>Select Existing Property</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search by address or owner name..."
-                    className="pl-10 border-gray-200"
-                    value={existingPropertySearchQuery}
-                    onChange={(e) => setExistingPropertySearchQuery(e.target.value)}
-                  />
-                </div>
-                <div className="border rounded-md overflow-hidden max-h-60 overflow-y-auto">
-                  {filteredProperties
-                    .filter(property => {
-                      const query = existingPropertySearchQuery.toLowerCase();
-                      return !query || 
-                        property.serviceAddress?.toLowerCase().includes(query) ||
-                        property.ownerName?.toLowerCase().includes(query) ||
-                        property.customerName?.toLowerCase().includes(query);
-                    })
-                    .map(property => (
-                      <div 
-                        key={property.id} 
-                        className={`p-2 cursor-pointer hover:bg-gray-50 ${
-                          selectedExistingProperty?.id === property.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-b'
-                        }`}
-                        onClick={() => setSelectedExistingProperty(property)}
-                      >
-                        <p className="font-medium">{property.ownerName || property.customerName}</p>
-                        <p className="text-sm text-gray-600">{property.serviceAddress}</p>
-                        <p className="text-xs text-gray-400">{property.account}</p>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by address or owner name..."
+                      className="pl-10 border-gray-200"
+                      value={existingPropertySearchQuery}
+                      onChange={(e) => setExistingPropertySearchQuery(e.target.value)}
+                    />
+                    
+                    {/* Dropdown Search Results */}
+                    {existingPropertySearchQuery && (
+                      <div className="absolute left-0 right-0 top-full mt-1 border rounded-md bg-white shadow-lg z-10 max-h-[200px] overflow-y-auto">
+                        {properties
+                          .filter(property => {
+                            const query = existingPropertySearchQuery.toLowerCase();
+                            return property.serviceAddress?.toLowerCase().includes(query) || 
+                                  property.ownerName?.toLowerCase().includes(query);
+                          })
+                          .map(property => (
+                            <div 
+                              key={property.id} 
+                              className="px-3 py-2 border-b hover:bg-gray-50"
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => {
+                                setSelectedExistingProperty(property);
+                                setExistingPropertySearchQuery(""); // Clear search after selection
+                              }}
+                            >
+                              <div style={{ fontSize: '14px', fontWeight: 500, color: "#000000" }}>{property.ownerName}</div>
+                              <div style={{ fontSize: '12px', color: "#6B7280" }}>{property.serviceAddress}</div>
+                            </div>
+                          ))}
+                        {properties.filter(property => {
+                          const query = existingPropertySearchQuery.toLowerCase();
+                          return property.serviceAddress?.toLowerCase().includes(query) || 
+                                property.ownerName?.toLowerCase().includes(query);
+                        }).length === 0 && (
+                          <div className="p-4 text-center text-gray-500">
+                            <p>No properties found matching your search</p>
+                          </div>
+                        )}
                       </div>
-                    ))
-                  }
-                  {filteredProperties.length === 0 && (
-                    <div className="p-4 text-center text-gray-500">
-                      <p>No properties found</p>
+                    )}
+                  </div>
+                  
+                  {/* Selected Property Display */}
+                  {selectedExistingProperty && (
+                    <div className="mt-3 p-3 border rounded-md bg-blue-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <h4 className="font-medium text-sm">Selected Property</h4>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 w-6 p-0" 
+                          onClick={() => setSelectedExistingProperty(null)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="font-medium text-sm">{selectedExistingProperty.ownerName}</div>
+                        <div className="text-xs text-gray-600">{selectedExistingProperty.serviceAddress}</div>
+                        <div className="text-xs text-gray-500">Account: {selectedExistingProperty.account}</div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1585,214 +1466,12 @@ export default function AdminPage() {
             )}
           </div>
           
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
             <Button 
-              variant="outline" 
               className="w-full sm:w-auto"
               onClick={() => setShowAddDialog(false)}
             >
-              Cancel
-            </Button>
-            <Button 
-              className="w-full sm:w-auto"
-              onClick={async () => {
-                try {
-                  // Set loading state
-                  setIsLoading(true);
-                  
-                  if (acquisitionType === "new") {
-                    // Create new property and shareholder
-                    // Make sure we have required fields
-                    if (!newShareholderData.name || !newShareholderData.serviceAddress) {
-                      throw new Error("Shareholder name and service address are required");
-                    }
-
-                    // Step 1: Generate a random shareholder ID
-                    const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
-                    
-                    // Step 2: Create the shareholder first
-                    const shareholderResponse = await fetch("/api/shareholders", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        name: newShareholderData.name.trim(),
-                        shareholderId,
-                        // The first active meeting ID would be used automatically by the API
-                      }),
-                    });
-                    
-                    if (!shareholderResponse.ok) {
-                      let errorMessage = "Failed to create shareholder";
-                      try {
-                        const errorData = await shareholderResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${shareholderResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
-                    }
-                    
-                    // Step 3: Create the property associated with this shareholder
-                    const propertyResponse = await fetch("/api/properties", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        shareholderId,
-                        account: Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString(), // Generate random account number
-                        serviceAddress: newShareholderData.serviceAddress.trim().toUpperCase(),
-                        ownerName: (newShareholderData.ownerName || newShareholderData.name).trim().toUpperCase(),
-                        ownerMailingAddress: newShareholderData.ownerMailingAddress.trim().toUpperCase(),
-                        ownerCityStateZip: formatCityStateZip(newShareholderData.ownerCityStateZip),
-                        customerName: (newShareholderData.customerName || newShareholderData.name).trim().toUpperCase(),
-                        customerMailingAddress: newShareholderData.customerMailingAddress.trim().toUpperCase(),
-                        cityStateZip: formatCityStateZip(newShareholderData.cityStateZip),
-                        residentName: newShareholderData.residentName.trim().toUpperCase(),
-                        residentMailingAddress: newShareholderData.residentMailingAddress.trim().toUpperCase(),
-                        residentCityStateZip: formatCityStateZip(newShareholderData.residentCityStateZip),
-                      }),
-                    });
-                    
-                    if (!propertyResponse.ok) {
-                      let errorMessage = "Failed to create property";
-                      try {
-                        const errorData = await propertyResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${propertyResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
-                    }
-                    
-                    toast({
-                      title: "Success",
-                      description: "Shareholder and property added successfully",
-                    });
-                    
-                    // Refresh properties
-                    await refreshProperties();
-                  } else {
-                    // Transfer existing property to new shareholder
-                    if (!selectedExistingProperty) {
-                      throw new Error("Please select a property to transfer");
-                    }
-                    
-                    if (!newShareholderData.name) {
-                      throw new Error("Shareholder name is required");
-                    }
-                    
-                    // Step 1: Generate a random shareholder ID
-                    const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
-                    
-                    // Step 2: Create the shareholder first
-                    const shareholderResponse = await fetch("/api/shareholders", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        name: newShareholderData.name.trim(),
-                        shareholderId,
-                        // The first active meeting ID would be used automatically by the API
-                      }),
-                    });
-                    
-                    if (!shareholderResponse.ok) {
-                      let errorMessage = "Failed to create shareholder";
-                      try {
-                        const errorData = await shareholderResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${shareholderResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
-                    }
-                    
-                    // Step 3: Transfer the existing property to this new shareholder
-                    const transferResponse = await fetch(`/api/properties/${selectedExistingProperty.id}/transfer`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        newShareholderId: shareholderId,
-                      }),
-                    });
-                    
-                    if (!transferResponse.ok) {
-                      let errorMessage = "Failed to transfer property";
-                      try {
-                        const errorData = await transferResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${transferResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
-                    }
-                    
-                    toast({
-                      title: "Success",
-                      description: "Property assigned to new shareholder successfully",
-                    });
-                    
-                    // Refresh properties
-                    await refreshProperties();
-                  }
-                  
-                  // Close dialog and reset form
-                  setShowAddDialog(false);
-                  
-                  // Reset form data
-                  setAcquisitionType("new");
-                  setNewShareholderData({
-                    name: "",
-                    serviceAddress: "",
-                    ownerName: "",
-                    customerName: "",
-                    ownerMailingAddress: "",
-                    ownerCityStateZip: "",
-                    customerMailingAddress: "",
-                    cityStateZip: "",
-                    residentName: "",
-                    residentMailingAddress: "",
-                    residentCityStateZip: "",
-                  });
-                  setSelectedExistingProperty(null);
-                  setExistingPropertySearchQuery("");
-                  setUseServiceForCustomer(false);
-                  setUseServiceForOwner(false);
-                  setUseServiceForResident(false);
-                  setUseShareholderForOwner(false);
-                  setUseShareholderForCustomer(false);
-                  setUseShareholderForResident(false);
-                } catch (error) {
-                  console.error("Error adding shareholder:", error);
-                  toast({
-                    variant: "destructive",
-                    title: "Error",
-                    description: error instanceof Error ? error.message : "Failed to add shareholder",
-                  });
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-              disabled={
-                isLoading ||
-                (acquisitionType === "new" && (!newShareholderData.name || !newShareholderData.serviceAddress)) ||
-                (acquisitionType === "existing" && (!newShareholderData.name || !selectedExistingProperty))
-              }
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Add Shareholder"
-              )}
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1801,311 +1480,129 @@ export default function AdminPage() {
       {/* Transfer Property Dialog */}
       <Dialog open={showTransferDialog} onOpenChange={(open) => {
         if (!open) {
-          // Reset form when closing
+          setShowTransferDialog(false);
           setTransferType("new");
-          setTransferData({
-            shareholderName: "",
-            email: "",
-            phone: ""
-          });
           setSelectedExistingShareholder(null);
           setShareholderSearchQuery("");
-          setUseShareholderForOwner(false);
-          setUseShareholderForCustomer(false);
-          setUseShareholderForResident(false);
-          setUseServiceForOwner(false);
-          setUseServiceForCustomer(false);
-          setUseServiceForResident(false);
-          // Reset shareholder data form
-          setNewShareholderData({
-            name: "",
-            serviceAddress: "",
-            ownerName: "",
-            customerName: "",
-            ownerMailingAddress: "",
-            ownerCityStateZip: "",
-            customerMailingAddress: "",
-            cityStateZip: "",
-            residentName: "",
-            residentMailingAddress: "",
-            residentCityStateZip: "",
-          });
-        } else if (open && selectedProperty) {
-          // Initialize the form with existing property data
-          setNewShareholderData(prev => ({
-            ...prev,
-            serviceAddress: selectedProperty.serviceAddress || "",
-            cityStateZip: selectedProperty.cityStateZip || ""
-          }));
         }
-        setShowTransferDialog(open);
       }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="border-b pb-3">
-            <DialogTitle className="text-xl">Transfer Property</DialogTitle>
-            <DialogDescription className="text-gray-600">
-              Transfer property to a new or existing shareholder
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfer Property</DialogTitle>
+            <DialogDescription>
+              Transfer property to a new or existing owner
             </DialogDescription>
           </DialogHeader>
           
           {selectedProperty && (
-            <div className="space-y-4 py-4">
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">Current Property</h3>
-                <p className="text-sm font-mono">{selectedProperty.account} - {selectedProperty.serviceAddress}</p>
-                <p className="text-xs text-gray-500 mt-1.5">Currently owned by: {selectedProperty.ownerName}</p>
-              </div>
-              
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Transfer To</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant={transferType === "new" ? "default" : "outline"} 
-                    className={transferType === "new" ? "border-primary bg-primary text-white shadow-sm" : "justify-start bg-white"}
-                    onClick={() => setTransferType("new")}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    New Shareholder
-                  </Button>
-                  <Button 
-                    variant={transferType === "existing" ? "default" : "outline"} 
-                    className={transferType === "existing" ? "border-primary bg-primary text-white shadow-sm" : "justify-start bg-white"}
-                    onClick={() => setTransferType("existing")}
-                  >
-                    <Search className="mr-2 h-4 w-4" />
-                    Existing Shareholder
-                  </Button>
-                </div>
-              </div>
-              
-              {transferType === "new" && (
-                <div className="space-y-4 mt-1">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Shareholder Name</Label>
-                    <Input 
-                      value={newShareholderData.name}
-                      onChange={(e) => handleShareholderNameChange(e.target.value)}
-                      placeholder="Enter full name"
-                      className="bg-white"
-                    />
-                  </div>
-                  
-                  {/* Service Address Section - Copy from existing property */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Service Address</h3>
-                    <Input 
-                      placeholder="Service Address" 
-                      value={selectedProperty.serviceAddress}
-                      disabled
-                      className="bg-gray-50 border-gray-200"
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP" 
-                      value={selectedProperty.cityStateZip}
-                      disabled
-                      className="bg-gray-50 border-gray-200"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Service address from existing property (cannot be changed)</p>
-                  </div>
-                  
-                  {/* Owner Information Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Owner Information</h3>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-shareholder-for-owner-transfer" 
-                        checked={useShareholderForOwner}
-                        onCheckedChange={(checked) => handleUseShareholderForOwner(!!checked)} 
-                      />
-                      <Label htmlFor="use-shareholder-for-owner-transfer" className="text-xs text-gray-700">Owner name same as shareholder</Label>
-                    </div>
-                    <Input 
-                      placeholder="Owner Name" 
-                      value={newShareholderData.ownerName}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
-                      disabled={useShareholderForOwner}
-                      className={useShareholderForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-service-for-owner-transfer" 
-                        checked={useServiceForOwner}
-                        onCheckedChange={(checked) => handleUseServiceForOwner(!!checked)} 
-                      />
-                      <Label htmlFor="use-service-for-owner-transfer" className="text-xs text-gray-700">Owner mailing address same as service address</Label>
-                    </div>
-                    <Input 
-                      placeholder="Owner Mailing Address" 
-                      value={newShareholderData.ownerMailingAddress}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForOwner}
-                      className={useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
-                      value={newShareholderData.ownerCityStateZip}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForOwner}
-                      className={useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
-                  </div>
-                  
-                  {/* Customer Information Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Customer Information</h3>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-shareholder-for-customer-transfer" 
-                        checked={useShareholderForCustomer}
-                        onCheckedChange={(checked) => handleUseShareholderForCustomer(!!checked)} 
-                      />
-                      <Label htmlFor="use-shareholder-for-customer-transfer" className="text-xs text-gray-700">Customer name same as shareholder</Label>
-                    </div>
-                    <Input 
-                      placeholder="Customer Name" 
-                      value={newShareholderData.customerName}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerName: e.target.value.toUpperCase()}))}
-                      disabled={useShareholderForCustomer}
-                      className={useShareholderForCustomer ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-service-for-customer-transfer" 
-                        checked={useServiceForCustomer}
-                        onCheckedChange={(checked) => handleUseServiceForCustomer(!!checked)} 
-                      />
-                      <Label htmlFor="use-service-for-customer-transfer" className="text-xs text-gray-700">Customer mailing address same as service address</Label>
-                    </div>
-                    <Input 
-                      placeholder="Customer Mailing Address" 
-                      value={newShareholderData.customerMailingAddress}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, customerMailingAddress: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForCustomer}
-                      className={useServiceForCustomer ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
-                      value={newShareholderData.cityStateZip}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, cityStateZip: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForCustomer}
-                      className={useServiceForCustomer ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
-                  </div>
-                  
-                  {/* Resident Information Section */}
-                  <div className="border p-3 rounded-md space-y-2">
-                    <h3 className="text-sm font-medium">Resident Information (Optional)</h3>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-shareholder-for-resident-transfer" 
-                        checked={useShareholderForResident}
-                        onCheckedChange={(checked) => handleUseShareholderForResident(!!checked)} 
-                      />
-                      <Label htmlFor="use-shareholder-for-resident-transfer" className="text-xs text-gray-700">Resident name same as shareholder</Label>
-                    </div>
-                    <Input 
-                      placeholder="Resident Name (LASTNAME, FIRSTNAME)" 
-                      value={newShareholderData.residentName}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentName: e.target.value.toUpperCase()}))}
-                      disabled={useShareholderForResident}
-                      className={useShareholderForResident ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="use-service-for-resident-transfer" 
-                        checked={useServiceForResident}
-                        onCheckedChange={(checked) => handleUseServiceForResident(!!checked)} 
-                      />
-                      <Label htmlFor="use-service-for-resident-transfer" className="text-xs text-gray-700">Resident mailing address same as service address</Label>
-                    </div>
-                    <Input 
-                      placeholder="Resident Mailing Address" 
-                      value={newShareholderData.residentMailingAddress}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentMailingAddress: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForResident}
-                      className={useServiceForResident ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <Input 
-                      placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
-                      value={newShareholderData.residentCityStateZip}
-                      onChange={(e) => setNewShareholderData(prev => ({...prev, residentCityStateZip: e.target.value.toUpperCase()}))}
-                      disabled={useServiceForResident}
-                      className={useServiceForResident ? "bg-gray-50 border-gray-200" : "bg-white"}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Format as: CITY STATE ZIP (commas allowed)</p>
-                  </div>
-                </div>
-              )}
-
-              {transferType === "existing" && (
-                <div className="space-y-3 mt-1">
-                  <div>
-                    <Label className="text-sm font-medium">Select Existing Shareholder</Label>
-                    <div className="mt-2 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search by name..."
-                        className="pl-10 border-gray-200 bg-white"
-                        value={shareholderSearchQuery}
-                        onChange={(e) => setShareholderSearchQuery(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="border rounded-md overflow-hidden">
-                    <div className="max-h-[240px] overflow-y-auto bg-white">
-                      {shareholders
-                        .filter(shareholder => {
-                          const query = shareholderSearchQuery.toLowerCase();
-                          return !query || shareholder.name?.toLowerCase().includes(query);
-                        })
-                        .map(shareholder => (
-                          <div 
-                            key={shareholder.id} 
-                            className={`px-3 py-2 border-b ${
-                              selectedExistingShareholder?.id === shareholder.id 
-                                ? 'bg-blue-50' 
-                                : 'hover:bg-gray-50'
-                            }`}
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => {
-                              console.log("Selected shareholder:", shareholder);
-                              setSelectedExistingShareholder(shareholder);
-                            }}
-                          >
-                            <div className="text-gray-900" style={{ fontSize: '14px', fontWeight: 500 }}>{shareholder.name}</div>
-                            <div className="text-gray-500" style={{ fontSize: '12px' }}>Shareholder ID: {shareholder.shareholderId}</div>
-                          </div>
-                        ))
-                      }
-                      {shareholders.length === 0 && (
-                        <div className="p-4 text-center text-gray-500">
-                          <p>No shareholders found</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-blue-50 rounded-md border border-blue-100 mt-4">
-                    <h4 className="text-sm font-medium text-blue-800 mb-2">Transfer Information</h4>
-                    <p className="text-xs text-blue-600 mb-2">When transferring to an existing shareholder:</p>
-                    <ul className="space-y-1.5 text-xs text-blue-600 list-disc pl-5">
-                      <li>The property will be linked to the selected shareholder</li>
-                      <li>Owner, customer, and resident names will be updated</li>
-                      <li>Resident address will be updated</li>
-                      <li>Owner and customer addresses will remain unchanged</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
+            <div className="p-2 border rounded-md bg-gray-50 space-y-1 my-2">
+              <h3 className="text-sm font-medium">Current Property</h3>
+              <p className="text-sm font-medium">{selectedProperty.ownerName}</p>
+              <p className="text-sm">{selectedProperty.serviceAddress}</p>
             </div>
           )}
           
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 border-t pt-4 mt-2">
+          <div className="py-1">
+            <div>
+              <Label className="text-sm font-medium mb-1 block">Transfer Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant={transferType === "new" ? "default" : "outline"} 
+                  className={transferType === "new" ? "border-primary bg-primary text-white" : "border-gray-200"}
+                  onClick={() => setTransferType("new")}
+                >
+                  <UserPlus className="mr-1 h-4 w-4" />
+                  New Owner
+                </Button>
+                <Button 
+                  variant={transferType === "existing" ? "default" : "outline"} 
+                  className={transferType === "existing" ? "border-primary bg-primary text-white" : "border-gray-200"}
+                  onClick={() => setTransferType("existing")}
+                >
+                  <ArrowRightLeft className="mr-1 h-4 w-4" />
+                  Existing Owner
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {transferType === "new" && (
+            <div className="space-y-2 mt-2">
+              {/* Owner Information Form */}
+              <div className="border p-2 rounded-md space-y-2">
+                <h3 className="text-sm font-medium">Owner Information</h3>
+                <Input 
+                  placeholder="Owner Name" 
+                  value={newShareholderData.ownerName}
+                  onChange={(e) => setNewShareholderData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
+                  className="bg-white h-8 text-sm"
+                />
+                <Input 
+                  placeholder="Owner Mailing Address" 
+                  value={newShareholderData.ownerMailingAddress}
+                  onChange={(e) => setNewShareholderData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
+                  disabled={useServiceForOwner}
+                  className={`${useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"} h-8 text-sm`}
+                />
+                <Input 
+                  placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                  value={newShareholderData.ownerCityStateZip}
+                  onChange={(e) => setNewShareholderData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
+                  disabled={useServiceForOwner}
+                  className={`${useServiceForOwner ? "bg-gray-50 border-gray-200" : "bg-white"} h-8 text-sm`}
+                />
+                <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+              </div>
+            </div>
+          )}
+          
+          {transferType === "existing" && (
+            <div className="space-y-2 mt-2">
+              {/* Existing Shareholder Selection Form */}
+              <div className="border p-2 rounded-md space-y-2">
+                <h3 className="text-sm font-medium">Select Existing Shareholder</h3>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by name..."
+                    className="pl-10 border-gray-200 h-8 text-sm"
+                    value={shareholderSearchQuery}
+                    onChange={(e) => setShareholderSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="border rounded-md overflow-hidden max-h-[150px] overflow-y-auto">
+                  {shareholders.length > 0 ? (
+                    shareholders
+                      .filter(shareholder => {
+                        const query = shareholderSearchQuery.toLowerCase();
+                        return !query || shareholder.name?.toLowerCase().includes(query);
+                      })
+                      .map(shareholder => (
+                        <div 
+                          key={shareholder.id} 
+                          className={`py-1 px-2 cursor-pointer hover:bg-gray-50 ${
+                            selectedExistingShareholder?.id === shareholder.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-b'
+                          }`}
+                          onClick={() => setSelectedExistingShareholder(shareholder)}
+                        >
+                          <div className="font-medium text-sm">{shareholder.name}</div>
+                          <div className="text-xs text-gray-500">Shareholder ID: {shareholder.shareholderId}</div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="p-2 text-center text-gray-500">
+                      <p className="text-sm">No shareholders found</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="mt-4">
             <Button 
-              variant="outline" 
-              className="w-full sm:w-auto bg-white"
+              variant="outline"
+              className="w-full sm:w-auto mr-2"
               onClick={() => setShowTransferDialog(false)}
             >
               Cancel
@@ -2119,44 +1616,28 @@ export default function AdminPage() {
                   // Set loading state
                   setIsLoading(true);
                   
-                  // Log the selected property and its addresses
-                  console.log("TRANSFER: Selected property service address:", selectedProperty.serviceAddress);
-                  console.log("TRANSFER: Selected property city/state/zip:", selectedProperty.cityStateZip);
-                  
                   if (transferType === "new") {
-                    // Create new shareholder and transfer property
-                    if (!newShareholderData.name) {
-                      throw new Error("Shareholder name is required");
-                    }
-                    
-                    // Step 1: Generate a random shareholder ID
+                    // Generate a random shareholder ID for the new owner
                     const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
                     
-                    // Step 2: Create the shareholder first
+                    // Create the shareholder first
                     const shareholderResponse = await fetch("/api/shareholders", {
                       method: "POST",
                       headers: {
                         "Content-Type": "application/json",
                       },
                       body: JSON.stringify({
-                        name: newShareholderData.name.trim().toUpperCase(),
+                        name: newShareholderData.ownerName.trim().toUpperCase(),
                         shareholderId,
-                        // The first active meeting ID would be used automatically by the API
                       }),
                     });
                     
                     if (!shareholderResponse.ok) {
-                      let errorMessage = "Failed to create shareholder";
-                      try {
-                        const errorData = await shareholderResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${shareholderResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
+                      const errorData = await shareholderResponse.json();
+                      throw new Error(errorData.error || "Failed to create shareholder");
                     }
                     
-                    // Step 3: Transfer the property via the proper transfer endpoint
+                    // Transfer the property to the new owner
                     const transferResponse = await fetch(`/api/properties/${selectedProperty.id}/transfer`, {
                       method: "POST",
                       headers: {
@@ -2164,38 +1645,19 @@ export default function AdminPage() {
                       },
                       body: JSON.stringify({
                         newShareholderId: shareholderId,
-                        newOwnerName: newShareholderData.ownerName || newShareholderData.name,
-                        newOwnerMailingAddress: newShareholderData.ownerMailingAddress || selectedProperty.serviceAddress,
-                        newOwnerCityStateZip: formatCityStateZip(newShareholderData.ownerCityStateZip || selectedProperty.cityStateZip),
-                        newCustomerName: newShareholderData.customerName || newShareholderData.name,
-                        newCustomerMailingAddress: newShareholderData.customerMailingAddress || selectedProperty.serviceAddress,
-                        newCustomerCityStateZip: formatCityStateZip(newShareholderData.cityStateZip || selectedProperty.cityStateZip),
-                        newResidentName: newShareholderData.residentName || newShareholderData.name,
-                        newResidentMailingAddress: newShareholderData.residentMailingAddress || selectedProperty.serviceAddress,
-                        newResidentCityStateZip: formatCityStateZip(newShareholderData.residentCityStateZip || selectedProperty.cityStateZip)
+                        newOwnerName: newShareholderData.ownerName,
+                        newOwnerMailingAddress: useServiceForOwner ? selectedProperty.serviceAddress : newShareholderData.ownerMailingAddress,
+                        newOwnerCityStateZip: useServiceForOwner ? selectedProperty.cityStateZip : newShareholderData.ownerCityStateZip,
                       }),
                     });
                     
                     if (!transferResponse.ok) {
-                      let errorMessage = "Failed to transfer property";
-                      try {
-                        const errorData = await transferResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${transferResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
+                      const errorData = await transferResponse.json();
+                      throw new Error(errorData.error || "Failed to transfer property");
                     }
                     
-                    // No need for a separate property update since the transfer API now handles all the updates
-                  } else {
+                  } else if (transferType === "existing" && selectedExistingShareholder) {
                     // Transfer to existing shareholder
-                    if (!selectedExistingShareholder) {
-                      throw new Error("Please select a shareholder");
-                    }
-                    
-                    // Transfer the property to the existing shareholder
-                    console.log("TRANSFER: Transferring to existing shareholder:", selectedExistingShareholder);
                     const transferResponse = await fetch(`/api/properties/${selectedProperty.id}/transfer`, {
                       method: "POST",
                       headers: {
@@ -2204,30 +1666,15 @@ export default function AdminPage() {
                       body: JSON.stringify({
                         newShareholderId: selectedExistingShareholder.shareholderId,
                         newOwnerName: selectedExistingShareholder.name,
-                        newCustomerName: selectedExistingShareholder.name,
-                        newResidentName: selectedExistingShareholder.name,
-                        // Use the service address for all mailing addresses by default
-                        newOwnerMailingAddress: selectedProperty.serviceAddress, // explicitly set
-                        newCustomerMailingAddress: selectedProperty.serviceAddress, // explicitly set
-                        newResidentMailingAddress: selectedProperty.serviceAddress, // explicitly set
-                        newOwnerCityStateZip: selectedProperty.cityStateZip, // explicitly set
-                        newCustomerCityStateZip: selectedProperty.cityStateZip, // explicitly set
-                        newResidentCityStateZip: selectedProperty.cityStateZip // explicitly set
                       }),
                     });
-
-                    console.log("TRANSFER: Transfer response status:", transferResponse.status);
                     
                     if (!transferResponse.ok) {
-                      let errorMessage = "Failed to transfer property";
-                      try {
-                        const errorData = await transferResponse.json();
-                        errorMessage = errorData.error || errorMessage;
-                      } catch (parseError) {
-                        errorMessage = `${errorMessage}: ${transferResponse.statusText}`;
-                      }
-                      throw new Error(errorMessage);
+                      const errorData = await transferResponse.json();
+                      throw new Error(errorData.error || "Failed to transfer property");
                     }
+                  } else {
+                    throw new Error("Please select a shareholder");
                   }
                   
                   toast({
@@ -2235,15 +1682,12 @@ export default function AdminPage() {
                     description: "Property transferred successfully",
                   });
                   
-                  // Refresh properties
+                  // Refresh properties and close dialog
                   await refreshProperties();
-                  
-                  // Close dialog
                   setShowTransferDialog(false);
+                  
                 } catch (error) {
-                  console.error("Error transferring property:", error);
                   toast({
-                    variant: "destructive",
                     title: "Error",
                     description: error instanceof Error ? error.message : "Failed to transfer property",
                   });
@@ -2252,9 +1696,9 @@ export default function AdminPage() {
                 }
               }}
               disabled={
-                isLoading ||
-                !selectedProperty ||
-                (transferType === "new" && !newShareholderData.name) ||
+                isLoading || 
+                !selectedProperty || 
+                (transferType === "new" && !newShareholderData.ownerName) ||
                 (transferType === "existing" && !selectedExistingShareholder)
               }
             >
@@ -2264,7 +1708,7 @@ export default function AdminPage() {
                   Processing...
                 </>
               ) : (
-                "Transfer Property"
+                "Transfer"
               )}
             </Button>
           </DialogFooter>

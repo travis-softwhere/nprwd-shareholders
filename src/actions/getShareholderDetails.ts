@@ -26,7 +26,6 @@ export async function getShareholderDetails(shareholderId: string) {
             properties: shareholderProperties,
         }
     } catch (error) {
-        console.error("Error fetching shareholder details:", error)
         throw new Error("Failed to fetch shareholder details")
     }
 }

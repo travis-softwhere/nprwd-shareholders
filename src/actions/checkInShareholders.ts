@@ -43,7 +43,6 @@ export async function checkInShareholders(shareholderId: string): Promise<CheckI
         }
     }
     catch (error) {
-        console.error('Error checking in shareholders:', error)
         return {
             success: false,
             message: "Failed to check in shareholders"
