@@ -2,8 +2,6 @@ import { sql } from "@vercel/postgres"
 
 export async function runMigration() {
   try {
-    console.log("Starting database migration...")
-
     await sql`
       CREATE TABLE IF NOT EXISTS meetings (
         id SERIAL PRIMARY KEY,
@@ -13,8 +11,7 @@ export async function runMigration() {
         checked_in INTEGER DEFAULT 0
       );
     `
-    console.log("Created meetings table")
-
+    
     await sql`
       CREATE TABLE IF NOT EXISTS shareholders (
         id SERIAL PRIMARY KEY,
@@ -24,8 +21,7 @@ export async function runMigration() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Created shareholders table")
-
+    
     await sql`
       CREATE TABLE IF NOT EXISTS properties (
         id SERIAL PRIMARY KEY,
@@ -46,8 +42,7 @@ export async function runMigration() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Created properties table")
-
+    
     await sql`
       CREATE TABLE IF NOT EXISTS property_transfers (
         id SERIAL PRIMARY KEY,
@@ -59,8 +54,7 @@ export async function runMigration() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `
-    console.log("Created property_transfers table")
-
+    
     // Add indexes for better query performance
     await sql`
       CREATE INDEX IF NOT EXISTS idx_property_transfers_property_id ON property_transfers(property_id);
@@ -68,12 +62,9 @@ export async function runMigration() {
       CREATE INDEX IF NOT EXISTS idx_property_transfers_from_shareholder_id ON property_transfers(from_shareholder_id);
       CREATE INDEX IF NOT EXISTS idx_property_transfers_to_shareholder_id ON property_transfers(to_shareholder_id);
     `
-    console.log("Created property_transfers indexes")
-
-    console.log("✅ Migration completed successfully")
+    
     return { success: true }
   } catch (error) {
-    console.error("❌ Migration failed:", error)
     return { success: false, error }
   }
 }

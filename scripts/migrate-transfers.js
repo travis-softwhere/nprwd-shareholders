@@ -6,8 +6,6 @@ async function migrateTransfers() {
     });
 
     try {
-        console.log("Starting property transfers migration...")
-
         // Create property_transfers table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS property_transfers (
@@ -20,7 +18,6 @@ async function migrateTransfers() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `)
-        console.log("Created property_transfers table")
 
         // Add indexes
         await pool.query(`
@@ -35,16 +32,22 @@ async function migrateTransfers() {
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_property_transfers_to_shareholder_id ON property_transfers(to_shareholder_id);
         `)
-        console.log("Created indexes for property_transfers table")
 
-        console.log("✅ Migration completed successfully")
+        return 0 // Success
     } catch (error) {
-        console.error("Migration failed:", error)
-        process.exit(1)
+        return 1 // Error
     } finally {
         await pool.end()
-        process.exit(0)
     }
 }
 
-migrateTransfers() 
+migrateTransfers()
+    .then(exitCode => {
+        if (exitCode !== 0) {
+            process.exit(exitCode);
+        }
+        process.exit(0);
+    })
+    .catch(() => {
+        process.exit(1);
+    }) 

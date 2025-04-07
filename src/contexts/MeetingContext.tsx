@@ -33,11 +33,9 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     // Skip if already loaded and not forcing refresh
     const now = Date.now();
     if (!force && now - lastRefreshTimeRef.current < 10000) {
-      console.log("Skipping refresh - recently refreshed");
       return meetings;
     }
 
-    console.log("MeetingContext: Refreshing meetings data...");
     setIsLoading(true);
     
     try {
@@ -47,13 +45,11 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       
       // If we have meetings but no meeting selected, select the first one
       if (data.length > 0 && !selectedMeeting) {
-        console.log("MeetingContext: Auto-selecting first meeting");
         setSelectedMeeting(data[0]);
       }
       
       return data;
     } catch (error) {
-      console.error("Failed to refresh meetings:", error);
       return undefined;
     } finally {
       setIsLoading(false);
@@ -63,11 +59,8 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   // Load meetings data on initial mount - ONLY ONCE
   useEffect(() => {
     if (!initialLoadDoneRef.current) {
-      console.log("MeetingContext: Initial data loading");
       initialLoadDoneRef.current = true; // Set flag immediately to prevent double loading
-      refreshMeetings(true).then(() => {
-        console.log("MeetingContext: Initial load complete");
-      });
+      refreshMeetings(true);
     }
   }, []); // No dependencies to ensure it only runs once on mount
 

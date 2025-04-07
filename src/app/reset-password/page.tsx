@@ -63,7 +63,6 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
         setTimeout(() => router.push("/auth/signup"), 2000);
       }
     } catch (error) {
-      console.error("Error resetting password:", error);
       setMessage("An error occurred while resetting the password.");
     } finally {
       setIsLoading(false);

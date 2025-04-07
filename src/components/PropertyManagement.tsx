@@ -127,6 +127,7 @@ export function PropertyManagement() {
     const [useServiceForCustomer, setUseServiceForCustomer] = useState(false)
     const [useServiceForOwner, setUseServiceForOwner] = useState(false)
     const [useServiceForResident, setUseServiceForResident] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         fetchProperties()
@@ -135,15 +136,17 @@ export function PropertyManagement() {
 
     const fetchShareholders = async () => {
         try {
-            const { shareholders: shareholdersData } = await getShareholdersList(1, 1000); // Fetch all shareholders
-            setShareholders(shareholdersData);
+            const response = await fetch("/api/shareholders");
+            
+            if (!response.ok) {
+                setError("Failed to fetch shareholders");
+                return;
+            }
+            
+            const data = await response.json();
+            setShareholders(data);
         } catch (error) {
-            console.error('Error fetching shareholders:', error);
-            toast({
-                title: "Error",
-                description: "Failed to load shareholders",
-                variant: "destructive",
-            });
+            setError("Failed to fetch shareholders");
         }
     };
 
@@ -152,17 +155,13 @@ export function PropertyManagement() {
             setIsLoading(true);
             const response = await fetch("/api/properties?limit=100") // Fetch more properties at once
             if (!response.ok) {
-                throw new Error("Failed to fetch properties")
+                setError("Failed to fetch properties");
+                return;
             }
             const data = await response.json()
             setProperties(data.properties)
         } catch (error) {
-            console.error("Error fetching properties:", error)
-            toast({
-                title: "Error",
-                description: "Failed to load properties",
-                variant: "destructive",
-            });
+            setError("Failed to fetch properties");
         } finally {
             setIsLoading(false)
         }
@@ -243,7 +242,6 @@ export function PropertyManagement() {
                 description: "Property updated successfully",
             });
         } catch (error) {
-            console.error("Error updating property:", error)
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to update property",
@@ -274,7 +272,6 @@ export function PropertyManagement() {
                 description: "Property deleted successfully",
             });
         } catch (error) {
-            console.error("Error deleting property:", error);
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to delete property",
@@ -450,7 +447,6 @@ export function PropertyManagement() {
                 description: "Shareholder and property added successfully",
             });
         } catch (error) {
-            console.error("Error adding shareholder:", error);
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to add shareholder",
@@ -484,7 +480,6 @@ export function PropertyManagement() {
                 description: "Property transferred successfully",
             });
         } catch (error) {
-            console.error("Error transferring property:", error);
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to transfer property",
@@ -502,7 +497,6 @@ export function PropertyManagement() {
             const data = await response.json();
             setTransferHistory(data);
         } catch (error) {
-            console.error("Error fetching transfer history:", error);
             toast({
                 title: "Error",
                 description: "Failed to fetch transfer history",
@@ -534,8 +528,7 @@ export function PropertyManagement() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to update check-in status");
+                throw new Error("Failed to update check-in status");
             }
 
             const result = await response.json();
@@ -550,7 +543,6 @@ export function PropertyManagement() {
                 description: `Property ${result.checkedIn ? 'checked in' : 'checked out'} successfully`,
             });
         } catch (error) {
-            console.error("Error toggling check-in status:", error);
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to update check-in status",

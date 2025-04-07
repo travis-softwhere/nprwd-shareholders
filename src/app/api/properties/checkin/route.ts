@@ -57,7 +57,6 @@ export async function POST(request: Request) {
 
         return NextResponse.json(updatedProperty);
     } catch (error) {
-        console.error("Error updating property check-in status:", error);
         await logToFile("properties", "Error updating property check-in status", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type"

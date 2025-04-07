@@ -9,10 +9,7 @@ import { toast } from "@/components/ui/use-toast"
 export default function ManualCheckInButton({shareholderId, isFullyCheckedIn}: {shareholderId: string, isFullyCheckedIn: boolean}) {
     const [isPending, startTransition] = useTransition()
     
-    console.log("ManualCheckInButton rendering", { shareholderId, isFullyCheckedIn });
-
     const handleCheckIn = () => {
-        console.log("Check-in button clicked", shareholderId);
         startTransition(async () => {
             const result = await checkInShareholders(shareholderId)
 
@@ -34,7 +31,6 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn}: {
 
     // don't show button if already checked in
     if (isFullyCheckedIn) {
-        console.log("Shareholder already checked in, hiding button");
         return null;
     }
 

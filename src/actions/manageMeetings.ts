@@ -53,7 +53,6 @@ export async function createMeeting(formData: FormData) {
             },
         }
     } catch (error) {
-        console.error("Error creating meeting:", error)
         return { success: false, error: "Failed to create meeting" }
     }
 }
@@ -79,7 +78,6 @@ export async function deleteMeeting(formData: FormData) {
         revalidatePath("/admin")
         return { success: true }
     } catch (error) {
-        console.error("Failed to delete meeting:", error)
         return {
             success: false,
             error: error instanceof Error ? error.message : "Failed to delete meeting",

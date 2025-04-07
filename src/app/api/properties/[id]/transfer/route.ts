@@ -39,7 +39,9 @@ export async function POST(
             newCustomerCityStateZip,
             newResidentName,
             newResidentMailingAddress,
-            newResidentCityStateZip
+            newResidentCityStateZip,
+            keepExistingCustomer,
+            keepExistingService
         } = body
 
         if (!newShareholderId) {
@@ -87,8 +89,6 @@ export async function POST(
             .from(properties)
             .where(eq(properties.shareholderId, newShareholderId));
             
-        console.log(`Found ${existingProperties.length} existing properties for shareholder ${newShareholderId}`);
-            
         // Get address information from existing property if available
         let existingOwnerMailingAddress, existingOwnerCityStateZip;
         let existingCustomerMailingAddress, existingCustomerCityStateZip;
@@ -97,17 +97,6 @@ export async function POST(
         if (existingProperties.length > 0) {
             // Use the most recent property for address info
             const existingProperty = existingProperties[0];
-            
-            // Log all available existing properties to debug
-            existingProperties.forEach((prop, index) => {
-                console.log(`Existing property ${index+1}:`, {
-                    id: prop.id,
-                    account: prop.account,
-                    ownerMailingAddress: prop.ownerMailingAddress,
-                    customerMailingAddress: prop.customerMailingAddress,
-                    residentMailingAddress: prop.residentMailingAddress
-                });
-            });
             
             existingOwnerMailingAddress = existingProperty.ownerMailingAddress;
             existingOwnerCityStateZip = existingProperty.ownerCityStateZip;
@@ -118,13 +107,6 @@ export async function POST(
             existingResidentMailingAddress = existingProperty.residentMailingAddress;
             existingResidentCityStateZip = existingProperty.residentCityStateZip;
             
-            console.log("Using address info from existing property:", {
-                existingPropertyId: existingProperty.id,
-                existingOwnerMailingAddress,
-                existingCustomerMailingAddress,
-                existingResidentMailingAddress
-            });
-            
             await logToFile("properties", "Found existing properties for new shareholder", LogLevel.INFO, {
                 shareholderId: newShareholderId,
                 propertiesCount: existingProperties.length,
@@ -133,8 +115,6 @@ export async function POST(
                 existingCustomerMailingAddress,
                 existingResidentMailingAddress
             });
-        } else {
-            console.log("No existing properties found for shareholder, will use service address");
         }
 
         // Try to record the transfer in our audit log
@@ -155,40 +135,75 @@ export async function POST(
                 meetingId
             });
         } catch (transferError) {
-            console.error("Error creating transfer record:", transferError);
             await logToFile("properties", "Error creating transfer record", LogLevel.ERROR, {
                 error: transferError instanceof Error ? transferError.message : "Unknown error"
             });
             // Continue with property update even if transfer record fails
         }
 
-        // Set address values for update
-        // Only change the shareholder ID, owner/customer names, and resident information
-        // Keep original owner/customer addresses unchanged
-        const ownerNameValue = newOwnerName || newShareholder.name;
-        const ownerMailingAddressValue = property.ownerMailingAddress; // Keep unchanged
-        const ownerCityStateZipValue = property.ownerCityStateZip; // Keep unchanged
-        const customerNameValue = newCustomerName || newOwnerName || newShareholder.name;
-        const customerMailingAddressValue = property.customerMailingAddress; // Keep unchanged
-        const customerCityStateZipValue = property.cityStateZip; // Keep unchanged
-        const residentNameValue = newResidentName || newOwnerName || newShareholder.name;
-        const residentMailingAddressValue = existingResidentMailingAddress || property.serviceAddress;
-        const residentCityStateZipValue = existingResidentCityStateZip || property.cityStateZip;
+        // Set values for property update
+        // Default values - these may be overridden based on keepExistingCustomer and keepExistingService flags
+        let ownerNameValue = newOwnerName || newShareholder.name;
+        let ownerMailingAddressValue = newOwnerMailingAddress || property.ownerMailingAddress;
+        let ownerCityStateZipValue = newOwnerCityStateZip || property.ownerCityStateZip;
+        
+        // Always keep customer information the same from the previous owner
+        // This ensures customer info is transferred to the new owner unchanged
+        let customerNameValue = property.customerName;
+        let customerMailingAddressValue = property.customerMailingAddress;
+        let customerCityStateZipValue = property.cityStateZip;
+        
+        // Default resident values (may be kept from existing property)
+        let residentNameValue = newResidentName || property.residentName;
+        let residentMailingAddressValue = newResidentMailingAddress || property.residentMailingAddress;
+        let residentCityStateZipValue = newResidentCityStateZip || property.residentCityStateZip;
 
-        // Log the values to be updated
-        console.log("UPDATING RESIDENT ADDRESS ONLY:", {
-            usingExistingAddresses: existingProperties.length > 0,
-            ownerMailingAddress: "Keeping original: " + property.ownerMailingAddress,
-            customerMailingAddress: "Keeping original: " + property.customerMailingAddress,
-            newResidentMailingAddress: residentMailingAddressValue,
-            oldResidentMailingAddress: property.residentMailingAddress
+        // Log that we're keeping customer information
+        await logToFile("properties", "Keeping existing customer information during transfer", LogLevel.INFO, {
+            propertyId,
+            customerName: customerNameValue,
+            customerMailingAddress: customerMailingAddressValue
         });
+        
+        // If keepExistingService flag is set, keep all service address and resident information unchanged
+        if (keepExistingService) {
+            // Service address is never changed during transfer anyway, so we only need to keep resident info
+            residentNameValue = property.residentName;
+            residentMailingAddressValue = property.residentMailingAddress;
+            residentCityStateZipValue = property.residentCityStateZip;
+            
+            await logToFile("properties", "Keeping existing service and resident information", LogLevel.INFO, {
+                propertyId,
+                serviceAddress: property.serviceAddress,
+                residentName: residentNameValue
+            });
+        }
 
-        // Update the property using direct SQL to ensure all fields are updated
+        // Use SQL for update to ensure we handle null values properly
+        // We're constructing a property update statement with all the fields
+        const propertyUpdate = {
+            propertyId: parseInt(propertyId),
+            shareholderId: newShareholderId,
+            ownerName: ownerNameValue,
+            ownerMailingAddress: ownerMailingAddressValue,
+            ownerCityStateZip: ownerCityStateZipValue,
+            customerName: customerNameValue,
+            customerMailingAddress: customerMailingAddressValue,
+            cityStateZip: customerCityStateZipValue,
+            residentName: residentNameValue,
+            residentMailingAddress: residentMailingAddressValue,
+            residentCityStateZip: residentCityStateZipValue
+        };
+        
+        await logToFile("properties", "Property transfer update details", LogLevel.INFO, {
+            propertyId,
+            update: propertyUpdate
+        });
+        
         try {
             await db.execute(
-                sql`UPDATE properties SET 
-                    shareholder_id = ${newShareholderId},
+                sql`UPDATE properties 
+                SET shareholder_id = ${newShareholderId},
                     owner_name = ${ownerNameValue},
                     owner_mailing_address = ${ownerMailingAddressValue},
                     owner_city_state_zip = ${ownerCityStateZipValue},
@@ -201,74 +216,65 @@ export async function POST(
                 WHERE id = ${parseInt(propertyId)}`
             );
             
-            console.log("SQL UPDATE COMPLETED");
             await logToFile("properties", "Property updated via SQL", LogLevel.INFO, {
-                propertyId
+                propertyId,
+                shareholderId: newShareholderId
             });
         } catch (updateError) {
-            console.error("Error updating property via SQL:", updateError);
             await logToFile("properties", "Error updating property via SQL", LogLevel.ERROR, {
+                propertyId,
                 error: updateError instanceof Error ? updateError.message : "Unknown error"
             });
-            throw updateError; // Re-throw to handle in outer catch
+            
+            return NextResponse.json(
+                { error: "Failed to update property" },
+                { status: 500 }
+            )
         }
 
-        // Get the updated property to return
+        // Fetch the updated property to return it
         const [updatedProperty] = await db
             .select()
             .from(properties)
-            .where(eq(properties.id, parseInt(propertyId)));
+            .where(eq(properties.id, parseInt(propertyId)))
 
-        // Verify that the mailing addresses were updated correctly
         await logToFile("properties", "Property transferred successfully", LogLevel.INFO, {
             propertyId,
-            newShareholderId,
-            beforeOwnerName: property.ownerName,
-            afterOwnerName: updatedProperty.ownerName,
-            beforeCustomerMailingAddress: property.customerMailingAddress,
-            afterCustomerMailingAddress: updatedProperty.customerMailingAddress,
-            beforeResidentMailingAddress: property.residentMailingAddress,
-            afterResidentMailingAddress: updatedProperty.residentMailingAddress,
-            existingSharedCustomerMailingAddress: existingCustomerMailingAddress,
-            existingSharedResidentMailingAddress: existingResidentMailingAddress
+            oldShareholderId,
+            newShareholderId
         });
 
-        // Check if the old shareholder has any properties left
-        const [{ value: propertiesCount }] = await db
-            .select({ value: count() })
-            .from(properties)
-            .where(eq(properties.shareholderId, oldShareholderId));
-
-        // If no properties left, delete the old shareholder
-        if (propertiesCount === 0) {
-            try {
-                await db.delete(shareholders)
-                    .where(eq(shareholders.shareholderId, oldShareholderId));
+        // Check if we need to delete the old shareholder (if they have no properties left)
+        try {
+            // Check if the old shareholder has any remaining properties
+            const [{ propertyCount }] = await db
+                .select({ propertyCount: count() })
+                .from(properties)
+                .where(eq(properties.shareholderId, oldShareholderId))
+                
+            // If no properties left, clean up the shareholder record
+            if (propertyCount === 0) {
+                await db.delete(shareholders).where(eq(shareholders.shareholderId, oldShareholderId))
                 
                 await logToFile("properties", "Deleted shareholder with no properties", LogLevel.INFO, {
-                    deletedShareholderId: oldShareholderId
+                    shareholderId: oldShareholderId
                 });
-            } catch (deleteError) {
-                console.error("Error deleting old shareholder:", deleteError);
-                await logToFile("properties", "Error deleting old shareholder", LogLevel.ERROR, {
-                    error: deleteError instanceof Error ? deleteError.message : "Unknown error"
-                });
-                // Continue even if we can't delete the shareholder
             }
+        } catch (deleteError) {
+            await logToFile("properties", "Error deleting old shareholder", LogLevel.ERROR, {
+                shareholderId: oldShareholderId,
+                error: deleteError instanceof Error ? deleteError.message : "Unknown error"
+            });
+            // Continue anyway, it's not critical if shareholder cleanup fails
         }
-
-        return NextResponse.json(updatedProperty)
-    } catch (error) {
-        const resolvedParams = await params;
-        const propertyId = resolvedParams.id;
         
-        console.error("Error transferring property:", error)
+        // Return the updated property
+        return NextResponse.json(updatedProperty);
+    } catch (error) {
         await logToFile("properties", "Error transferring property", LogLevel.ERROR, {
-            errorMessage: error instanceof Error ? error.message : "Unknown error",
-            errorType: error instanceof Error ? error.name : "Unknown type",
-            propertyId
-        })
-
+            error: error instanceof Error ? error.message : "Unknown error"
+        });
+        
         return NextResponse.json(
             { error: "Failed to transfer property" },
             { status: 500 }

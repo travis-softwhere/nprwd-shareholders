@@ -87,7 +87,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (attendanceLoading) return; // Prevent multiple simultaneous fetches
     
     setAttendanceLoading(true);
-    console.log("Dashboard: Manually fetching property stats");
     
     try {
       const stats = await getMeetingStats();
@@ -108,11 +107,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const refreshDashboard = useCallback(async () => {
     // Prevent multiple simultaneous refreshes
     if (attendanceLoading) {
-      console.log("Dashboard: Already refreshing, ignoring request");
       return;
     }
-    
-    console.log("Dashboard: Manual refresh requested");
     
     // Declare interval variable outside try-catch block
     let loadingInterval: NodeJS.Timeout | undefined;
@@ -170,7 +166,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Effect to ensure that the meeting is always selected when meetings are available
   useEffect(() => {
     if (meetings?.length > 0 && !selectedMeeting) {
-      console.log("Dashboard: No meeting selected but meetings available - auto-selecting first meeting");
       // If we have meetings but no meeting is selected, select the first one
       if (setSelectedMeeting) {
         setSelectedMeeting(meetings[0]);
@@ -184,7 +179,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     const checkForReturnFlag = () => {
       const returnFromShareholder = localStorage.getItem(DASHBOARD_RETURN_KEY);
       if (returnFromShareholder) {
-        console.log("Found return flag - removing it");
         localStorage.removeItem(DASHBOARD_RETURN_KEY);
       }
     };
@@ -442,7 +436,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     // Only fetch if not already loading and we don't have meaningful data yet
     if (!initialLoading && !attendanceLoading && propertyStats.totalProperties <= 1 && meetings?.length > 0) {
-      console.log("Dashboard: Need to load initial property stats");
       fetchPropertyStats();
     }
   }, [initialLoading, attendanceLoading, propertyStats.totalProperties, fetchPropertyStats, meetings?.length]);

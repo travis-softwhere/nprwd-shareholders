@@ -89,7 +89,6 @@ export async function GET(request: Request) {
         
         return NextResponse.json({ shareholders: allShareholders })
     } catch (error) {
-        console.error("Error fetching shareholders:", error)
         return NextResponse.json({ error: "Failed to fetch shareholders" }, { status: 500 })
     }
 }

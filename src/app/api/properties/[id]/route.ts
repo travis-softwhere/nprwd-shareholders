@@ -172,7 +172,6 @@ export async function PUT(
         const resolvedParams = await params;
         const propertyId = resolvedParams.id;
       
-        console.error("Error updating property:", error)
         await logToFile("properties", "Error updating property", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorType: error instanceof Error ? error.name : "Unknown type",
