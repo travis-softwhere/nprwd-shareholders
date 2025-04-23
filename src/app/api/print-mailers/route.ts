@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import bwip from "bwip-js";
-import { jsPDF } from "jspdf";
 import { logToFile, LogLevel } from "@/utils/logger";
 import { db } from "@/lib/db";
 import { shareholders, properties } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { PDFDocument } from 'pdf-lib';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * Groups the left-joined rows by shareholderId.
@@ -59,7 +61,6 @@ export async function POST(request: Request) {
 
     await logToFile("mailers", "Starting PDF generation process", LogLevel.INFO);
 
-    // Instead of logging all headers (which contain cookies and tokens), just check if needed ones exist
     const contentType = request.headers.get("content-type");
     await logToFile("mailers", "Validating request headers", LogLevel.INFO, {
       hasContentType: !!contentType,
@@ -81,7 +82,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse and validate request body without logging the actual content
     const body = await request.json();
     await logToFile("mailers", "Request body received", LogLevel.INFO, {
       hasMeetingId: !!body.meetingId,
@@ -116,41 +116,30 @@ export async function POST(request: Request) {
       uniqueShareholderCount: groupedData.length
     });
 
-    // Create a new PDF document
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: "letter",
-    });
+    // Load the template PDF
+    const templatePath = path.join(process.cwd(), 'docs', 'Publication1.pdf');
+    const templateBytes = await fs.readFile(templatePath);
+    const pdfDoc = await PDFDocument.create();
+    const templateDoc = await PDFDocument.load(templateBytes);
 
-    // Loop through each shareholder (one page per shareholder)
-    for (let i = 0; i < groupedData.length; i++) {
-      const shareholder = groupedData[i];
-      const name = shareholder.name?.substring(0, 50) || "N/A";
+    // Process each shareholder
+    for (const shareholder of groupedData) {
       const shareholderId = shareholder.shareholderId;
-
-      let currentY = 50;
-
-      // Print shareholder name centered
-      doc.setFontSize(14);
-      doc.text(name, doc.internal.pageSize.width / 2, currentY, { align: "center" });
-      currentY += 20;
-
-      // Print shareholder ID as text
-      doc.setFontSize(10);
-      doc.text(`Shareholder ID: ${shareholderId}`, 50, currentY);
-      currentY += 20;
+      const shareholderName = shareholder.name || '';
+      const mailingAddress = shareholder.properties[0]?.ownerMailingAddress || '';
+      const cityStateZip = shareholder.properties[0]?.ownerCityStateZip || '';
+      const fullAddress = `${mailingAddress}\n${cityStateZip}`;
 
       // Generate barcode for the shareholder ID
-      let shareholderBarcode = "";
+      let barcodeBuffer: Buffer;
       try {
-        const barcodeBuffer = await new Promise<Buffer>((resolve, reject) => {
+        barcodeBuffer = await new Promise<Buffer>((resolve, reject) => {
           bwip.toBuffer(
             {
               bcid: "code128",
               text: shareholderId,
-              scale: 4,
-              height: 20,
+              scale: 3,
+              height: 15,
               includetext: true,
               textxalign: "center",
             },
@@ -160,35 +149,64 @@ export async function POST(request: Request) {
             },
           );
         });
-        shareholderBarcode = `data:image/png;base64,${barcodeBuffer.toString("base64")}`;
       } catch (error) {
         await logToFile("mailers", "Error generating shareholder barcode", LogLevel.ERROR, {
           errorMessage: error instanceof Error ? error.message : "Unknown error",
         });
+        continue;
       }
 
-      // Add shareholder barcode image
-      if (shareholderBarcode) {
-        doc.addImage(shareholderBarcode, "PNG", 50, currentY, 150, 30);
-        currentY += 80;
-      }
+      // Copy all pages from template
+      const templatePages = await pdfDoc.copyPages(templateDoc, templateDoc.getPageIndices());
+      templatePages.forEach(page => pdfDoc.addPage(page));
 
-      // Skip printing properties and property barcodes
-      // We're now only including the shareholder name and barcode
+      // Get the last page (page 8) for this shareholder's copy
+      const lastPageIndex = pdfDoc.getPageCount() - 1;
+      const page = pdfDoc.getPage(lastPageIndex);
+      
+      // Convert barcode buffer to PDF-compatible image
+      const barcodeImage = await pdfDoc.embedPng(barcodeBuffer);
+      const barcodeDims = barcodeImage.scale(0.5); // Scale down the barcode a bit
 
-      // Add a new page for the next shareholder
-      if (i < groupedData.length - 1) {
-        doc.addPage();
-      }
+      // Position barcode in upper middle of page
+      const { width, height } = page.getSize();
+      const barcodeX = (width - barcodeDims.width) / 2;
+      const barcodeY = height - 150; // 150 points from top
+
+      // Draw barcode and address
+      page.drawImage(barcodeImage, {
+        x: barcodeX,
+        y: barcodeY,
+        width: barcodeDims.width,
+        height: barcodeDims.height,
+      });
+
+      // Add mailing address below barcode
+      page.drawText(fullAddress, {
+        x: barcodeX,
+        y: barcodeY - 40, // 40 points below barcode
+        size: 12,
+        lineHeight: 15,
+        maxWidth: barcodeDims.width,
+      });
+
+      // Add mailing address below barcode
+      page.drawText(shareholderName, {
+        x: barcodeX,
+        y: barcodeY - 80, // 40 points below barcode
+        size: 12,
+        lineHeight: 15,
+        maxWidth: barcodeDims.width,
+      });
     }
 
     await logToFile("mailers", "Starting PDF generation", LogLevel.INFO);
-    const pdfChunks = doc.output("arraybuffer");
+    const pdfBytes = await pdfDoc.save();
     await logToFile("mailers", "PDF generation complete", LogLevel.INFO, {
-      pdfSizeBytes: pdfChunks.byteLength
+      pdfSizeBytes: pdfBytes.byteLength
     });
 
-    return new Response(pdfChunks, {
+    return new Response(pdfBytes, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
