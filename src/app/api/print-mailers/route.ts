@@ -173,7 +173,12 @@ export async function POST(request: Request) {
       const barcodeX = (width - barcodeDims.width) / 2;
       const barcodeY = height - 150; // 150 points from top
 
-      // Draw barcode and address
+      // Calculate text widths to determine if we need to scale down font size
+      const maxWidth = Math.min(300, width * 0.8); // Max width is either 300 points or 80% of page width
+      const defaultFontSize = 12;
+      let fontSize = defaultFontSize;
+
+      // Draw barcode
       page.drawImage(barcodeImage, {
         x: barcodeX,
         y: barcodeY,
@@ -181,23 +186,60 @@ export async function POST(request: Request) {
         height: barcodeDims.height,
       });
 
-      // Add mailing address below barcode
-      page.drawText(fullAddress, {
-        x: barcodeX,
-        y: barcodeY - 40, // 40 points below barcode
-        size: 12,
-        lineHeight: 15,
-        maxWidth: barcodeDims.width,
-      });
+      // Function to draw wrapped text
+      const drawWrappedText = (text: string, yPosition: number) => {
+        const words = text.split(' ');
+        let line = '';
+        let yOffset = 0;
+        const lineHeight = fontSize * 1.2; // 120% of font size for line height
 
-      // Add mailing address below barcode
-      page.drawText(shareholderName, {
-        x: barcodeX,
-        y: barcodeY - 80, // 40 points below barcode
-        size: 12,
-        lineHeight: 15,
-        maxWidth: barcodeDims.width,
-      });
+        for (const word of words) {
+          const testLine = line + (line ? ' ' : '') + word;
+          const textWidth = fontSize * (testLine.length * 0.6); // Approximate width
+
+          if (textWidth > maxWidth && line !== '') {
+            // Draw the line
+            page.drawText(line, {
+              x: (width - fontSize * (line.length * 0.6)) / 2, // Center the line
+              y: yPosition - yOffset,
+              size: fontSize,
+              lineHeight: lineHeight,
+              maxWidth: maxWidth,
+            });
+            line = word;
+            yOffset += lineHeight;
+          } else {
+            line = testLine;
+          }
+        }
+
+        // Draw the last line
+        if (line) {
+          page.drawText(line, {
+            x: (width - fontSize * (line.length * 0.6)) / 2, // Center the line
+            y: yPosition - yOffset,
+            size: fontSize,
+            lineHeight: lineHeight,
+            maxWidth: maxWidth,
+          });
+        }
+
+        return yOffset + lineHeight; // Return total height used
+      };
+
+      // Draw name and address with proper spacing
+      let currentY = barcodeY - barcodeDims.height - 20; // Start 20 points below barcode
+      
+      // Draw name
+      const nameHeight = drawWrappedText(shareholderName, currentY);
+      currentY -= nameHeight + 10; // Add 10 points padding between name and address
+
+      // Draw address
+      const addressHeight = drawWrappedText(mailingAddress, currentY);
+      currentY -= addressHeight + 5; // Add 5 points padding between address lines
+
+      // Draw city/state/zip
+      drawWrappedText(cityStateZip, currentY);
     }
 
     await logToFile("mailers", "Starting PDF generation", LogLevel.INFO);
