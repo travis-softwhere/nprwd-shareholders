@@ -872,7 +872,7 @@ export default function AdminPage() {
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-600" />
-              Shareholder Meetings
+              Benefit Unit Owner Meetings
             </CardTitle>
             <CardDescription>Select or create a meeting to manage</CardDescription>
           </CardHeader>
@@ -997,10 +997,10 @@ export default function AdminPage() {
                 <CardHeader className="bg-gradient-to-r from-amber-50 to-white pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Upload className="h-5 w-5 text-amber-600" />
-                    Upload Shareholder Data
+                    Upload Benefit Unit Owner Data
                   </CardTitle>
                   <CardDescription>
-                    Upload CSV file with shareholders for {selectedMeeting?.year} meeting
+                    Upload CSV file with Benefit Unit Owner for {selectedMeeting?.year} meeting
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">

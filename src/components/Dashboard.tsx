@@ -513,7 +513,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </CardContent>
             <CardFooter className="bg-gray-50 px-4 py-3 text-center">
               <p className="text-xs text-gray-500">
-                You will be redirected to the shareholder's details page after check-in.
+                You will be redirected to the Benefit Unit Owner's details page after check-in.
               </p>
             </CardFooter>
           </Card>
@@ -691,7 +691,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <CardContent className="p-5">
               <div className="flex flex-col items-center gap-4">
                 <p className="text-sm text-gray-600 text-center">
-                  Generate personalized invitations with unique check-in codes for all shareholders.
+                  Generate personalized invitations with unique check-in codes for all Benefit Unit Owners.
                 </p>
                 <Button 
                   onClick={handlePrintMailers} 

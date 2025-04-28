@@ -24,7 +24,7 @@ export default async function ShareholdersPage({ searchParams }: ShareholdersPag
   return (
     <div className="w-full">
       <div className="max-w-6xl mx-auto bg-white px-3 sm:px-6 lg:px-8 py-4 sm:py-6 mb-16 md:mb-6 shadow-sm rounded-lg">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 md:mb-4">Shareholders</h1>
+        {/*<h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 md:mb-4">Benefit Unit Owners</h1>*/}
         
         <Card className="border-0 shadow-none">
           <CardContent className="p-0">

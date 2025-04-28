@@ -50,7 +50,7 @@ export default async function ShareholderPage({
               <div>
                 <div className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">
-                    Shareholder ID:
+                  Benefit Unit Owner ID:
                   </span>{" "}
                   {shareholder.shareholderId}
                 </div>
