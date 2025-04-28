@@ -18,6 +18,7 @@ export const shareholders = pgTable("shareholders", {
     shareholderId: text("shareholder_id").notNull().unique(),
     name: text("name").notNull(),
     meetingId: text("meeting_id").notNull(),
+    isNew: boolean("is_new").default(false),
     createdAt: timestamp("created_at").defaultNow(),
 })
 

@@ -9,6 +9,7 @@ import { shareholders } from "@/lib/db/schema"
 import { meetings } from "@/lib/db/schema" 
 import { logToFile, LogLevel } from "@/utils/logger"
 import { desc } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 
 
 export interface Property {
@@ -134,12 +135,13 @@ export async function POST(request: Request) {
         const meetingId = latestMeetings[0].id.toString()
 
         // Create new shareholder
-        const [newShareholder] = await db
+        const newShareholder = await db
             .insert(shareholders)
             .values({
                 name: formattedName,
                 shareholderId,
-                meetingId
+                meetingId,
+                isNew: true
             })
             .returning()
 
@@ -147,7 +149,7 @@ export async function POST(request: Request) {
             shareholderId
         })
 
-        return NextResponse.json(newShareholder)
+        return NextResponse.json(newShareholder[0])
     } catch (error) {
         await logToFile("shareholders", "Error creating shareholder", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",

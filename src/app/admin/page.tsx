@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, CheckCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -48,6 +48,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { Progress } from "@/components/ui/progress";
+import { getMeetingStats } from "@/actions/getMeetingStats";
 
 // Define Property interface
 interface Property {
@@ -81,6 +84,217 @@ interface ShareholderData {
   residentCityStateZip: string;
 }
 
+// --- Added CheckinStatusDashboard Component --- 
+const COLORS = ["#22c55e", "#ef4444"];
+
+export function CheckinStatusDashboard() {
+  const { data: session } = useSession();
+  const { meetings, selectedMeeting, setSelectedMeeting } = useMeeting();
+  const { toast } = useToast();
+
+  // Attendance state
+  const [stats, setStats] = useState({ total: 0, checkedIn: 0 });
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Next-meeting countdown
+  const [daysLeft, setDaysLeft] = useState<string>("N/A");
+
+  // PDF mailer state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [mailerProgress, setMailerProgress] = useState(0);
+  const [showMailerDialog, setShowMailerDialog] = useState(false);
+
+  // Auto-select first meeting if none
+  useEffect(() => {
+    if (meetings.length > 0 && !selectedMeeting) {
+      setSelectedMeeting(meetings[0]);
+    }
+  }, [meetings, selectedMeeting, setSelectedMeeting]);
+
+  // Compute days left
+  const computeDays = useCallback(() => {
+    if (!selectedMeeting?.date) return setDaysLeft("N/A");
+    const diff = Math.ceil((new Date(selectedMeeting.date).getTime() - Date.now()) / 86400000);
+    setDaysLeft(isNaN(diff) ? "N/A" : diff.toString());
+  }, [selectedMeeting]);
+
+  // Fetch attendance stats
+  const fetchStats = useCallback(async () => {
+    if (!selectedMeeting) return;
+    setLoadingStats(true);
+    try {
+      const { totalShareholders, checkedInCount } = await getMeetingStats();
+      setStats({ total: totalShareholders, checkedIn: checkedInCount });
+    } catch {
+      toast({ title: "Error", description: "Failed to load attendance stats", variant: "destructive" });
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [selectedMeeting, toast]);
+
+  // Handlers
+  useEffect(() => {
+    computeDays();
+    fetchStats();
+    // Recompute countdown once a day
+    const timer = setInterval(computeDays, 86400000);
+    return () => clearInterval(timer);
+  }, [computeDays, fetchStats]);
+
+  // PDF mailer logic
+  const handleGenerateMailers = async () => {
+    if (!selectedMeeting) return;
+    setIsGenerating(true);
+    setShowMailerDialog(true);
+    setMailerProgress(0);
+    // animate progress to 95%
+    let p = 0, iv = setInterval(() => { p = Math.min(95, p + 5); setMailerProgress(p); }, 200);
+    try {
+      const res = await fetch("/api/print-mailers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/pdf" },
+        body: JSON.stringify({ meetingId: selectedMeeting.id })
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      const blob = await res.blob();
+      clearInterval(iv);
+      setMailerProgress(100);
+      // trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${selectedMeeting.year}-invitations.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      clearInterval(iv);
+      toast({ title: "Error", description: err.message || "Failed to generate mailers", variant: "destructive" });
+      setMailerProgress(0);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (session?.user?.isAdmin !== true) {
+    // Don't render anything if not admin, let AdminPage handle denial
+    return null;
+  }
+
+  const pieData = [
+    { name: "Checked In", value: stats.checkedIn },
+    { name: "Remaining", value: stats.total - stats.checkedIn }
+  ];
+
+  return (
+    <>
+      <div className="grid md:grid-cols-3 gap-6 mb-6">
+        {/* Attendance Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchStats} disabled={loadingStats}>
+              <RefreshCw className={`h-4 w-4 ${loadingStats ? "animate-spin" : ""}`} />
+            </Button>
+          </CardHeader>
+          <CardContent className="text-center pt-0">
+            {loadingStats ? (
+              <div className="flex justify-center items-center h-[140px]">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : stats.total > 0 ? (
+              <>
+                <p className="text-2xl font-bold">{stats.checkedIn} / {stats.total}</p>
+                <ResponsiveContainer width="100%" height={100}>
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" innerRadius={25} outerRadius={40} paddingAngle={5}>
+                      {pieData.map((e,i) => <Cell key={i} fill={COLORS[i]} />)}
+                    </Pie>
+                    <Tooltip 
+                       contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
+                       itemStyle={{ padding: 0 }}
+                    /> 
+                  </PieChart>
+                </ResponsiveContainer>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground pt-10">No attendance data</p> 
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Countdown Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+               <Calendar className="h-5 w-5 text-amber-600" />
+               <CardTitle className="text-sm font-medium">Next Meeting</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="text-center pt-4">
+            <p className="text-4xl font-bold">{daysLeft}</p>
+            <p className="text-xs text-amber-600 uppercase tracking-wider">Days Remaining</p>
+          </CardContent>
+        </Card>
+
+        {/* PDF Mailer Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+             <div className="flex items-center gap-2">
+                 <Download className="h-5 w-5 text-purple-600" />
+                 <CardTitle className="text-sm font-medium">Invitations</CardTitle>
+             </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <p className="mb-3 text-xs text-gray-600">
+              Generate PDF invitations with unique check-in codes.
+            </p>
+            <Button className="w-full" size="sm" onClick={handleGenerateMailers} disabled={isGenerating}>
+              {isGenerating ? 
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generating...</> : 
+                <><Download className="mr-2 h-4 w-4"/>Generate Invitations</> 
+              } 
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Mailer Progress Dialog */}
+      <Dialog open={showMailerDialog} onOpenChange={setShowMailerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {mailerProgress === 100 ? "Invitations Ready!" : "Generating Invitations..."}
+            </DialogTitle>
+            {mailerProgress < 100 && 
+               <DialogDescription>Please wait while the PDF is being created.</DialogDescription>
+            } 
+          </DialogHeader>
+          <div className="py-4">
+            <Progress value={mailerProgress} className="w-full" />
+             {mailerProgress < 100 && 
+                <p className="text-center text-sm text-muted-foreground mt-2">{mailerProgress}% complete</p>
+             }
+             {mailerProgress === 100 && 
+                 <p className="text-center text-sm text-green-600 mt-2">Your download should start automatically.</p>
+             }
+          </div>
+          {mailerProgress === 100 && (
+            <DialogFooter>
+              <Button onClick={() => setShowMailerDialog(false)}>Close</Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+// --- End CheckinStatusDashboard --- 
+
 export default function AdminPage() {
   const { data: session } = useSession();
   const { toast } = useToast();
@@ -98,6 +312,7 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [employeeRefreshTrigger, setEmployeeRefreshTrigger] = useState(0);
+  const [newShareholderIds, setNewShareholderIds] = useState<Set<string>>(new Set());
 
   // Property Management states
   const [searchQuery, setSearchQuery] = useState("");
@@ -804,6 +1019,9 @@ export default function AdminPage() {
           </Button>
       </div>
       
+      {/* Render the new dashboard here */}
+      <CheckinStatusDashboard />
+      
       {/* Employee Section */}
       <div className="space-y-6">
             <div className="bg-white rounded-lg border">
@@ -981,8 +1199,8 @@ export default function AdminPage() {
         </Card>
       </div>
 
-          {/* Data Management Section */}
-      {(showUploadComponent || showMailersButton || showDataChanges) && (
+          {/* Data Management Section - Condition changed to hide after data upload */}
+      {selectedMeeting && !selectedMeeting.hasInitialData && (
             <div className="space-y-6">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -1151,7 +1369,12 @@ export default function AdminPage() {
                     {filteredProperties.map((property) => (
                       <Card 
                         key={property.id}
-                        className="overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                        className={cn(
+                          "overflow-hidden cursor-pointer transition-colors",
+                          property.shareholderId && newShareholderIds.has(property.shareholderId)
+                            ? "bg-yellow-50 border-yellow-300 hover:border-yellow-400"
+                            : "hover:border-primary bg-white border-gray-200"
+                        )}
                         onClick={() => {
                           setSelectedProperty(property);
                           setShowDetails(true);
@@ -1160,9 +1383,9 @@ export default function AdminPage() {
                         <CardContent className="p-3">
                           <div className="flex justify-between items-center">
                             <div>
-                              <h3 className="font-medium text-gray-900">{property.ownerName || property.customerName}</h3>
-                              <p className="text-sm text-gray-500">{property.serviceAddress}</p>
-                              <p className="text-xs text-gray-400">{property.account}</p>
+                              <h3 className="font-medium text-gray-900">{property.serviceAddress}</h3>
+                              <p className="text-sm text-gray-500">{property.ownerName || property.customerName}</p>
+                              <p className="text-xs text-gray-400">Acct: {property.account}</p>
                             </div>
                             <Badge 
                               variant={property.checkedIn ? "success" : "secondary"}
@@ -1656,6 +1879,9 @@ export default function AdminPage() {
                       const errorData = await transferResponse.json();
                       throw new Error(errorData.error || "Failed to transfer property");
                     }
+                    
+                    // Step 2: Update Handler (Add new shareholder ID to set)
+                    setNewShareholderIds(ids => new Set(ids).add(shareholderId));
                     
                   } else if (transferType === "existing" && selectedExistingShareholder) {
                     // Transfer to existing shareholder
