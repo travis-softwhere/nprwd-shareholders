@@ -156,7 +156,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <Users className="h-6 w-6 text-blue-500" />
-                    Shareholder List
+                    Benefit Unit Owner List
                 </h2>
                 <div className="relative flex w-full md:w-auto">
                     <div className="relative w-full md:w-64">
