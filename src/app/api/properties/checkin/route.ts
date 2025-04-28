@@ -18,44 +18,45 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json();
-        const { propertyId, checkedIn } = body;
+        const { shareholderId } = body;
 
-        if (!propertyId) {
+        if (!shareholderId) {
             return NextResponse.json(
-                { error: "Property ID is required" },
+                { error: "Shareholder ID is required" },
                 { status: 400 }
             );
         }
 
-        // Ensure property exists before updating
-        const [existingProperty] = await db
+        // Find all properties for this shareholder
+        const propertiesToCheckIn = await db
             .select()
             .from(properties)
-            .where(eq(properties.id, parseInt(propertyId)));
-        
-        if (!existingProperty) {
-            await logToFile("properties", "Property not found for checkin", LogLevel.ERROR, {
-                propertyId
+            .where(eq(properties.shareholderId, shareholderId));
+
+        if (!propertiesToCheckIn.length) {
+            await logToFile("properties", "No properties found for shareholder checkin", LogLevel.ERROR, {
+                shareholderId
             });
-            return NextResponse.json({ error: "Property not found" }, { status: 404 });
+            return NextResponse.json({ error: "No properties found for this shareholder" }, { status: 404 });
         }
 
-        // Update the checkedIn status
-        const [updatedProperty] = await db
+        // Update all properties to checked_in = true
+        const updatedProperties = await db
             .update(properties)
-            .set({
-                checkedIn: checkedIn === true,
-            })
-            .where(eq(properties.id, parseInt(propertyId)))
+            .set({ checkedIn: true })
+            .where(eq(properties.shareholderId, shareholderId))
             .returning();
 
-        await logToFile("properties", "Property check-in status updated", LogLevel.INFO, {
-            propertyId,
-            previousCheckedIn: existingProperty.checkedIn,
-            newCheckedIn: updatedProperty.checkedIn
+        await logToFile("properties", "Properties checked in for shareholder", LogLevel.INFO, {
+            shareholderId,
+            updatedCount: updatedProperties.length
         });
 
-        return NextResponse.json(updatedProperty);
+        return NextResponse.json({
+            message: "Properties checked in successfully",
+            updatedCount: updatedProperties.length,
+            updatedProperties
+        });
     } catch (error) {
         await logToFile("properties", "Error updating property check-in status", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
