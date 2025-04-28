@@ -117,7 +117,7 @@ export async function POST(request: Request) {
     });
 
     // Load the template PDF
-    const templatePath = path.join(process.cwd(), 'docs', 'Publication1.pdf');
+    const templatePath = path.join(process.cwd(), 'docs', 'Production1.pdf');
     const templateBytes = await fs.readFile(templatePath);
     const pdfDoc = await PDFDocument.create();
     const templateDoc = await PDFDocument.load(templateBytes);
@@ -166,43 +166,50 @@ export async function POST(request: Request) {
       
       // Convert barcode buffer to PDF-compatible image
       const barcodeImage = await pdfDoc.embedPng(barcodeBuffer);
-      const barcodeDims = barcodeImage.scale(0.5); // Scale down the barcode a bit
+      const barcodeDims = barcodeImage.scale(0.8); // Increased scale for larger barcode
 
-      // Position barcode in upper middle of page
+      // Position calculations for the page
       const { width, height } = page.getSize();
-      const barcodeX = (width - barcodeDims.width) / 2;
-      const barcodeY = height - 150; // 150 points from top
-
+      
+      // Upper circle position (for barcode) - moved further left and down
+      const upperY = height - 250; // More down from top
+      const leftMargin = width * 0.15; // 15% from left margin (moved more left)
+      const barcodeX = leftMargin;
+      
+      // Lower circle position (for text) - moved further down
+      const lowerY = height - 550; // More down from top
+      
       // Calculate text widths to determine if we need to scale down font size
-      const maxWidth = Math.min(300, width * 0.8); // Max width is either 300 points or 80% of page width
-      const defaultFontSize = 12;
+      const maxWidth = Math.min(400, width * 0.5); // Increased width for larger text
+      const defaultFontSize = 14; // Increased font size
       let fontSize = defaultFontSize;
 
-      // Draw barcode
+      // Draw barcode in upper circle
       page.drawImage(barcodeImage, {
         x: barcodeX,
-        y: barcodeY,
+        y: upperY,
         width: barcodeDims.width,
         height: barcodeDims.height,
       });
 
-      // Function to draw wrapped text
-      const drawWrappedText = (text: string, yPosition: number) => {
+      // Function to draw wrapped text with left alignment
+      const drawWrappedText = (text: string, yPosition: number, customFontSize?: number) => {
         const words = text.split(' ');
         let line = '';
         let yOffset = 0;
-        const lineHeight = fontSize * 1.2; // 120% of font size for line height
+        const actualFontSize = customFontSize || fontSize;
+        const lineHeight = actualFontSize * 1.3; // Increased line height for better readability
 
         for (const word of words) {
           const testLine = line + (line ? ' ' : '') + word;
-          const textWidth = fontSize * (testLine.length * 0.6); // Approximate width
+          const textWidth = actualFontSize * (testLine.length * 0.6); // Approximate width
 
           if (textWidth > maxWidth && line !== '') {
-            // Draw the line
+            // Draw the line - left aligned
             page.drawText(line, {
-              x: (width - fontSize * (line.length * 0.6)) / 2, // Center the line
+              x: leftMargin, // Left align text with barcode
               y: yPosition - yOffset,
-              size: fontSize,
+              size: actualFontSize,
               lineHeight: lineHeight,
               maxWidth: maxWidth,
             });
@@ -216,9 +223,9 @@ export async function POST(request: Request) {
         // Draw the last line
         if (line) {
           page.drawText(line, {
-            x: (width - fontSize * (line.length * 0.6)) / 2, // Center the line
+            x: leftMargin, // Left align text with barcode
             y: yPosition - yOffset,
-            size: fontSize,
+            size: actualFontSize,
             lineHeight: lineHeight,
             maxWidth: maxWidth,
           });
@@ -227,19 +234,27 @@ export async function POST(request: Request) {
         return yOffset + lineHeight; // Return total height used
       };
 
-      // Draw name and address with proper spacing
-      let currentY = barcodeY - barcodeDims.height - 20; // Start 20 points below barcode
+      // Draw text content in lower circle
+      let currentY = lowerY + 50; // Increased starting position
+      
+      // Draw shareholder ID with default font size
+      // const shareholderIdText = `Shareholder ID: ${shareholderId}`;
+      // const idHeight = drawWrappedText(shareholderIdText, currentY);
+      // currentY -= idHeight + 10;
+
+      // Draw name and address with larger font size (18pt)
+      const mailingFontSize = 24;
       
       // Draw name
-      const nameHeight = drawWrappedText(shareholderName, currentY);
-      currentY -= nameHeight + 10; // Add 10 points padding between name and address
+      const nameHeight = drawWrappedText(shareholder.name || '', currentY, mailingFontSize);
+      currentY -= nameHeight + 10;
 
       // Draw address
-      const addressHeight = drawWrappedText(mailingAddress, currentY);
-      currentY -= addressHeight + 5; // Add 5 points padding between address lines
+      const addressHeight = drawWrappedText(mailingAddress, currentY, mailingFontSize);
+      currentY -= addressHeight + 10;
 
       // Draw city/state/zip
-      drawWrappedText(cityStateZip, currentY);
+      drawWrappedText(cityStateZip, currentY, mailingFontSize);
     }
 
     await logToFile("mailers", "Starting PDF generation", LogLevel.INFO);
@@ -259,10 +274,27 @@ export async function POST(request: Request) {
   } catch (error) {
     await logToFile("mailers", "Error generating mailers", LogLevel.ERROR, {
       errorMessage: error instanceof Error ? error.message : "Unknown error",
-      errorType: error instanceof Error ? error.name : "Unknown type"
+      errorType: error instanceof Error ? error.name : "Unknown type",
+      errorStack: error instanceof Error ? error.stack : undefined,
+      // Add more detailed error info
+      templatePath: path.join(process.cwd(), 'docs', 'Production1.pdf'),
+      errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error))
     });
+
+    // Send more detailed error information in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Failed to generate mailers: ${error instanceof Error ? error.message : 'Unknown error'}`
+      : 'Failed to generate mailers';
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate mailers" },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? {
+          type: error instanceof Error ? error.name : 'Unknown',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        } : undefined
+      },
       { status: 500 },
     );
   }

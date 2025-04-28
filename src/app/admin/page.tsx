@@ -508,6 +508,7 @@ export default function AdminPage() {
         description: "Failed to generate mailers",
         variant: "destructive",
       });
+      console.error(error);
     } finally {
       setIsPrinting(false);
     }

@@ -294,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
     
       
-      const response = await fetch("/api/checkin", {
+      const response = await fetch("/api/properties/checkin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -303,7 +303,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         },
         body: JSON.stringify({
           shareholderId: barcodeInput,
-          meetingId: selectedMeeting?.id,
         }),
       });
       
