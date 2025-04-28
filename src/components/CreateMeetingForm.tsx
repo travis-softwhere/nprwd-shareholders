@@ -36,6 +36,7 @@ export function CreateMeetingForm({ onSuccess }: CreateMeetingFormProps) {
         if (result.success && result.meeting) {
             setOpen(false)
             refreshMeetings()
+            location.reload()
             if (onSuccess) {
                 onSuccess(result.meeting)
             }

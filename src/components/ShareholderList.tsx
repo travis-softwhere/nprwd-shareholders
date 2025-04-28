@@ -16,6 +16,7 @@ import { toast } from "@/components/ui/use-toast"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
+import { cn } from "@/lib/utils"
 
 interface ShareholderListProps {
     initialShareholders: Shareholder[]
@@ -36,7 +37,9 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const { data: session, status } = useSession()
     const router = useRouter()
 
-    const [shareholders, setShareholders] = useState<Shareholder[]>(initialShareholders)
+    const [shareholders, setShareholders] = useState<Shareholder[]>(
+        initialShareholders.map(sh => ({ ...sh, isNew: sh.isNew ?? false }))
+    )
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("shareholderId")
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
@@ -49,8 +52,19 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const { shareholders: newShareholders } = await getShareholdersList(currentPage, itemsPerPage)
-                setShareholders(newShareholders)
+                const { shareholders: newShareholders, totalShareholders: fetchedTotal } = await getShareholdersList(currentPage, itemsPerPage)
+                
+                // --- DEBUG LOG --- 
+                console.log("Fetched Shareholders Data:", newShareholders);
+                // Check a specific record if possible:
+                const targetShareholder = newShareholders.find(sh => sh.shareholderId === '438342'); // ID for AIMERY BARRAULT
+                console.log("Data for 438342:", targetShareholder);
+                // --- END DEBUG LOG ---
+
+                // Ensure fetched shareholders have isNew defaulted
+                setShareholders(newShareholders.map(sh => ({ ...sh, isNew: sh.isNew ?? false })))
+                // It's generally better to update total count based on fetch result if API provides it
+                // setTotalShareholders(fetchedTotal); // Uncomment if you adjust props/state for total
             } catch (error) {
                 toast({
                     title: "Error",
@@ -288,7 +302,10 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                     filteredAndSortedShareholders.map((shareholder) => (
                                         <tr
                                             key={shareholder.shareholderId}
-                                            className="hover:bg-blue-50 cursor-pointer transition-colors duration-150"
+                                            className={cn(
+                                                "hover:bg-blue-50 cursor-pointer transition-colors duration-150",
+                                                shareholder.isNew && "bg-yellow-50 hover:bg-yellow-100"
+                                            )}
                                             onClick={() => handleRowClick(shareholder.shareholderId)}
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.shareholderId}</td>
@@ -337,7 +354,10 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                             filteredAndSortedShareholders.map((shareholder) => (
                                 <Card 
                                     key={shareholder.shareholderId}
-                                    className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500"
+                                    className={cn(
+                                        "overflow-hidden hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500",
+                                        shareholder.isNew && "bg-yellow-50 border-l-yellow-400 hover:bg-yellow-100"
+                                    )}
                                     onClick={() => handleRowClick(shareholder.shareholderId)}
                                 >
                                     <CardContent className="p-4">

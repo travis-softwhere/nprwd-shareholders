@@ -1,37 +1,43 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { shareholders, properties } from "@/lib/db/schema"
+import { shareholders as shareholdersTable, properties } from "@/lib/db/schema"
 import { eq, sql } from "drizzle-orm"
+import type { ShareholdersListResponse, Shareholder } from "@/types/shareholder"
 
-export async function getShareholdersList(page: number, itemsPerPage: number) {
+export async function getShareholdersList(
+    page: number = 1,
+    itemsPerPage: number = 25
+): Promise<ShareholdersListResponse> {
     const offset = (page - 1) * itemsPerPage
 
-    const [shareholdersList, totalCount] = await Promise.all([
-        db
+    try {
+        const shareholders = await db
             .select({
-                id: shareholders.id,
-                name: shareholders.name,
-                shareholderId: shareholders.shareholderId,
-                totalProperties: sql<number>`count(${properties.id})`.as("totalProperties"),
-                checkedInProperties: sql<number>`sum(case when ${properties.checkedIn} then 1 else 0 end)`.as(
-                    "checkedInProperties",
-                ),
+                id: shareholdersTable.id,
+                name: shareholdersTable.name,
+                shareholderId: shareholdersTable.shareholderId,
+                isNew: shareholdersTable.isNew,
+                totalProperties: sql<number>`count(${shareholdersTable.id})`.mapWith(Number),
+                checkedInProperties: sql<number>`count(case when properties.checked_in then 1 else null end)`.mapWith(Number)
             })
-            .from(shareholders)
-            .leftJoin(properties, eq(shareholders.shareholderId, properties.shareholderId))
-            .groupBy(shareholders.id)
+            .from(shareholdersTable)
+            .leftJoin(properties, eq(shareholdersTable.shareholderId, properties.shareholderId))
+            .groupBy(shareholdersTable.id)
             .limit(itemsPerPage)
-            .offset(offset),
+            .offset(offset)
 
-        db
-            .select({ count: sql<number>`count(*)` })
-            .from(shareholders)
-            .then((result) => result[0].count),
-    ])
+        const totalResult = await db.select({ count: sql<number>`count(*)` }).from(shareholdersTable)
+        const totalShareholders = totalResult[0]?.count || 0
 
-    return {
-        shareholders: shareholdersList,
-        totalShareholders: totalCount,
+        const typedShareholders = shareholders as Shareholder[]
+
+        return {
+            shareholders: typedShareholders,
+            totalShareholders,
+        }
+    } catch (error) {
+        console.error("Failed to fetch shareholders list:", error)
+        return { shareholders: [], totalShareholders: 0 }
     }
 }
