@@ -533,8 +533,21 @@ export default function AdminPage() {
   // Handle employee creation
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
+    // Remove FormData logic
+    // const form = e.target as HTMLFormElement;
+    // const formData = new FormData(form);
+    
+    // Add basic validation before sending
+    if (!newEmployee.fullName || !newEmployee.email) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both full name and email.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsCreatingEmployee(true); // Set loading state
     
     try {
       const response = await fetch("/api/create-employee", {
@@ -542,10 +555,11 @@ export default function AdminPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        // Use state directly, remove isAdmin
         body: JSON.stringify({
-          name: formData.get("name"),
-          email: formData.get("email"),
-          isAdmin: formData.get("isAdmin") === "on",
+          fullName: newEmployee.fullName,
+          email: newEmployee.email,
+          // isAdmin: formData.get("isAdmin") === "on", // Removed isAdmin
         }),
       });
       
@@ -554,8 +568,8 @@ export default function AdminPage() {
         throw new Error(data.error || "Failed to create employee");
       }
       
-      // Reset form
-      form.reset();
+      // Reset state instead of form.reset()
+      setNewEmployee({ fullName: "", email: "" }); 
       
       // Trigger refresh of employee list
       setEmployeeRefreshTrigger(prev => prev + 1);
@@ -571,6 +585,8 @@ export default function AdminPage() {
         description: error instanceof Error ? error.message : "Failed to create employee",
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingEmployee(false); // Reset loading state
     }
   };
 

@@ -39,8 +39,8 @@ export async function POST(request: Request) {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ");
 
-    // Generate username from email
-    const username = email.split("@")[0];
+    // Generate username: first letter of firstName + lastName (lowercase)
+    const username = (firstName.charAt(0) + lastName.replace(/\s+/g, '')).toLowerCase();
 
     // Create user in Keycloak
     const user = await adminClient.users.create({
