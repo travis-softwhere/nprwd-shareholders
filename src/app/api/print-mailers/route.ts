@@ -171,26 +171,16 @@ export async function POST(request: Request) {
       // Position calculations for the page
       const { width, height } = page.getSize();
       
-      // Upper circle position (for barcode) - moved further left and down
-      const upperY = height - 250; // More down from top
-      const leftMargin = width * 0.15; // 15% from left margin (moved more left)
-      const barcodeX = leftMargin;
-      
-      // Lower circle position (for text) - moved further down
-      const lowerY = height - 550; // More down from top
+      // === NEW LAYOUT CONSTANTS ===
+      const leftMargin = 50; // 0.5 inch
+      const topMargin = 160; // 1 inch down from top
+      const addressBlockWidth = 220; // width for address block
+      const gap = 24; // space between address and barcode
       
       // Calculate text widths to determine if we need to scale down font size
       const maxWidth = Math.min(400, width * 0.5); // Increased width for larger text
       const defaultFontSize = 14; // Increased font size
       let fontSize = defaultFontSize;
-
-      // Draw barcode in upper circle
-      page.drawImage(barcodeImage, {
-        x: barcodeX,
-        y: upperY,
-        width: barcodeDims.width,
-        height: barcodeDims.height,
-      });
 
       // Function to draw wrapped text with left alignment
       const drawWrappedText = (text: string, yPosition: number, customFontSize?: number) => {
@@ -234,27 +224,30 @@ export async function POST(request: Request) {
         return yOffset + lineHeight; // Return total height used
       };
 
-      // Draw text content in lower circle
-      let currentY = lowerY + 50; // Increased starting position
-      
-      // Draw shareholder ID with default font size
-      // const shareholderIdText = `Shareholder ID: ${shareholderId}`;
-      // const idHeight = drawWrappedText(shareholderIdText, currentY);
-      // currentY -= idHeight + 10;
-
-      // Draw name and address with larger font size (18pt)
+      // === ADDRESS BLOCK (top left, a bit down) ===
+      let addressY = height - topMargin;
+      let addressX = leftMargin;
       const mailingFontSize = 24;
+      let addressCurrentY = addressY;
       
       // Draw name
-      const nameHeight = drawWrappedText(shareholder.name || '', currentY, mailingFontSize);
-      currentY -= nameHeight + 10;
-
+      const nameHeight = drawWrappedText(shareholder.name || '', addressCurrentY, mailingFontSize);
+      addressCurrentY -= nameHeight + 6;
       // Draw address
-      const addressHeight = drawWrappedText(mailingAddress, currentY, mailingFontSize);
-      currentY -= addressHeight + 10;
-
+      const addressHeight = drawWrappedText(mailingAddress, addressCurrentY, mailingFontSize);
+      addressCurrentY -= addressHeight + 6;
       // Draw city/state/zip
-      drawWrappedText(cityStateZip, currentY, mailingFontSize);
+      drawWrappedText(cityStateZip, addressCurrentY, mailingFontSize);
+
+      // === BARCODE (to the right of address block, still on left half) ===
+      const barcodeX = leftMargin + addressBlockWidth + gap;
+      const barcodeY = height - topMargin - barcodeDims.height / 2 + 12; // vertically align with address block
+      page.drawImage(barcodeImage, {
+        x: barcodeX,
+        y: barcodeY,
+        width: barcodeDims.width,
+        height: barcodeDims.height,
+      });
     }
 
     await logToFile("mailers", "Starting PDF generation", LogLevel.INFO);
