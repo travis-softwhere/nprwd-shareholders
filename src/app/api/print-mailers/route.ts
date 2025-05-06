@@ -52,6 +52,18 @@ function groupShareholdersById(rows: {
   return Object.values(map);
 }
 
+/**
+ * Extracts the zip code from a city, state, zip string
+ * Assumes format like "City, State ZIP" or "City, State ZIP-XXXX"
+ */
+function extractZipCode(cityStateZip: string | null | undefined): string {
+  if (!cityStateZip) return '';
+  
+  // Match the last sequence of digits in the string
+  const zipMatch = cityStateZip.match(/\d{5}(?:-\d{4})?$/);
+  return zipMatch ? zipMatch[0] : '';
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -112,8 +124,16 @@ export async function POST(request: Request) {
 
     // Group rows by shareholderId
     const groupedData = groupShareholdersById(rawData);
-    await logToFile("mailers", "Grouped shareholder data", LogLevel.INFO, {
-      uniqueShareholderCount: groupedData.length
+    
+    // Sort shareholders by zip code
+    const sortedData = groupedData.sort((a, b) => {
+      const zipA = extractZipCode(a.properties[0]?.ownerCityStateZip);
+      const zipB = extractZipCode(b.properties[0]?.ownerCityStateZip);
+      return zipA.localeCompare(zipB);
+    });
+
+    await logToFile("mailers", "Grouped and sorted shareholder data", LogLevel.INFO, {
+      uniqueShareholderCount: sortedData.length
     });
 
     // Load the template PDF
@@ -123,7 +143,7 @@ export async function POST(request: Request) {
     const templateDoc = await PDFDocument.load(templateBytes);
 
     // Process each shareholder
-    for (const shareholder of groupedData) {
+    for (const shareholder of sortedData) {
       const shareholderId = shareholder.shareholderId;
       const shareholderName = shareholder.name || '';
       const mailingAddress = shareholder.properties[0]?.ownerMailingAddress || '';
