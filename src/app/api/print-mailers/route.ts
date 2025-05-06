@@ -175,11 +175,11 @@ export async function POST(request: Request) {
       const leftMargin = 50; // 0.5 inch
       const topMargin = 160; // 1 inch down from top
       const addressBlockWidth = 220; // width for address block
-      const gap = 24; // space between address and barcode
+      const gap = 75; // space between address and barcode
       
       // Calculate text widths to determine if we need to scale down font size
-      const maxWidth = Math.min(400, width * 0.5); // Increased width for larger text
-      const defaultFontSize = 14; // Increased font size
+      const maxWidth = Math.min(250, width * 0.5); // Increased width for larger text
+      const defaultFontSize = 10; // Increased font size
       let fontSize = defaultFontSize;
 
       // Function to draw wrapped text with left alignment
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
       // === ADDRESS BLOCK (top left, a bit down) ===
       let addressY = height - topMargin;
       let addressX = leftMargin;
-      const mailingFontSize = 24;
+      const mailingFontSize = 12;
       let addressCurrentY = addressY;
       
       // Draw name
@@ -241,7 +241,7 @@ export async function POST(request: Request) {
 
       // === BARCODE (to the right of address block, still on left half) ===
       const barcodeX = leftMargin + addressBlockWidth + gap;
-      const barcodeY = height - topMargin - barcodeDims.height / 2 + 12; // vertically align with address block
+      const barcodeY = height - topMargin - (barcodeDims.height / 2) - 30; // vertically align with address block
       page.drawImage(barcodeImage, {
         x: barcodeX,
         y: barcodeY,

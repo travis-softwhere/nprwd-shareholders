@@ -54,6 +54,15 @@ export async function POST(request: Request) {
                 skip_empty_lines: true,
                 trim: true,
             })
+
+            records = records.filter(
+                (record) =>
+                Object.values(record).some(
+                    (value) => typeof value === "string" && value.trim() !== ""
+                )
+            )
+
+            console.log('Records: ', records)
         } catch (error) {
             throw new Error(`Failed to parse CSV: ${error}`)
         }
@@ -86,14 +95,18 @@ export async function POST(request: Request) {
                 const propertyValues = []
 
                 for (const record of batch) {
-                    const ownerName = record.owner_name?.trim() || "Unknown"
-                    let shareholderId = uniqueShareholders.get(ownerName)
+                    const ownerKey = [
+                        record.owner_mailing_address?.trim() || "",
+                        record.owner_city_state_zip?.trim() || ""
+                      ].join("|")
+                      
+                    let shareholderId = uniqueShareholders.get(ownerKey)
 
                     if (!shareholderId) {
                         shareholderId = generateRandomId()
-                        uniqueShareholders.set(ownerName, shareholderId)
+                        uniqueShareholders.set(ownerKey, shareholderId)
                         shareholderValues.push({
-                            name: ownerName,
+                            name: record.owner_name?.trim() || "Unknown",
                             meetingId,
                             shareholderId,
                         })
