@@ -15,9 +15,11 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
+import { GeneratedPDFsList } from "@/components/GeneratedPDFsList"
 
 // --- CheckinStatusDashboard Component --- 
 const COLORS = ["#22c55e", "#ef4444"];
+const BATCH_SIZE = 50;
 
 export function CheckinStatusDashboard() {
   const { data: session } = useSession();
@@ -74,38 +76,77 @@ export function CheckinStatusDashboard() {
   }, [computeDays, fetchStats]);
 
   // PDF mailer logic
+  const [currentBatchNumber, setCurrentBatchNumber] = useState(0);
+  const [totalBatches, setTotalBatches] = useState(0);
+  const [currentBatchStatus, setCurrentBatchStatus] = useState('');
+  const [currentBatchShareholderCount, setCurrentBatchShareholderCount] = useState(0);
+
   const handleGenerateMailers = async () => {
     if (!selectedMeeting) return;
     setIsGenerating(true);
     setShowMailerDialog(true);
     setMailerProgress(0);
-    // animate progress to 95%
-    let p = 0, iv = setInterval(() => { p = Math.min(95, p + 5); setMailerProgress(p); }, 200);
+    setCurrentBatchNumber(0);
+    setTotalBatches(0);
+    setCurrentBatchStatus('');
+    setCurrentBatchShareholderCount(0);
+    let batches: any[] = [];
+    let errorOccurred = false;
+
     try {
-      const res = await fetch("/api/print-mailers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/pdf" },
+      // Clear all existing PDFs for this meeting first
+      await fetch("/api/generated-pdfs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ meetingId: selectedMeeting.id })
       });
-      if (!res.ok) throw new Error(res.statusText);
-      const blob = await res.blob();
-      clearInterval(iv);
+
+      // Fetch all shareholders for this meeting
+      const shareholdersRes = await fetch(`/api/shareholders?meetingId=${selectedMeeting.id}`);
+      if (!shareholdersRes.ok) throw new Error("Failed to fetch shareholders");
+      const shareholdersData = await shareholdersRes.json();
+      const allShareholders = shareholdersData.shareholders;
+      if (!Array.isArray(allShareholders) || allShareholders.length === 0) throw new Error("No shareholders found");
+
+      // Split into batches
+      const totalBatchesCalc = Math.ceil(allShareholders.length / BATCH_SIZE);
+      setTotalBatches(totalBatchesCalc);
+      for (let i = 0; i < allShareholders.length; i += BATCH_SIZE) {
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        setCurrentBatchNumber(batchNumber);
+        const batch = allShareholders.slice(i, i + BATCH_SIZE);
+        setCurrentBatchShareholderCount(batch.length);
+        setCurrentBatchStatus('Generating PDF...');
+        setMailerProgress(Math.round((batchNumber - 1) / totalBatchesCalc * 95));
+        // POST to /api/print-mailers
+        const res = await fetch("/api/print-mailers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meetingId: selectedMeeting.id, batchNumber, batch })
+        });
+        setCurrentBatchStatus('Uploading PDF...');
+        if (!res.ok) {
+          errorOccurred = true;
+          setCurrentBatchStatus('Error');
+          throw new Error(`Failed to generate PDF for batch ${batchNumber}`);
+        }
+        setCurrentBatchStatus('Completed');
+        const data = await res.json();
+        batches.push(data);
+        // Optionally, add a small delay for UI smoothness
+        await new Promise(r => setTimeout(r, 300));
+      }
       setMailerProgress(100);
-      // trigger download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${selectedMeeting.year}-invitations.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      setCurrentBatchStatus('All batches completed');
+      toast({ title: "Success", description: `All ${batches.length} mailer batches generated successfully`, variant: "default" });
     } catch (err: any) {
-      clearInterval(iv);
-      toast({ title: "Error", description: err.message || "Failed to generate mailers", variant: "destructive" }); 
+      errorOccurred = true;
+      setCurrentBatchStatus('Error');
+      toast({ title: "Error", description: err.message || "Failed to generate mailers", variant: "destructive" });
       setMailerProgress(0);
     } finally {
       setIsGenerating(false);
+      if (!errorOccurred) setShowMailerDialog(false);
     }
   };
 
@@ -196,28 +237,36 @@ export function CheckinStatusDashboard() {
               }
             </Button>
           </CardContent>
+
+          <CardContent>
+            <GeneratedPDFsList />
+          </CardContent>
         </Card>
       </div>
 
       {/* Mailer Progress Dialog */}
-      <Dialog open={showMailerDialog} onOpenChange={setShowMailerDialog}> {/* Simplified onOpenChange */}
+      <Dialog open={showMailerDialog} onOpenChange={setShowMailerDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {mailerProgress === 100 ? "Invitations Ready!" : "Generating Invitations..."} {/* Adjusted titles */}
+              {mailerProgress === 100 ? "Invitations Ready!" : "Generating Invitations..."}
             </DialogTitle>
-            {mailerProgress < 100 &&
-               <DialogDescription>Please wait while the PDF is being created.</DialogDescription> /* Added description */
-            }
+            {mailerProgress < 100 && (
+              <DialogDescription>
+                Batch {currentBatchNumber} of {totalBatches} ({totalBatches - currentBatchNumber + 1} remaining)
+                <br />
+                {currentBatchStatus} ({currentBatchShareholderCount} shareholders)
+              </DialogDescription>
+            )}
           </DialogHeader>
           <div className="py-4">
             <Progress value={mailerProgress} className="w-full" />
-             {mailerProgress < 100 &&
-                <p className="text-center text-sm text-muted-foreground mt-2">{mailerProgress}% complete</p> /* Added percentage */
-             }
-             {mailerProgress === 100 &&
-                 <p className="text-center text-sm text-green-600 mt-2">Your download should start automatically.</p> /* Added success message */
-             }
+            {mailerProgress < 100 && (
+              <p className="text-center text-sm text-muted-foreground mt-2">{mailerProgress}% complete</p>
+            )}
+            {mailerProgress === 100 && (
+              <p className="text-center text-sm text-green-600 mt-2">Your download should start automatically.</p>
+            )}
           </div>
           {mailerProgress === 100 && (
             <DialogFooter>

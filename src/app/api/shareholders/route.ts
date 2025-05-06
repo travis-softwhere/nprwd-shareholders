@@ -85,9 +85,20 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
         
-        // Get shareholders from the database
-        const allShareholders = await db.select().from(shareholders);
+        // Parse shareholderId from query params
+        const url = new URL(request.url);
+        const shareholderId = url.searchParams.get("shareholderId");
         
+        if (shareholderId) {
+            // Get the specific shareholder from the database
+            const result = await db.select().from(shareholders).where(sql`${shareholders.shareholderId} = ${shareholderId}`);
+            if (result.length === 0) {
+                return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
+            }
+            return NextResponse.json({ shareholder: result[0] });
+        }
+        // Get all shareholders from the database
+        const allShareholders = await db.select().from(shareholders);
         return NextResponse.json({ shareholders: allShareholders })
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch shareholders" }, { status: 500 })

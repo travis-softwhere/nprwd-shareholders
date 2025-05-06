@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
+import ShareholdersList from "@/components/ShareholderList"
 
 // Define Property interface
 interface Property {
@@ -484,24 +485,44 @@ export default function AdminPage() {
         throw new Error("Failed to generate PDF");
       }
 
-      // Get the PDF blob
-      const blob = await response.blob();
+      const data = await response.json();
       
-      // Create download link and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `shareholders-mailers-${selectedMeeting.date.toString().substring(0, 10)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      window.URL.revokeObjectURL(url);
-      a.remove();
-      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to generate PDFs");
+      }
+
+      console.log(`Starting download of ${data.batches.length} PDF batches...`);
+
+      // Download each batch
+      for (const batch of data.batches) {
+        console.log(`Downloading ${batch.fileName}...`);
+        
+        // Fetch the PDF from the Vercel Blob URL
+        const pdfResponse = await fetch(batch.url);
+        if (!pdfResponse.ok) {
+          throw new Error(`Failed to download ${batch.fileName}`);
+        }
+
+        const blob = await pdfResponse.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = batch.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "Batch Downloaded",
+          description: `${batch.fileName} downloaded successfully`,
+          variant: "default",
+        });
+      }
+
       toast({
         title: "Success",
-        description: "Mailers generated successfully",
+        description: "All mailer batches generated and downloaded successfully",
         variant: "default",
       });
     } catch (error) {
@@ -893,13 +914,12 @@ export default function AdminPage() {
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-600" />
-              Benefit Unit Owner Meetings
+              Meetings
             </CardTitle>
             <CardDescription>Select or create a meeting to manage</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
-                {/* Create a new meeting - only show if no meetings exist */}
-                {meetings.length === 0 ? (
+            {/* Create a new meeting */}
             <CreateMeetingForm
               onSuccess={(meeting) => {
                 setMeetings((prev: any[]) => [...prev, meeting]);
@@ -909,12 +929,6 @@ export default function AdminPage() {
                 });
               }}
             />
-                ) : (
-                  <div className="p-4 rounded-lg bg-blue-50 text-center">
-                    <p className="text-sm text-blue-600 mb-1 font-medium">Meeting Active</p>
-                    <p className="text-xs text-blue-500">To create a new meeting, delete the existing one first.</p>
-                  </div>
-                )}
 
             {/* List existing meetings */}
             <div className="space-y-3 mt-4">
@@ -1081,40 +1095,7 @@ export default function AdminPage() {
             )}
 
             {/* Print Mailers Button */}
-            {showMailersButton && (
-              <Card className="overflow-hidden hover:shadow-md transition-all">
-                <CardHeader className="bg-gradient-to-r from-purple-50 to-white pb-2">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Download className="h-5 w-5 text-purple-600" />
-                    Generate Invitations
-                  </CardTitle>
-                  <CardDescription>
-                    Create PDF invitations for {selectedMeeting?.year} meeting
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600">
-                      Generate personalized meeting invitations with unique check-in codes for all shareholders.
-                    </p>
-                    <Button
-                      onClick={handlePrintMailers}
-                      className="w-full bg-purple-600 hover:bg-purple-700 transition-colors"
-                      disabled={isPrinting || !selectedMeeting}
-                    >
-                      {isPrinting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating PDF...
-                        </>
-                      ) : (
-                        'Generate Invitations'
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            
 
             {/* Show Data Changes after mailers generated */}
             {showDataChanges && (
@@ -1137,6 +1118,12 @@ export default function AdminPage() {
         </div>
       )}
       
+      <Card className="border-0 shadow-none">
+        <CardContent className="p-0">
+          <ShareholdersList />
+        </CardContent>
+      </Card>
+        
           {/* Property Management Section */}
           <div className="space-y-6">
             <div className="flex items-center gap-2">

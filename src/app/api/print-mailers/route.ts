@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import bwip from "bwip-js";
 import { logToFile, LogLevel } from "@/utils/logger";
-import { db } from "@/lib/db";
-import { shareholders, properties } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { PDFDocument } from 'pdf-lib';
 import fs from 'fs/promises';
 import path from 'path';
+import { put } from '@vercel/blob';
 
 /**
  * Groups the left-joined rows by shareholderId.
@@ -64,90 +62,22 @@ function extractZipCode(cityStateZip: string | null | undefined): string {
   return zipMatch ? zipMatch[0] : '';
 }
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// Helper function to generate a batch PDF
+async function generateBatchPdf(batch: any[], batchNumber: number): Promise<{ fileName: string; pdfBytes: Uint8Array }> {
+  console.log(`\nStarting PDF generation for batch ${batchNumber} (${batch.length} shareholders)`);
 
-    await logToFile("mailers", "Starting PDF generation process", LogLevel.INFO);
+  const templatePath = path.join(process.cwd(), 'docs', 'Production1.pdf');
+  const templateBytes = await fs.readFile(templatePath);
+  const pdfDoc = await PDFDocument.create();
+  const templateDoc = await PDFDocument.load(templateBytes);
 
-    const contentType = request.headers.get("content-type");
-    await logToFile("mailers", "Validating request headers", LogLevel.INFO, {
-      hasContentType: !!contentType,
-      isJsonContentType: contentType?.toLowerCase().includes("application/json") || false,
-    });
-
-    if (!contentType) {
-      await logToFile("mailers", "Missing content type header", LogLevel.ERROR);
-      return NextResponse.json({ error: "Content-Type header is required" }, { status: 400 });
-    }
-
-    if (!contentType.toLowerCase().includes("application/json")) {
-      await logToFile("mailers", "Invalid content type", LogLevel.ERROR, {
-        receivedType: contentType,
-      });
-      return NextResponse.json(
-        { error: `Invalid content type. Expected application/json but got ${contentType}` },
-        { status: 400 },
-      );
-    }
-
-    const body = await request.json();
-    await logToFile("mailers", "Request body received", LogLevel.INFO, {
-      hasMeetingId: !!body.meetingId,
-      isStringMeetingId: typeof body.meetingId === "string",
-    });
-
-    const { meetingId } = body;
-    if (!meetingId || typeof meetingId !== "string") {
-      await logToFile("mailers", "Invalid or missing meetingId", LogLevel.ERROR);
-      return NextResponse.json({ error: "Invalid or missing meetingId" }, { status: 400 });
-    }
-
-    // Fetch raw joined rows from the database
-    const rawData = await db
-      .select()
-      .from(shareholders)
-      .leftJoin(properties, eq(shareholders.shareholderId, properties.shareholderId))
-      .where(eq(shareholders.meetingId, meetingId));
-
-    if (!rawData.length) {
-      await logToFile("mailers", "No shareholders found for the given meeting ID", LogLevel.ERROR);
-      return NextResponse.json({ error: "No shareholders found for the given meeting ID" }, { status: 404 });
-    }
-
-    await logToFile("mailers", "Database query completed", LogLevel.INFO, {
-      totalRows: rawData.length,
-    });
-
-    // Group rows by shareholderId
-    const groupedData = groupShareholdersById(rawData);
-    
-    // Sort shareholders by zip code
-    const sortedData = groupedData.sort((a, b) => {
-      const zipA = extractZipCode(a.properties[0]?.ownerCityStateZip);
-      const zipB = extractZipCode(b.properties[0]?.ownerCityStateZip);
-      return zipA.localeCompare(zipB);
-    });
-
-    await logToFile("mailers", "Grouped and sorted shareholder data", LogLevel.INFO, {
-      uniqueShareholderCount: sortedData.length
-    });
-
-    // Load the template PDF
-    const templatePath = path.join(process.cwd(), 'docs', 'Production1.pdf');
-    const templateBytes = await fs.readFile(templatePath);
-    const pdfDoc = await PDFDocument.create();
-    const templateDoc = await PDFDocument.load(templateBytes);
-
-    // Process each shareholder
-    for (const shareholder of sortedData) {
+  let processedCount = 0;
+  for (const shareholder of batch) {
+    try {
       const shareholderId = shareholder.shareholderId;
       const shareholderName = shareholder.name || '';
-      const mailingAddress = shareholder.properties[0]?.ownerMailingAddress || '';
-      const cityStateZip = shareholder.properties[0]?.ownerCityStateZip || '';
+      const mailingAddress = shareholder.ownerMailingAddress || '';
+      const cityStateZip = shareholder.ownerCityStateZip || '';
       const fullAddress = `${mailingAddress}\n${cityStateZip}`;
 
       // Generate barcode for the shareholder ID
@@ -170,9 +100,7 @@ export async function POST(request: Request) {
           );
         });
       } catch (error) {
-        await logToFile("mailers", "Error generating shareholder barcode", LogLevel.ERROR, {
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
-        });
+        console.error(`Error generating barcode for shareholder ${shareholderId}:`, error);
         continue;
       }
 
@@ -186,20 +114,19 @@ export async function POST(request: Request) {
       
       // Convert barcode buffer to PDF-compatible image
       const barcodeImage = await pdfDoc.embedPng(barcodeBuffer);
-      const barcodeDims = barcodeImage.scale(0.8); // Increased scale for larger barcode
+      const barcodeDims = barcodeImage.scale(0.8);
 
       // Position calculations for the page
       const { width, height } = page.getSize();
       
       // === NEW LAYOUT CONSTANTS ===
-      const leftMargin = 50; // 0.5 inch
-      const topMargin = 160; // 1 inch down from top
-      const addressBlockWidth = 220; // width for address block
-      const gap = 75; // space between address and barcode
+      const leftMargin = 50;
+      const topMargin = 160;
+      const addressBlockWidth = 220;
+      const gap = 75;
       
-      // Calculate text widths to determine if we need to scale down font size
-      const maxWidth = Math.min(250, width * 0.5); // Increased width for larger text
-      const defaultFontSize = 10; // Increased font size
+      const maxWidth = Math.min(250, width * 0.5);
+      const defaultFontSize = 10;
       let fontSize = defaultFontSize;
 
       // Function to draw wrapped text with left alignment
@@ -208,16 +135,15 @@ export async function POST(request: Request) {
         let line = '';
         let yOffset = 0;
         const actualFontSize = customFontSize || fontSize;
-        const lineHeight = actualFontSize * 1.3; // Increased line height for better readability
+        const lineHeight = actualFontSize * 1.3;
 
         for (const word of words) {
           const testLine = line + (line ? ' ' : '') + word;
-          const textWidth = actualFontSize * (testLine.length * 0.6); // Approximate width
+          const textWidth = actualFontSize * (testLine.length * 0.6);
 
           if (textWidth > maxWidth && line !== '') {
-            // Draw the line - left aligned
             page.drawText(line, {
-              x: leftMargin, // Left align text with barcode
+              x: leftMargin,
               y: yPosition - yOffset,
               size: actualFontSize,
               lineHeight: lineHeight,
@@ -230,10 +156,9 @@ export async function POST(request: Request) {
           }
         }
 
-        // Draw the last line
         if (line) {
           page.drawText(line, {
-            x: leftMargin, // Left align text with barcode
+            x: leftMargin,
             y: yPosition - yOffset,
             size: actualFontSize,
             lineHeight: lineHeight,
@@ -241,10 +166,10 @@ export async function POST(request: Request) {
           });
         }
 
-        return yOffset + lineHeight; // Return total height used
+        return yOffset + lineHeight;
       };
 
-      // === ADDRESS BLOCK (top left, a bit down) ===
+      // === ADDRESS BLOCK ===
       let addressY = height - topMargin;
       let addressX = leftMargin;
       const mailingFontSize = 12;
@@ -259,55 +184,80 @@ export async function POST(request: Request) {
       // Draw city/state/zip
       drawWrappedText(cityStateZip, addressCurrentY, mailingFontSize);
 
-      // === BARCODE (to the right of address block, still on left half) ===
+      // === BARCODE ===
       const barcodeX = leftMargin + addressBlockWidth + gap;
-      const barcodeY = height - topMargin - (barcodeDims.height / 2) - 30; // vertically align with address block
+      const barcodeY = height - topMargin - (barcodeDims.height / 2) - 30;
       page.drawImage(barcodeImage, {
         x: barcodeX,
         y: barcodeY,
         width: barcodeDims.width,
         height: barcodeDims.height,
       });
+
+      processedCount++;
+      if (processedCount % 10 === 0) {
+        console.log(`Batch ${batchNumber} progress: ${processedCount}/${batch.length} (${Math.round((processedCount / batch.length) * 100)}%)`);
+      }
+    } catch (error) {
+      console.error(`Error processing shareholder ${shareholder.shareholderId} in batch ${batchNumber}:`, error);
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  const fileName = `mailers-batch-${batchNumber}.pdf`;
+  
+  console.log(`Completed batch ${batchNumber}: ${processedCount}/${batch.length} shareholders processed`);
+
+  return { fileName, pdfBytes };
+}
+
+export async function POST(request: Request) {
+  try {
+    console.log('Starting print-mailers batch request...');
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      console.log('Unauthorized: No session found');
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await logToFile("mailers", "Starting PDF generation", LogLevel.INFO);
-    const pdfBytes = await pdfDoc.save();
-    await logToFile("mailers", "PDF generation complete", LogLevel.INFO, {
-      pdfSizeBytes: pdfBytes.byteLength
-    });
+    const contentType = request.headers.get("content-type");
+    if (!contentType || !contentType.toLowerCase().includes("application/json")) {
+      return NextResponse.json({ error: "Content-Type header is required and must be application/json" }, { status: 400 });
+    }
 
-    return new Response(pdfBytes, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="shareholder-mailers.pdf"',
-        "Cache-Control": "no-store",
-      },
+    const body = await request.json();
+    const { meetingId, batchNumber, batch } = body;
+    if (!meetingId || typeof meetingId !== "string" || !Array.isArray(batch) || typeof batchNumber !== "number") {
+      return NextResponse.json({ error: "Invalid or missing meetingId, batchNumber, or batch" }, { status: 400 });
+    }
+
+    // Generate the PDF for this batch
+    const { fileName, pdfBytes } = await generateBatchPdf(batch, batchNumber);
+    console.log(`Generated ${fileName} (${(pdfBytes.length / (1024 * 1024)).toFixed(2)} MB)`);
+
+    // Convert Uint8Array to Buffer for Vercel Blob
+    const buffer = Buffer.from(pdfBytes);
+    console.log('Converted PDF to Buffer, size:', buffer.length);
+
+    // Upload to Vercel Blob
+    const blobPath = `mailers/${meetingId}/${fileName}`;
+    console.log('Preparing to upload to Vercel Blob:', blobPath);
+    const blob = await put(blobPath, buffer, {
+      access: 'public',
+      contentType: 'application/pdf',
+    });
+    console.log('Successfully uploaded to Vercel Blob:', blob.url);
+
+    return NextResponse.json({
+      success: true,
+      fileName,
+      url: blob.url,
+      size: pdfBytes.length,
     });
   } catch (error) {
-    await logToFile("mailers", "Error generating mailers", LogLevel.ERROR, {
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
-      errorType: error instanceof Error ? error.name : "Unknown type",
-      errorStack: error instanceof Error ? error.stack : undefined,
-      // Add more detailed error info
-      templatePath: path.join(process.cwd(), 'docs', 'Production1.pdf'),
-      errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error))
-    });
-
-    // Send more detailed error information in development
-    const errorMessage = process.env.NODE_ENV === 'development' 
-      ? `Failed to generate mailers: ${error instanceof Error ? error.message : 'Unknown error'}`
-      : 'Failed to generate mailers';
-
+    console.error('Error in print-mailers batch route:', error);
     return NextResponse.json(
-      { 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? {
-          type: error instanceof Error ? error.name : 'Unknown',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        } : undefined
-      },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 },
     );
   }

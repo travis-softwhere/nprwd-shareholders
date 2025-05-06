@@ -19,27 +19,27 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 
 interface ShareholderListProps {
-    initialShareholders: Shareholder[]
-    totalShareholders: number
-    currentPage: number
-    itemsPerPage: number
+    initialShareholders?: Shareholder[]
+    totalShareholders?: number
 }
 
 type SortField = "totalProperties" | "name" | "shareholderId"
 type SortOrder = "asc" | "desc"
 
 const ShareholderList: React.FC<ShareholderListProps> = ({
-    initialShareholders,
-    totalShareholders,
-    currentPage = 1,
-    itemsPerPage = 25,
+    initialShareholders = [],
+    totalShareholders: initialTotal = 0,
 }) => {
     const { data: session, status } = useSession()
     const router = useRouter()
 
+    // Internal state management
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(25)
     const [shareholders, setShareholders] = useState<Shareholder[]>(
         initialShareholders.map(sh => ({ ...sh, isNew: sh.isNew ?? false }))
     )
+    const [totalShareholders, setTotalShareholders] = useState(initialTotal)
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("shareholderId")
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
@@ -61,10 +61,8 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 console.log("Data for 438342:", targetShareholder);
                 // --- END DEBUG LOG ---
 
-                // Ensure fetched shareholders have isNew defaulted
                 setShareholders(newShareholders.map(sh => ({ ...sh, isNew: sh.isNew ?? false })))
-                // It's generally better to update total count based on fetch result if API provides it
-                // setTotalShareholders(fetchedTotal); // Uncomment if you adjust props/state for total
+                setTotalShareholders(fetchedTotal)
             } catch (error) {
                 toast({
                     title: "Error",
@@ -164,6 +162,15 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             return "bg-gray-100 text-gray-800";
         }
     };
+
+    const handlePageChange = (newPage: number) => {
+        setCurrentPage(newPage)
+    }
+
+    const handleItemsPerPageChange = (newItemsPerPage: number) => {
+        setItemsPerPage(newItemsPerPage)
+        setCurrentPage(1) // Reset to first page when changing items per page
+    }
 
     return (
         <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-4 md:p-6 mb-20 md:mb-6">
@@ -395,7 +402,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/shareholders?page=${currentPage - 1}&itemsPerPage=${itemsPerPage}`)}
+                        onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1 || isLoading}
                         className="gap-1"
                     >
@@ -405,7 +412,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/shareholders?page=${currentPage + 1}&itemsPerPage=${itemsPerPage}`)}
+                        onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages || isLoading}
                         className="gap-1"
                     >
@@ -419,7 +426,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     </span>
                     <select
                         value={itemsPerPage}
-                        onChange={(e) => router.push(`/shareholders?page=1&itemsPerPage=${e.target.value}`)}
+                        onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
                         className="px-3 py-1 border border-gray-300 rounded-md text-sm"
                         disabled={isLoading}
                     >

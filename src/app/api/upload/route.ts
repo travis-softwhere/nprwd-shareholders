@@ -62,7 +62,6 @@ export async function POST(request: Request) {
                 )
             )
 
-            console.log('Records: ', records)
         } catch (error) {
             throw new Error(`Failed to parse CSV: ${error}`)
         }
@@ -85,7 +84,7 @@ export async function POST(request: Request) {
 
         // Process records
         const uniqueShareholders = new Map()
-        const batchSize = 50
+        const batchSize = 500
         let processedCount = 0
 
         try {
