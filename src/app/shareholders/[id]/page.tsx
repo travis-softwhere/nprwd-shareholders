@@ -88,7 +88,7 @@ export default async function ShareholderPage({
                   <TableRow>
                     <TableHead>Account</TableHead>
                     <TableHead>Service Address</TableHead>
-                    <TableHead>Resident Name</TableHead>
+                    <TableHead>Benefit Unit Owner</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -99,7 +99,7 @@ export default async function ShareholderPage({
                         {property.account}
                       </TableCell>
                       <TableCell>{property.serviceAddress}</TableCell>
-                      <TableCell>{property.residentName}</TableCell>
+                      <TableCell>{property.ownerName}</TableCell>
                       <TableCell>
                         <Badge
                           variant={
