@@ -19,7 +19,7 @@ import { GeneratedPDFsList } from "@/components/GeneratedPDFsList"
 
 // --- CheckinStatusDashboard Component --- 
 const COLORS = ["#22c55e", "#ef4444"];
-const BATCH_SIZE = 130;
+const BATCH_SIZE = 50;
 
 function extractZipCode(cityStateZip: string | undefined): string {
   if (!cityStateZip) return '';
