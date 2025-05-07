@@ -84,64 +84,53 @@ export async function POST(request: Request) {
 
         // Process records
         const uniqueShareholders = new Map()
-        const batchSize = 500
-        let processedCount = 0
+        const shareholderValues = []
+        const propertyValues = []
 
-        try {
-            while (processedCount < records.length) {
-                const batch = records.slice(processedCount, processedCount + batchSize)
-                const shareholderValues = []
-                const propertyValues = []
+        for (const record of records) {
+            // Normalize and combine both fields for the key
+            const ownerMailingAddress = (record["owner_mailing_address"] || "").trim().toUpperCase();
+            const ownerCityStateZip = (record["owner_city_state_zip"] || "").trim().toUpperCase();
+            const ownerKey = `${ownerMailingAddress}|${ownerCityStateZip}`;
 
-                for (const record of batch) {
-                    const ownerKey = [
-                        record.owner_mailing_address?.trim() || "",
-                        record.owner_city_state_zip?.trim() || ""
-                      ].join("|")
-                      
-                    let shareholderId = uniqueShareholders.get(ownerKey)
+            let shareholderId = uniqueShareholders.get(ownerKey);
 
-                    if (!shareholderId) {
-                        shareholderId = generateRandomId()
-                        uniqueShareholders.set(ownerKey, shareholderId)
-                        shareholderValues.push({
-                            name: record.owner_name?.trim() || "Unknown",
-                            meetingId,
-                            shareholderId,
-                            ownerMailingAddress: record.owner_mailing_address || "",
-                            ownerCityStateZip: record.owner_city_state_zip || "",
-                        })
-                    }
-
-                    propertyValues.push({
-                        account: record.account || "",
-                        shareholderId,
-                        numOf: record.num_of || "",
-                        customerName: record.customer_name || "",
-                        customerMailingAddress: record.customer_mailing_address || "",
-                        cityStateZip: record.city_state_zip || "",
-                        ownerName: record.owner_name || "",
-                        ownerMailingAddress: record.owner_mailing_address || "",
-                        ownerCityStateZip: record.owner_city_state_zip || "",
-                        residentName: record.resident_name || "",
-                        residentMailingAddress: record.resident_mailing_address || "",
-                        residentCityStateZip: record.resident_city_state_zip || "",
-                        serviceAddress: record.service_address || "",
-                    })
-                }
-
-                if (shareholderValues.length > 0) {
-                    await db.insert(shareholders).values(shareholderValues).onConflictDoNothing()
-                }
-
-                if (propertyValues.length > 0) {
-                    await db.insert(properties).values(propertyValues)
-                }
-
-                processedCount += batch.length
+            if (!shareholderId) {
+                shareholderId = generateRandomId();
+                uniqueShareholders.set(ownerKey, shareholderId);
+                shareholderValues.push({
+                    name: (record["owner_name"] || "Unknown").trim(),
+                    meetingId,
+                    shareholderId,
+                    ownerMailingAddress: (record["owner_mailing_address"] || "").trim(),
+                    ownerCityStateZip: (record["owner_city_state_zip"] || "").trim(),
+                });
             }
-        } catch (error) {
-            throw new Error(`Failed to process records: ${error}`)
+
+            propertyValues.push({
+                account: record["account"] || "",
+                shareholderId,
+                numOf: record.num_of || "",
+                customerName: record.customer_name || "",
+                customerMailingAddress: record.customer_mailing_address || "",
+                cityStateZip: record.city_state_zip || "",
+                ownerName: record.owner_name || "",
+                ownerMailingAddress: (record["owner_mailing_address"] || "").trim(),
+                ownerCityStateZip: (record["owner_city_state_zip"] || "").trim(),
+                residentName: record.resident_name || "",
+                residentMailingAddress: record.resident_mailing_address || "",
+                residentCityStateZip: record.resident_city_state_zip || "",
+                serviceAddress: record["service_address"] || "",
+            });
+        }
+
+        // Now insert everything at once
+        if (shareholderValues.length > 0) {
+            await db.insert(shareholders).values(shareholderValues).onConflictDoNothing()
+        }
+
+        if (propertyValues.length > 0) {
+            await db.insert(properties).values(propertyValues)
         }
 
         // Update meeting statistics

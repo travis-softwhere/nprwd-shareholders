@@ -11,7 +11,7 @@ import { logToFile, LogLevel } from "@/utils/logger"
 import { desc } from "drizzle-orm"
 import { sql } from "drizzle-orm"
 import { properties } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 
 
 export interface Property {
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
         // Get all properties for these shareholders
         const allShareholderIds = allShareholders.map(s => s.shareholderId);
         const allProperties = allShareholderIds.length
-            ? await db.select().from(properties).where(sql`${properties.shareholderId} in (${allShareholderIds.map(id => `'${id}'`).join(',')})`)
+            ? await db.select().from(properties).where(inArray(properties.shareholderId, allShareholderIds))
             : [];
 
         // Group properties by shareholderId

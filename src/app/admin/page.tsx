@@ -1444,7 +1444,9 @@ export default function AdminPage() {
                         {properties.filter(property => {
                           const query = existingPropertySearchQuery.toLowerCase();
                           return property.serviceAddress?.toLowerCase().includes(query) || 
-                                property.ownerName?.toLowerCase().includes(query);
+                                property.ownerName?.toLowerCase().includes(query) ||
+                                property.ownerMailingAddress?.toLowerCase().includes(query) ||
+                                property.ownerCityStateZip?.toLowerCase().includes(query);
                         }).length === 0 && (
                           <div className="p-4 text-center text-gray-500">
                             <p>No properties found matching your search</p>
