@@ -87,16 +87,19 @@ export async function POST(request: Request) {
         const shareholderValues = []
         const propertyValues = []
 
+        let nextId = 100000;
+
         for (const record of records) {
             // Normalize and combine both fields for the key
             const ownerMailingAddress = (record["owner_mailing_address"] || "").trim().toUpperCase();
             const ownerCityStateZip = (record["owner_city_state_zip"] || "").trim().toUpperCase();
-            const ownerKey = `${ownerMailingAddress}|${ownerCityStateZip}`;
+            const mailerId = (record["mailer_id"] || "").trim().toUpperCase();
+            const ownerKey = `${ownerMailingAddress}|${ownerCityStateZip}|${mailerId}`;
 
             let shareholderId = uniqueShareholders.get(ownerKey);
 
             if (!shareholderId) {
-                shareholderId = generateRandomId();
+                shareholderId = (nextId++).toString();
                 uniqueShareholders.set(ownerKey, shareholderId);
                 shareholderValues.push({
                     name: (record["owner_name"] || "Unknown").trim(),
