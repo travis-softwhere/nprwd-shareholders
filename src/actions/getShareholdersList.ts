@@ -17,6 +17,8 @@ export async function getShareholdersList(
                 id: shareholdersTable.id,
                 name: shareholdersTable.name,
                 shareholderId: shareholdersTable.shareholderId,
+                ownerMailingAddress: shareholdersTable.ownerMailingAddress,
+                ownerCityStateZip: shareholdersTable.ownerCityStateZip,
                 isNew: shareholdersTable.isNew,
                 totalProperties: sql<number>`count(${shareholdersTable.id})`.mapWith(Number),
                 checkedInProperties: sql<number>`count(case when properties.checked_in then 1 else null end)`.mapWith(Number)

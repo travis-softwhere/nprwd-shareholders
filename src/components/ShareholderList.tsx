@@ -34,35 +34,32 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const router = useRouter()
 
     // Internal state management
+    const [allShareholders, setAllShareholders] = useState<Shareholder[]>([])
+    const [isLoading, setIsLoading] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(25)
-    const [shareholders, setShareholders] = useState<Shareholder[]>(
-        initialShareholders.map(sh => ({ ...sh, isNew: sh.isNew ?? false }))
-    )
-    const [totalShareholders, setTotalShareholders] = useState(initialTotal)
     const [searchTerm, setSearchTerm] = useState("")
     const [sortField, setSortField] = useState<SortField>("shareholderId")
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
     const [propertyFilter, setPropertyFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [isFilterOpen, setIsFilterOpen] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
 
+    // Fetch all shareholders on mount
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchAllShareholders = async () => {
+            setIsLoading(true)
             try {
-                setIsLoading(true)
-                const { shareholders: newShareholders, totalShareholders: fetchedTotal } = await getShareholdersList(currentPage, itemsPerPage)
-                
-                // --- DEBUG LOG --- 
-                console.log("Fetched Shareholders Data:", newShareholders);
-                // Check a specific record if possible:
-                const targetShareholder = newShareholders.find(sh => sh.shareholderId === '438342'); // ID for AIMERY BARRAULT
-                console.log("Data for 438342:", targetShareholder);
-                // --- END DEBUG LOG ---
-
-                setShareholders(newShareholders.map(sh => ({ ...sh, isNew: sh.isNew ?? false })))
-                setTotalShareholders(fetchedTotal)
+                const res = await fetch("/api/shareholders")
+                const data = await res.json()
+                const processedShareholders = (data.shareholders || []).map((sh: any) => ({
+                    ...sh,
+                    totalProperties: sh.properties ? sh.properties.length : 0,
+                    checkedInProperties: sh.properties
+                        ? sh.properties.filter((p: any) => p.checkedIn).length
+                        : 0,
+                }))
+                setAllShareholders(processedShareholders)
             } catch (error) {
                 toast({
                     title: "Error",
@@ -73,18 +70,19 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 setIsLoading(false)
             }
         }
+        fetchAllShareholders()
+    }, [])
 
-        fetchData()
-    }, [currentPage, itemsPerPage])
-
-    const filteredAndSortedShareholders = useMemo(() => {
-        return shareholders
+    const filteredShareholders = useMemo(() => {
+        return allShareholders
             .filter((shareholder) => {
                 if (!shareholder) return false
 
                 const matchesSearch =
                     shareholder.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    shareholder.shareholderId.toLowerCase().includes(searchTerm.toLowerCase())
+                    shareholder.shareholderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (shareholder.ownerMailingAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+                    (shareholder.ownerCityStateZip?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
 
                 const matchesPropertyFilter =
                     propertyFilter === "all"
@@ -130,7 +128,14 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                             ? 1
                             : 0
             })
-    }, [shareholders, searchTerm, sortField, sortOrder, propertyFilter, statusFilter])
+    }, [allShareholders, searchTerm, sortField, sortOrder, propertyFilter, statusFilter])
+
+    const totalShareholders = filteredShareholders.length
+    const totalPages = Math.ceil(totalShareholders / itemsPerPage)
+    const paginatedShareholders = filteredShareholders.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    )
 
     if (status === "loading") {
         return (
@@ -147,8 +152,6 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         router.push(`/shareholders/${shareholderId}`)
     }
 
-    const totalPages = Math.ceil(totalShareholders / itemsPerPage)
-    
     // Function to get status badge color
     const getStatusBadge = (checkedIn: number, total: number) => {
         const isFullyCheckedIn = checkedIn === total;
@@ -179,6 +182,9 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <Users className="h-6 w-6 text-blue-500" />
                     Benefit Unit Owner List
                 </h2>
+                <div>
+                    <span>Total Shareholders: {allShareholders.length}</span>
+                </div>
                 <div className="relative flex w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                         <Input
@@ -254,7 +260,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 </div>
             </div>
             
-            {filteredAndSortedShareholders.length === 0 && !isLoading ? (
+            {paginatedShareholders.length === 0 && !isLoading ? (
                 <div className="text-center py-12 px-4 bg-gray-50 rounded-lg border border-gray-200">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900">No shareholders found</h3>
@@ -274,6 +280,9 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Name
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Owner Address
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Total Properties
@@ -306,7 +315,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                         </tr>
                                     ))
                                 ) : (
-                                    filteredAndSortedShareholders.map((shareholder) => (
+                                    paginatedShareholders.map((shareholder) => (
                                         <tr
                                             key={shareholder.shareholderId}
                                             className={cn(
@@ -317,6 +326,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.shareholderId}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{shareholder.name}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.ownerMailingAddress + ", " + shareholder.ownerCityStateZip}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.totalProperties}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(shareholder.checkedInProperties, shareholder.totalProperties)}`}>
@@ -358,7 +368,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                 </Card>
                             ))
                         ) : (
-                            filteredAndSortedShareholders.map((shareholder) => (
+                            paginatedShareholders.map((shareholder) => (
                                 <Card 
                                     key={shareholder.shareholderId}
                                     className={cn(
