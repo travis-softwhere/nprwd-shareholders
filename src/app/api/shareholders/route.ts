@@ -10,6 +10,8 @@ import { meetings } from "@/lib/db/schema"
 import { logToFile, LogLevel } from "@/utils/logger"
 import { desc } from "drizzle-orm"
 import { sql } from "drizzle-orm"
+import { properties } from "@/lib/db/schema"
+import { eq } from "drizzle-orm"
 
 
 export interface Property {
@@ -85,9 +87,10 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
         
-        // Parse shareholderId from query params
+        // Parse shareholderId and meetingId from query params
         const url = new URL(request.url);
         const shareholderId = url.searchParams.get("shareholderId");
+        const meetingId = url.searchParams.get("meetingId");
         
         if (shareholderId) {
             // Get the specific shareholder from the database
@@ -95,11 +98,38 @@ export async function GET(request: Request) {
             if (result.length === 0) {
                 return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
             }
-            return NextResponse.json({ shareholder: result[0] });
+            // Also fetch properties for this shareholder
+            const props = await db.select().from(properties).where(eq(properties.shareholderId, shareholderId));
+            return NextResponse.json({ shareholder: { ...result[0], properties: props } });
         }
-        // Get all shareholders from the database
-        const allShareholders = await db.select().from(shareholders);
-        return NextResponse.json({ shareholders: allShareholders })
+        // Get all shareholders from the database, optionally filter by meetingId
+        let allShareholders;
+        if (meetingId) {
+            allShareholders = await db.select().from(shareholders).where(sql`${shareholders.meetingId} = ${meetingId}`);
+        } else {
+            allShareholders = await db.select().from(shareholders);
+        }
+
+        // Get all properties for these shareholders
+        const allShareholderIds = allShareholders.map(s => s.shareholderId);
+        const allProperties = allShareholderIds.length
+            ? await db.select().from(properties).where(sql`${properties.shareholderId} in (${allShareholderIds.map(id => `'${id}'`).join(',')})`)
+            : [];
+
+        // Group properties by shareholderId
+        const propMap = new Map();
+        for (const prop of allProperties) {
+            if (!propMap.has(prop.shareholderId)) propMap.set(prop.shareholderId, []);
+            propMap.get(prop.shareholderId).push(prop);
+        }
+
+        // Attach properties array to each shareholder
+        const result = allShareholders.map(s => ({
+            ...s,
+            properties: propMap.get(s.shareholderId) || []
+        }));
+
+        return NextResponse.json({ shareholders: result })
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch shareholders" }, { status: 500 })
     }
