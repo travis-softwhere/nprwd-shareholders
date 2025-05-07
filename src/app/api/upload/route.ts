@@ -124,13 +124,55 @@ export async function POST(request: Request) {
             });
         }
 
-        // Now insert everything at once
+        // Now insert everything at once, with batching and progress logs
+        const BATCH_SIZE = 100;
+
+        // Shareholder batch insert with progress logs
         if (shareholderValues.length > 0) {
-            await db.insert(shareholders).values(shareholderValues).onConflictDoNothing()
+            try {
+                for (let i = 0; i < shareholderValues.length; i += BATCH_SIZE) {
+                    const batch = shareholderValues.slice(i, i + BATCH_SIZE);
+                    console.log(`Inserting shareholder batch ${i + 1} to ${i + batch.length} of ${shareholderValues.length}`);
+                    await db.insert(shareholders).values(batch).onConflictDoNothing();
+                }
+            } catch (error) {
+                // Try to find the problematic record
+                for (let i = 0; i < shareholderValues.length; i++) {
+                    try {
+                        await db.insert(shareholders).values([shareholderValues[i]]).onConflictDoNothing();
+                    } catch (indivError) {
+                        console.error(`Shareholder insert failed at index ${i}:`, shareholderValues[i]);
+                        throw new Error(
+                          `Shareholder insert failed at index ${i}: ${JSON.stringify(shareholderValues[i])} - ${indivError instanceof Error ? indivError.message : indivError}`
+                        );
+                    }
+                }
+                throw error;
+            }
         }
 
+        // Property batch insert with progress logs
         if (propertyValues.length > 0) {
-            await db.insert(properties).values(propertyValues)
+            try {
+                for (let i = 0; i < propertyValues.length; i += BATCH_SIZE) {
+                    const batch = propertyValues.slice(i, i + BATCH_SIZE);
+                    console.log(`Inserting property batch ${i + 1} to ${i + batch.length} of ${propertyValues.length}`);
+                    await db.insert(properties).values(batch);
+                }
+            } catch (error) {
+                // Try to find the problematic record
+                for (let i = 0; i < propertyValues.length; i++) {
+                    try {
+                        await db.insert(properties).values([propertyValues[i]]);
+                    } catch (indivError) {
+                        console.error(`Property insert failed at index ${i}:`, propertyValues[i]);
+                        throw new Error(
+                          `Property insert failed at index ${i}: ${JSON.stringify(propertyValues[i])} - ${indivError instanceof Error ? indivError.message : indivError}`
+                        );
+                    }
+                }
+                throw error;
+            }
         }
 
         // Update meeting statistics
