@@ -108,6 +108,8 @@ export async function POST(request: Request) {
                             name: record.owner_name?.trim() || "Unknown",
                             meetingId,
                             shareholderId,
+                            ownerMailingAddress: record.owner_mailing_address || "",
+                            ownerCityStateZip: record.owner_city_state_zip || "",
                         })
                     }
 

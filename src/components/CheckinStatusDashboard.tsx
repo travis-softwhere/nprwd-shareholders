@@ -19,7 +19,13 @@ import { GeneratedPDFsList } from "@/components/GeneratedPDFsList"
 
 // --- CheckinStatusDashboard Component --- 
 const COLORS = ["#22c55e", "#ef4444"];
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 130;
+
+function extractZipCode(cityStateZip: string | undefined): string {
+  if (!cityStateZip) return '';
+  const match = cityStateZip.match(/\d{5}(?:-\d{4})?$/);
+  return match ? match[0] : '';
+}
 
 export function CheckinStatusDashboard() {
   const { data: session } = useSession();
@@ -108,16 +114,34 @@ export function CheckinStatusDashboard() {
       const allShareholders = shareholdersData.shareholders;
       if (!Array.isArray(allShareholders) || allShareholders.length === 0) throw new Error("No shareholders found");
 
+      // Sort allShareholders by ZIP code before batching
+      allShareholders.sort((a, b) => {
+        const zipA = extractZipCode(a.ownerCityStateZip || a.cityStateZip || '');
+        const zipB = extractZipCode(b.ownerCityStateZip || b.cityStateZip || '');
+        return zipA.localeCompare(zipB);
+      });
+
       // Split into batches
       const totalBatchesCalc = Math.ceil(allShareholders.length / BATCH_SIZE);
       setTotalBatches(totalBatchesCalc);
       for (let i = 0; i < allShareholders.length; i += BATCH_SIZE) {
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
         setCurrentBatchNumber(batchNumber);
-        const batch = allShareholders.slice(i, i + BATCH_SIZE);
-        setCurrentBatchShareholderCount(batch.length);
+        const rawBatch = allShareholders.slice(i, i + BATCH_SIZE);
+        setCurrentBatchShareholderCount(rawBatch.length);
         setCurrentBatchStatus('Generating PDF...');
         setMailerProgress(Math.round((batchNumber - 1) / totalBatchesCalc * 95));
+
+        // Ensure each shareholder has ownerMailingAddress and ownerCityStateZip from properties[0]
+        const batch = rawBatch.map(sh => ({
+          ...sh,
+          ownerMailingAddress: sh.ownerMailingAddress || '',
+          ownerCityStateZip: sh.ownerCityStateZip || '',
+        }));
+
+        
+        console.log('Batch: ', batch)
+
         // POST to /api/print-mailers
         const res = await fetch("/api/print-mailers", {
           method: "POST",

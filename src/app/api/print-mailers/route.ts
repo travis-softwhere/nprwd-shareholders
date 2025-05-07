@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import bwip from "bwip-js";
-import { logToFile, LogLevel } from "@/utils/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { PDFDocument } from 'pdf-lib';
@@ -8,59 +7,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import { put } from '@vercel/blob';
 
-/**
- * Groups the left-joined rows by shareholderId.
- */
-function groupShareholdersById(rows: {
-  shareholders: {
-    shareholderId: string;
-    name: string | null;
-  } | null;
-  properties: {
-    account?: string | null;
-    ownerMailingAddress?: string | null;
-    ownerCityStateZip?: string | null;
-  } | null;
-}[]) {
-  const map: Record<string, {
-    shareholderId: string;
-    name: string | null;
-    properties: {
-      account?: string | null;
-      ownerMailingAddress?: string | null;
-      ownerCityStateZip?: string | null;
-    }[];
-  }> = {};
-
-  for (const row of rows) {
-    if (!row.shareholders) continue;
-    const { shareholderId, name } = row.shareholders;
-    if (!map[shareholderId]) {
-      map[shareholderId] = {
-        shareholderId,
-        name,
-        properties: [],
-      };
-    }
-    if (row.properties) {
-      map[shareholderId].properties.push(row.properties);
-    }
-  }
-
-  return Object.values(map);
-}
-
-/**
- * Extracts the zip code from a city, state, zip string
- * Assumes format like "City, State ZIP" or "City, State ZIP-XXXX"
- */
-function extractZipCode(cityStateZip: string | null | undefined): string {
-  if (!cityStateZip) return '';
-  
-  // Match the last sequence of digits in the string
-  const zipMatch = cityStateZip.match(/\d{5}(?:-\d{4})?$/);
-  return zipMatch ? zipMatch[0] : '';
-}
 
 // Helper function to generate a batch PDF
 async function generateBatchPdf(batch: any[], batchNumber: number): Promise<{ fileName: string; pdfBytes: Uint8Array }> {
@@ -178,9 +124,13 @@ async function generateBatchPdf(batch: any[], batchNumber: number): Promise<{ fi
       // Draw name
       const nameHeight = drawWrappedText(shareholder.name || '', addressCurrentY, mailingFontSize);
       addressCurrentY -= nameHeight + 6;
+      console.log('Mailing Address: ', mailingAddress)
+
       // Draw address
       const addressHeight = drawWrappedText(mailingAddress, addressCurrentY, mailingFontSize);
       addressCurrentY -= addressHeight + 6;
+      console.log('City/State/Zip: ', cityStateZip)
+
       // Draw city/state/zip
       drawWrappedText(cityStateZip, addressCurrentY, mailingFontSize);
 
