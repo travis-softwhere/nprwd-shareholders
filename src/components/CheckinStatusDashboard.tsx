@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useMeeting } from "@/contexts/MeetingContext";
 import { useToast } from "@/components/ui/use-toast";
 import { getMeetingStats } from "@/actions/getMeetingStats";
-import { Calendar, CheckCircle, Download, Loader2, RefreshCw } from "lucide-react";
+import { Calendar, CheckCircle, Download, Loader2, RefreshCw, Computer } from "lucide-react";
 import {
   Card, CardHeader, CardTitle, CardDescription, CardContent
 } from "@/components/ui/card";
@@ -87,6 +87,13 @@ export function CheckinStatusDashboard() {
   const [currentBatchStatus, setCurrentBatchStatus] = useState('');
   const [currentBatchShareholderCount, setCurrentBatchShareholderCount] = useState(0);
 
+  const [isLocalMode, setIsLocalMode] = useState(false);
+
+  // Add effect to detect local mode
+  useEffect(() => {
+    setIsLocalMode(process.env.NODE_ENV === 'development');
+  }, []);
+
   const handleGenerateMailers = async () => {
     if (!selectedMeeting) return;
     setIsGenerating(true);
@@ -101,7 +108,8 @@ export function CheckinStatusDashboard() {
 
     try {
       // Clear all existing PDFs for this meeting first
-      await fetch("/api/generated-pdfs", {
+      const clearEndpoint = isLocalMode ? "/api/generate-local-pdfs" : "/api/generated-pdfs";
+      await fetch(clearEndpoint, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ meetingId: selectedMeeting.id })
@@ -139,11 +147,9 @@ export function CheckinStatusDashboard() {
           ownerCityStateZip: sh.ownerCityStateZip || '',
         }));
 
-        
-        console.log('Batch: ', batch)
-
-        // POST to /api/print-mailers
-        const res = await fetch("/api/print-mailers", {
+        // POST to appropriate endpoint based on mode
+        const endpoint = isLocalMode ? "/api/generate-local-pdfs" : "/api/print-mailers";
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ meetingId: selectedMeeting.id, batchNumber, batch })
@@ -162,7 +168,11 @@ export function CheckinStatusDashboard() {
       }
       setMailerProgress(100);
       setCurrentBatchStatus('All batches completed');
-      toast({ title: "Success", description: `All ${batches.length} mailer batches generated successfully`, variant: "default" });
+      toast({ 
+        title: "Success", 
+        description: `All ${batches.length} mailer batches generated successfully${isLocalMode ? ' (Local Mode)' : ''}`, 
+        variant: "default" 
+      });
     } catch (err: any) {
       errorOccurred = true;
       setCurrentBatchStatus('Error');
@@ -243,22 +253,30 @@ export function CheckinStatusDashboard() {
 
         {/* PDF Mailer Card */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0"> {/* Adjusted layout */}
-             <div className="flex items-center gap-2">
-                 <Download className="h-5 w-5 text-purple-600" /> {/* Sized icon */}
-                 <CardTitle className="text-sm font-medium">Invitations</CardTitle> {/* Adjusted size */}
-             </div>
-             {/* Optional: Add info icon/tooltip */}
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-sm font-medium">Invitations</CardTitle>
+            </div>
+            {isLocalMode && (
+              <div className="flex items-center gap-1 text-xs text-amber-600">
+                <Computer className="h-3 w-3" />
+                Local Mode
+              </div>
+            )}
           </CardHeader>
-          <CardContent className="pt-4"> {/* Adjusted padding */}
-            <p className="mb-3 text-xs text-gray-600"> {/* Adjusted text size/margin */}
-              Generate PDF invitations with unique check-in codes.
+          <CardContent className="pt-4">
+            <p className="mb-3 text-xs text-gray-600">
+              {isLocalMode 
+                ? "Generate PDF invitations locally (Development Mode)"
+                : "Generate PDF invitations with unique check-in codes"}
             </p>
-            <Button className="w-full" size="sm" onClick={handleGenerateMailers} disabled={isGenerating}> {/* Added size */}
-              {isGenerating ?
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generating...</> :
+            <Button className="w-full" size="sm" onClick={handleGenerateMailers} disabled={isGenerating}>
+              {isGenerating ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generating...</>
+              ) : (
                 <><Download className="mr-2 h-4 w-4"/>Generate Invitations</>
-              }
+              )}
             </Button>
           </CardContent>
 
