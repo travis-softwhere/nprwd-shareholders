@@ -13,7 +13,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import CheckInButton from "@/components/CheckInButton"
 import ManualCheckInButton from "@/components/ManualCheckInButton"
 
 // Update to use Promise type for params, matching Next.js expectations
@@ -86,7 +85,7 @@ export default async function ShareholderPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Account</TableHead>
+                    {/* <TableHead>Account</TableHead> */}
                     <TableHead>Service Address</TableHead>
                     <TableHead>Benefit Unit Owner</TableHead>
                     <TableHead>Status</TableHead>
@@ -95,9 +94,9 @@ export default async function ShareholderPage({
                 <TableBody>
                   {properties.map((property) => (
                     <TableRow key={property.id}>
-                      <TableCell className="font-mono">
+                      {/* <TableCell className="font-mono">
                         {property.account}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>{property.serviceAddress}</TableCell>
                       <TableCell>{property.ownerName}</TableCell>
                       <TableCell>

@@ -85,34 +85,35 @@ export async function getShareholderProperties(shareholderId: string): Promise<P
     return properties.filter((p) => p.shareholderId === shareholderId || p.account === shareholderId)
 }
 
-export async function updateCheckedInStatus(shareholderId: string, isCheckedIn: boolean): Promise<void> {
-    const filePath = path.join(process.cwd(), "public", "PropertyList.csv")
-    const fileContent = fs.readFileSync(filePath, "utf-8")
+// export async function updateCheckedInStatus(shareholderId: string, isCheckedIn: boolean): Promise<void> {
+//     console.log("Updating checked in status for shareholderId:", shareholderId, "to", isCheckedIn)
+//     const filePath = path.join(process.cwd(), "public", "PropertyList.csv")
+//     const fileContent = fs.readFileSync(filePath, "utf-8")
 
-    const records = parse(fileContent, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-    })
+//     const records = parse(fileContent, {
+//         columns: true,
+//         skip_empty_lines: true,
+//         trim: true,
+//     })
 
-    const updatedRecords = records.map((record: any) => {
-        if (record.account === shareholderId) {
-            return { ...record, checkedIn: isCheckedIn.toString() }
-        }
-        return record
-    })
+//     const updatedRecords = records.map((record: any) => {
+//         if (record.account === shareholderId) {
+//             return { ...record, checkedIn: isCheckedIn.toString() }
+//         }
+//         return record
+//     })
 
-    // Convert records back to CSV string
-    const header = Object.keys(updatedRecords[0]).join(",")
-    const rows = updatedRecords.map((record: any) =>
-        Object.values(record)
-            .map((value) => (typeof value === "string" && value.includes(",") ? `"${value}"` : value))
-            .join(","),
-    )
-    const updatedContent = [header, ...rows].join("\n")
+//     // Convert records back to CSV string
+//     const header = Object.keys(updatedRecords[0]).join(",")
+//     const rows = updatedRecords.map((record: any) =>
+//         Object.values(record)
+//             .map((value) => (typeof value === "string" && value.includes(",") ? `"${value}"` : value))
+//             .join(","),
+//     )
+//     const updatedContent = [header, ...rows].join("\n")
 
-    fs.writeFileSync(filePath, updatedContent, "utf-8")
-}
+//     fs.writeFileSync(filePath, updatedContent, "utf-8")
+// }
 
 export async function getShareholderIds(): Promise<string[]> {
     const { properties } = await getProperties(1, Number.MAX_SAFE_INTEGER)

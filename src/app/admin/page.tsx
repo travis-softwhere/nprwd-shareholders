@@ -15,6 +15,7 @@ import { useMeeting } from "@/contexts/MeetingContext";
 import { cn } from "@/lib/utils";
 import { UploadProgress } from "@/components/UploadProgress";
 import { PrintMailersButton } from "@/components/PrintMailersButton";
+import { BulkUncheckInButton } from "@/components/BulkUncheckInButton";
 import { DataChanges } from "@/components/DataChanges";
 import { getMeetings } from "@/actions/getMeetings";
 import { deleteMeeting } from "@/actions/manageMeetings";
@@ -981,14 +982,15 @@ export default function AdminPage() {
                     {/* Delete Meeting */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button
+                        <BulkUncheckInButton />
+                        {/* <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           className="ml-2 text-red-500 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button> */}
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>

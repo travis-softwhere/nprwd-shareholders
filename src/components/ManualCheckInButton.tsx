@@ -2,31 +2,73 @@
 
 import { useTransition } from "react"
 import { Button } from "@/components/ui/button"
-import { checkInShareholders } from "@/actions/checkInShareholders"
-import { undoCheckInShareholders } from "@/actions/undoCheckInShareholders"
 import { toast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
 
 export default function ManualCheckInButton({shareholderId, isFullyCheckedIn}: {shareholderId: string, isFullyCheckedIn: boolean}) {
     const [isPending, startTransition] = useTransition()
+    const router = useRouter()
 
     const handleCheckIn = () => {
         startTransition(async () => {
-            const result = await checkInShareholders(shareholderId)
-            if (result.success) {
-                toast({ title: "Success", description: result.message })
-            } else {
-                toast({ title: "Error", description: result.message, variant: "destructive" })
+            try {
+                const response = await fetch("/api/properties/manual-checkin", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        shareholderId,
+                        action: "checkin"
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to check in");
+                }
+
+                toast({ title: "Success", description: data.message });
+                router.refresh();
+            } catch (error) {
+                toast({ 
+                    title: "Error", 
+                    description: error instanceof Error ? error.message : "Failed to check in", 
+                    variant: "destructive" 
+                });
             }
         })
     }
 
     const handleUndoCheckIn = () => {
         startTransition(async () => {
-            const result = await undoCheckInShareholders(shareholderId)
-            if (result.success) {
-                toast({ title: "Success", description: result.message })
-            } else {
-                toast({ title: "Error", description: result.message, variant: "destructive" })
+            try {
+                const response = await fetch("/api/properties/manual-checkin", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        shareholderId,
+                        action: "undo"
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to undo check in");
+                }
+
+                toast({ title: "Success", description: data.message });
+                router.refresh();
+            } catch (error) {
+                toast({ 
+                    title: "Error", 
+                    description: error instanceof Error ? error.message : "Failed to undo check in", 
+                    variant: "destructive" 
+                });
             }
         })
     }
