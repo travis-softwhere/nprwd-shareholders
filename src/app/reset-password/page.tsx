@@ -60,8 +60,6 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
         setMessage(data.error || "Failed to reset password");
       } else {
         setMessage("Password changed successfully!");
-        console.log("Attempting to redirect to /auth/signin");
-        setTimeout(() => router.push("/auth/signin"), 2000);
       }
     } catch (error) {
       setMessage("An error occurred while resetting the password.");
@@ -189,6 +187,18 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
         {message && (
           <div className={`mt-4 p-4 rounded-md ${message.includes("successfully") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
             <p className="text-center">{message}</p>
+            {message.includes("successfully") && (
+              <div className="text-center mt-4">
+                <a
+                  href="https://aquashare.soft-where.com"
+                  className="inline-block px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Go to AquaShare Dashboard
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>
