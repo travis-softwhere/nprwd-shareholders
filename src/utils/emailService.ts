@@ -38,7 +38,7 @@ export async function sendResetEmail(to: string, token: string) {
         // This is a set-new-password token
         isNewPassword = true;
         const actualToken = token.replace('set-new-password:', '');
-        resetUrl = `${baseUrl}/set-new-password?token=${actualToken}`;
+        resetUrl = `${baseUrl}/reset-password?token=${actualToken}`;
     } else {
         // Regular reset password token
         resetUrl = `${baseUrl}/reset-password?token=${token}`;
