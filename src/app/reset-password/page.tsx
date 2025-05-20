@@ -59,8 +59,9 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
       if (!response.ok) {
         setMessage(data.error || "Failed to reset password");
       } else {
-        setMessage("Password reset successfully!");
-        setTimeout(() => router.push("/auth/signup"), 2000);
+        setMessage("Password changed successfully!");
+        console.log("Attempting to redirect to /auth/signin");
+        setTimeout(() => router.push("/auth/signin"), 2000);
       }
     } catch (error) {
       setMessage("An error occurred while resetting the password.");
@@ -94,10 +95,10 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
           <div className="p-4 bg-red-50 rounded-md text-red-700 text-center">
             <p>Invalid or expired token. Please request a new password reset link.</p>
             <button
-              onClick={() => router.push("/auth/signup")}
+              onClick={() => router.push("/auth/signin")}
               className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
-              Go to Sign Up
+              Go to Sign In
             </button>
           </div>
         ) : (
@@ -176,10 +177,10 @@ function SearchParamsComponent({ router }: { router: ReturnType<typeof useRouter
             
             <div className="text-center">
               <a 
-                href="/auth/signup" 
+                href="/auth/signin"
                 className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
               >
-                Need an account? Sign up
+                Back to Sign In
               </a>
             </div>
           </form>
