@@ -77,14 +77,36 @@ export async function GET(request: Request) {
         
         // Execute the query
         const propertyList = await db
-            .select()
+            .select({
+                id: properties.id,
+                account: properties.account,
+                shareholderId: properties.shareholderId,
+                numOf: properties.numOf,
+                customerName: properties.customerName,
+                customerMailingAddress: properties.customerMailingAddress,
+                cityStateZip: properties.cityStateZip,
+                ownerName: properties.ownerName,
+                ownerMailingAddress: properties.ownerMailingAddress,
+                ownerCityStateZip: properties.ownerCityStateZip,
+                residentName: properties.residentName,
+                residentMailingAddress: properties.residentMailingAddress,
+                residentCityStateZip: properties.residentCityStateZip,
+                serviceAddress: properties.serviceAddress,
+                checked_in: properties.checkedIn,
+                createdAt: properties.createdAt
+            })
             .from(properties)
             .where(whereConditions)
             .limit(parseInt(limit))
             .orderBy(desc(properties.id));
 
+        // Log the first few properties to check checked_in values
+        console.log("First few properties from DB:", propertyList.slice(0, 3));
+        console.log("Checked-in properties count:", propertyList.filter(p => p.checked_in).length);
+
         await logToFile("properties", "Properties fetched successfully", LogLevel.INFO, {
-            propertiesCount: propertyList.length
+            propertiesCount: propertyList.length,
+            checkedInCount: propertyList.filter(p => p.checked_in).length
         })
 
         return NextResponse.json(propertyList)

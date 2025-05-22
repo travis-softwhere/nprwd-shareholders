@@ -142,6 +142,15 @@ export default function AdminPage() {
   const [useShareholderForCustomer, setUseShareholderForCustomer] = useState(false)
   const [useShareholderForResident, setUseShareholderForResident] = useState(false)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   // Add refreshProperties function to reuse in multiple places
   const refreshProperties = async () => {
     try {
@@ -149,7 +158,7 @@ export default function AdminPage() {
       setSearchQuery("");
       
       // Fetch the latest properties
-      const propertiesResponse = await fetch("/api/properties?limit=1000");
+      const propertiesResponse = await fetch("/api/properties?limit=5000");
       if (propertiesResponse.ok) {
         const responseText = await propertiesResponse.text();
         if (responseText) {
@@ -176,26 +185,11 @@ export default function AdminPage() {
       try {
         setIsLoading(true);
         // Add a limit and include all properties
-        const response = await fetch("/api/properties?limit=1000");
+        const response = await fetch("/api/properties?limit=5000");
         if (!response.ok) throw new Error("Failed to fetch properties");
         const data = await response.json();
         setProperties(data);
-        
-        // Also update filtered properties based on current search
-        if (!searchQuery) {
-          setFilteredProperties(data);
-        } else {
-          const filtered = data.filter((property: Property) => {
-            const query = searchQuery.toLowerCase();
-            return (
-              property.account?.toLowerCase().includes(query) ||
-              property.ownerName?.toLowerCase().includes(query) ||
-              property.customerName?.toLowerCase().includes(query) ||
-              property.serviceAddress?.toLowerCase().includes(query)
-            );
-          });
-          setFilteredProperties(filtered);
-        }
+        setFilteredProperties(data); // Always set all properties initially
       } catch (error) {
         toast({
           title: "Error",
@@ -206,15 +200,12 @@ export default function AdminPage() {
         setIsLoading(false);
       }
     };
-    
     fetchProperties();
-  }, [searchQuery, toast]);
+  }, [toast]);
 
   // Filter properties based on search
   useEffect(() => {
-    // Skip if properties aren't loaded yet
-    if (properties.length === 0) return;
-    
+    if (!properties.length) return;
     if (!searchQuery) {
       setFilteredProperties(properties);
     } else {
@@ -227,10 +218,16 @@ export default function AdminPage() {
           property.serviceAddress?.toLowerCase().includes(query)
         );
       });
-      
       setFilteredProperties(filtered);
     }
   }, [properties, searchQuery]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
+  const paginatedProperties = filteredProperties.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Fetch shareholders
   useEffect(() => {
@@ -826,33 +823,38 @@ export default function AdminPage() {
             <div className="space-y-1">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Settings className="h-5 w-5 text-primary" />
-          Admin Dashboard
+                Admin Dashboard
               </h1>
+              
               <p className="text-sm text-gray-500">
                 Manage employees, meetings, and system settings
               </p>
             </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-              className="w-full sm:w-auto flex items-center justify-center gap-1" 
-            onClick={() => refreshMeetings()}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            {isLoading ? 'Loading...' : 'Refresh'}
-          </Button>
-      </div>
-      
-      {/* Render the new dashboard here */}
-      <CheckinStatusDashboard />
-      
-      {/* Employee Section */}
-      <div className="space-y-6">
-            <div className="bg-white rounded-lg border">
-          <EmployeeList refreshTrigger={employeeRefreshTrigger} />
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+                className="w-full sm:w-auto flex items-center justify-center gap-1" 
+              onClick={() => refreshMeetings()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Loading...' : 'Refresh'}
+            </Button>
         </div>
-      </div>
+        
+        <div className="w-full flex justify-center items-center">
+          <div className="max-w-6xl">
+            <CheckinStatusDashboard />
+          </div>
+        </div>
+
+        {/* Employee Section */}
+        <div className="space-y-6">
+              <div className="bg-white rounded-lg border">
+            <EmployeeList refreshTrigger={employeeRefreshTrigger} />
+          </div>
+        </div>
 
           {/* Cards Grid Section */}
           <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
@@ -909,7 +911,7 @@ export default function AdminPage() {
             </form>
           </CardContent>
         </Card>
-
+              
         {/* Shareholder Meetings Card */}
             <Card>
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
@@ -1157,39 +1159,63 @@ export default function AdminPage() {
                     <p>No properties found</p>
                   </div>
                 ) : (
-                  <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredProperties.map((property) => (
-                      <Card 
-                        key={property.id}
-                        className={cn(
-                          "overflow-hidden cursor-pointer transition-colors",
-                          property.shareholderId && newShareholderIds.has(property.shareholderId)
-                            ? "bg-yellow-50 border-yellow-300 hover:border-yellow-400"
-                            : "hover:border-primary bg-white border-gray-200"
-                        )}
-                        onClick={() => {
-                          setSelectedProperty(property);
-                          setShowDetails(true);
-                        }}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-medium text-gray-900">{property.serviceAddress}</h3>
-                              <p className="text-sm text-gray-500">{property.ownerName || property.customerName}</p>
-                              <p className="text-xs text-gray-400">Acct: {property.account}</p>
+                  <>
+                    <div className="mb-2 text-sm text-gray-600">
+                      Showing {filteredProperties.length} of {properties.length} properties
+                    </div>
+                    <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                      {paginatedProperties.map((property) => (
+                        <Card 
+                          key={property.id}
+                          className={cn(
+                            "overflow-hidden cursor-pointer transition-colors",
+                            property.shareholderId && newShareholderIds.has(property.shareholderId)
+                              ? "bg-yellow-50 border-yellow-300 hover:border-yellow-400"
+                              : "hover:border-primary bg-white border-gray-200"
+                          )}
+                          onClick={() => {
+                            setSelectedProperty(property);
+                            setShowDetails(true);
+                          }}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h3 className="font-medium text-gray-900">{property.serviceAddress}</h3>
+                                <p className="text-sm text-gray-500">{property.ownerName || property.customerName}</p>
+                                <p className="text-xs text-gray-400">Acct: {property.account}</p>
+                              </div>
+                              <Badge 
+                                variant={property.checkedIn ? "success" : "secondary"}
+                                className={property.checkedIn ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}
+                              >
+                                {property.checkedIn ? "Checked In" : "Not Checked In"}
+                              </Badge>
                             </div>
-                            <Badge 
-                              variant={property.checkedIn ? "success" : "secondary"}
-                              className={property.checkedIn ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}
-                            >
-                              {property.checkedIn ? "Checked In" : "Not Checked In"}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center mt-4">
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border rounded disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <span>
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border rounded disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1639,6 +1665,8 @@ export default function AdminPage() {
                     const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
                     
                     // Create the shareholder first
+                    console.log('New address for new shareholder: ', newShareholderData.ownerMailingAddress, newShareholderData.ownerCityStateZip)
+
                     const shareholderResponse = await fetch("/api/shareholders", {
                       method: "POST",
                       headers: {
@@ -1647,6 +1675,8 @@ export default function AdminPage() {
                       body: JSON.stringify({
                         name: newShareholderData.ownerName.trim().toUpperCase(),
                         shareholderId,
+                        ownerMailingAddress: newShareholderData.ownerMailingAddress,
+                        ownerCityStateZip: newShareholderData.ownerCityStateZip,
                       }),
                     });
                     

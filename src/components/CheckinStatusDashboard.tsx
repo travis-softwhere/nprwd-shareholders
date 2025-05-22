@@ -16,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import { GeneratedPDFsList } from "@/components/GeneratedPDFsList"
+import { AttendanceCard } from "@/components/AttendanceCard";
 
 // --- CheckinStatusDashboard Component --- 
 const COLORS = ["#22c55e", "#ef4444"];
@@ -198,43 +199,12 @@ export function CheckinStatusDashboard() {
     <>
       <div className="grid md:grid-cols-3 gap-6 mb-6"> {/* Added mb-6 for spacing */}
         {/* Attendance Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0"> {/* Adjusted CardHeader layout */}
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" /> {/* Sized icon */}
-              <CardTitle className="text-sm font-medium">Attendance</CardTitle> {/* Adjusted title size */}
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchStats} disabled={loadingStats}> {/* Adjusted button */}
-              <RefreshCw className={`h-4 w-4 ${loadingStats ? "animate-spin" : ""}`} /> {/* Sized icon */}
-            </Button>
-          </CardHeader>
-          <CardContent className="text-center pt-0"> {/* Adjusted padding */}
-            {loadingStats ? (
-              <div className="flex justify-center items-center h-[140px]">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : stats.total > 0 ? (
-              <>
-                <p className="text-2xl font-bold">{stats.checkedIn} / {stats.total}</p>
-                <ResponsiveContainer width="100%" height={100}>
-                  <PieChart>
-                    <Pie data={pieData} dataKey="value" innerRadius={25} outerRadius={40} paddingAngle={5}>
-                      {pieData.map((e,i) => <Cell key={i} fill={COLORS[i]} />)}
-                    </Pie>
-                    <Tooltip
-                       contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
-                       itemStyle={{ padding: 0 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground pt-10">
-                No attendance data
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <AttendanceCard
+          checkedIn={stats.checkedIn}
+          total={stats.total}
+          loading={loadingStats}
+          onRefresh={fetchStats}
+        />
 
         {/* Countdown Card */}
         <Card>
@@ -251,7 +221,7 @@ export function CheckinStatusDashboard() {
           </CardContent>
         </Card>
 
-        {/* PDF Mailer Card */}
+        {/* PDF Mailer Card
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <div className="flex items-center gap-2">
@@ -283,7 +253,7 @@ export function CheckinStatusDashboard() {
           <CardContent>
             <GeneratedPDFsList />
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Mailer Progress Dialog */}
