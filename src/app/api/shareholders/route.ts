@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json()
-        const { name, shareholderId } = body
+        const { name, shareholderId, ownerMailingAddress, ownerCityStateZip } = body
 
         if (!name || !shareholderId) {
             return NextResponse.json(
@@ -176,13 +176,16 @@ export async function POST(request: Request) {
         const meetingId = latestMeetings[0].id.toString()
 
         // Create new shareholder
+        console.log('New address for new shareholder: ', ownerMailingAddress, ownerCityStateZip)
         const newShareholder = await db
             .insert(shareholders)
             .values({
                 name: formattedName,
                 shareholderId,
                 meetingId,
-                isNew: true
+                isNew: true,
+                ownerMailingAddress,
+                ownerCityStateZip
             })
             .returning()
 

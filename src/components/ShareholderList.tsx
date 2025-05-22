@@ -73,17 +73,47 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         fetchAllShareholders()
     }, [])
 
+    // Filter shareholders based on search and filters
     const filteredShareholders = useMemo(() => {
+        if (!allShareholders.length) return [];
+
         return allShareholders
             .filter((shareholder) => {
                 if (!shareholder) return false
 
-                const matchesSearch =
-                    shareholder.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    shareholder.shareholderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (shareholder.ownerMailingAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-                    (shareholder.ownerCityStateZip?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+                // If no search term, only apply property and status filters
+                if (!searchTerm) {
+                    return true;
+                }
 
+                const searchLower = searchTerm.toLowerCase();
+                
+                // Check shareholder fields
+                const matchesShareholder = 
+                    shareholder.name.toLowerCase().includes(searchLower) ||
+                    shareholder.shareholderId.toLowerCase().includes(searchLower) ||
+                    (shareholder.ownerMailingAddress?.toLowerCase().includes(searchLower) ?? false) ||
+                    (shareholder.ownerCityStateZip?.toLowerCase().includes(searchLower) ?? false);
+
+                // Check property fields
+                const matchesProperty = shareholder.properties?.some((property: any) => 
+                    property.account?.toLowerCase().includes(searchLower) ||
+                    property.serviceAddress?.toLowerCase().includes(searchLower) ||
+                    property.customerName?.toLowerCase().includes(searchLower) ||
+                    property.ownerName?.toLowerCase().includes(searchLower) ||
+                    property.customerMailingAddress?.toLowerCase().includes(searchLower) ||
+                    property.cityStateZip?.toLowerCase().includes(searchLower) ||
+                    property.ownerMailingAddress?.toLowerCase().includes(searchLower) ||
+                    property.ownerCityStateZip?.toLowerCase().includes(searchLower) ||
+                    property.residentName?.toLowerCase().includes(searchLower) ||
+                    property.residentMailingAddress?.toLowerCase().includes(searchLower) ||
+                    property.residentCityStateZip?.toLowerCase().includes(searchLower)
+                ) ?? false;
+
+                return matchesShareholder || matchesProperty;
+            })
+            .filter((shareholder) => {
+                // Apply property count filter
                 const matchesPropertyFilter =
                     propertyFilter === "all"
                         ? true
@@ -93,16 +123,17 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                 ? shareholder.totalProperties >= 2 && shareholder.totalProperties <= 5
                                 : propertyFilter === "6+"
                                     ? shareholder.totalProperties >= 6
-                                    : true
+                                    : true;
 
+                // Apply status filter
                 const matchesStatusFilter =
                     statusFilter === "all"
                         ? true
                         : statusFilter === "checked-in"
                             ? shareholder.checkedInProperties === shareholder.totalProperties
-                            : shareholder.checkedInProperties < shareholder.totalProperties
+                            : shareholder.checkedInProperties < shareholder.totalProperties;
 
-                return matchesSearch && matchesPropertyFilter && matchesStatusFilter
+                return matchesPropertyFilter && matchesStatusFilter;
             })
             .sort((a, b) => {
                 let aValue: string | number = a[sortField]
@@ -127,8 +158,8 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                         : aValue < bValue
                             ? 1
                             : 0
-            })
-    }, [allShareholders, searchTerm, sortField, sortOrder, propertyFilter, statusFilter])
+            });
+    }, [allShareholders, searchTerm, sortField, sortOrder, propertyFilter, statusFilter]);
 
     const totalShareholders = filteredShareholders.length
     const totalPages = Math.ceil(totalShareholders / itemsPerPage)
@@ -196,14 +227,14 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                         />
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     </div>
-                    <Button 
+                    {/* <Button 
                         variant="outline" 
                         className="ml-2 px-3" 
                         onClick={() => setIsFilterOpen(!isFilterOpen)}
                     >
                         <Filter className="h-4 w-4" />
                         <span className="sr-only md:not-sr-only md:ml-2">Filters</span>
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
             

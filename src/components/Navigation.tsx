@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { LogOut, Users, Home, Settings } from "lucide-react"
+import { LogOut, Users, Home, Settings, Award } from "lucide-react"
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
@@ -37,6 +37,7 @@ export default function Navigation() {
     const navigation = [
         { name: "Home", href: "/", icon: Home },
         { name: "Shareholders", href: "/shareholders", icon: Users },
+        { name: "Prizes", href: "/awards", icon: Award },
         { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
     ]
 
