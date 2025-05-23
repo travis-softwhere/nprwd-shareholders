@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Trophy } from "lucide-react"
 import { useSession } from "next-auth/react"
@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation"
 import { AttendanceCard } from "@/components/AttendanceCard"
 import { getMeetingStats } from "@/actions/getMeetingStats"
 import { useMeeting } from "@/contexts/MeetingContext"
+import { Wheel } from 'react-custom-roulette';
+import 'react-spinning-wheel/dist/style.css';
 
 interface Property {
   id: number
@@ -36,6 +38,11 @@ export default function AwardsPage() {
   const [shareholders, setShareholders] = useState<Shareholder[]>([])
   const { selectedMeeting } = useMeeting()
   const [winners, setWinners] = useState<Shareholder[]>([])
+  const [showWheel, setShowWheel] = useState(false)
+  const [spinning, setSpinning] = useState(false)
+  const [wheelWinner, setWheelWinner] = useState<Shareholder | null>(null)
+  const [winnerIdx, setWinnerIdx] = useState<number | null>(null)
+  const wheelRef = useRef<HTMLDivElement>(null)
 
   const fetchAttendance = useCallback(async () => {
     setAttendanceLoading(true)
@@ -67,7 +74,7 @@ export default function AwardsPage() {
       // Map the properties to ensure consistent field names
       const mappedProperties = propertiesData.map((p: any) => ({
         ...p,
-        checkedIn: p.checked_in,
+        checkedIn: p.checked_in === true || p.checked_in === "true" || p.checkedIn === true || p.checkedIn === "true",
         shareholderId: p.shareholderId || p.shareholder_id || p['shareholderId'] || p['shareholder_id'],
       }))
       setProperties(mappedProperties)
@@ -105,14 +112,16 @@ export default function AwardsPage() {
       const checkedInProperties = properties.filter(
         (p: any) => p.checkedIn && meetingShareholderIds.includes(String(p.shareholderId).trim()) && !winnerIds.has(String(p.shareholderId).trim())
       )
-      if (checkedInProperties.length === 0) {
+      // Get unique shareholderIds from checked-in properties
+      const uniqueShareholderIds = Array.from(new Set(checkedInProperties.map((p: any) => String(p.shareholderId).trim())))
+      if (uniqueShareholderIds.length === 0) {
         throw new Error("No checked-in properties found for this meeting")
       }
-      // Select a random checked-in property
-      const randomIndex = Math.floor(Math.random() * checkedInProperties.length)
-      const winningProperty = checkedInProperties[randomIndex]
-      // Find the shareholder associated with this property
-      const winner = shareholders.find(s => s.shareholderId === winningProperty.shareholderId)
+      // Select a random shareholderId
+      const randomIndex = Math.floor(Math.random() * uniqueShareholderIds.length)
+      const winningShareholderId = uniqueShareholderIds[randomIndex]
+      // Find the shareholder associated with this shareholderId
+      const winner = shareholders.find(s => String(s.shareholderId).trim() === winningShareholderId)
       if (!winner) {
         throw new Error("No shareholder found for the winning property")
       }
@@ -131,10 +140,56 @@ export default function AwardsPage() {
     setWinners([])
   }, [])
 
+  // Get unique checked-in shareholders eligible for draw
+  const eligibleShareholders = Array.from(new Set(properties.filter(
+    (p: any) => p.checkedIn && shareholders.some(s => String(s.shareholderId).trim() === String(p.shareholderId).trim())
+  ).map((p: any) => String(p.shareholderId).trim())))
+    .map(shareholderId => shareholders.find(s => String(s.shareholderId).trim() === shareholderId))
+    .filter(Boolean) as Shareholder[]
+
+  // Wheel spin handler
+  const handleSpinWheel = () => {
+    if (spinning || eligibleShareholders.length === 0) return
+    setSpinning(true)
+    // Pick a random winner
+    const idx = Math.floor(Math.random() * eligibleShareholders.length)
+    setWinnerIdx(idx)
+    setWheelWinner(eligibleShareholders[idx])
+    // No winner removal or setSpinning(false) here
+  }
+
+  // Called when the wheel stops spinning
+  const handleStopSpinning = () => {
+    setSpinning(false)
+    if (winnerIdx !== null && eligibleShareholders[winnerIdx]) {
+      setWinners(prev => [eligibleShareholders[winnerIdx], ...prev])
+      setProperties(prevProps => prevProps.map(p =>
+        String(p.shareholderId).trim() === String(eligibleShareholders[winnerIdx].shareholderId).trim()
+          ? { ...p, checkedIn: false }
+          : p
+      ))
+    }
+  }
+
+  // Reset wheel when modal closes
+  const handleCloseWheel = () => {
+    setShowWheel(false)
+    setWheelWinner(null)
+    if (wheelRef.current) {
+      wheelRef.current.style.transition = ''
+      wheelRef.current.style.transform = 'rotate(0deg)'
+    }
+  }
+
   if (!session) {
     router.push("/auth/signin")
     return null
   }
+
+  // Example data
+  const data = eligibleShareholders.length > 0
+    ? eligibleShareholders.map(s => ({ option: s.name }))
+    : [{ option: "No eligible shareholders" }];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -166,7 +221,7 @@ export default function AwardsPage() {
           />
 
           <button
-            onClick={selectRandomShareholder}
+            onClick={() => setShowWheel(true)}
             disabled={isLoading}
             className={`
               flex flex-col items-center justify-center
@@ -192,6 +247,26 @@ export default function AwardsPage() {
               </>
             )}
           </button>
+        </div>
+
+        {/* Checked-in Shareholders List */}
+        <div className="max-w-xl mx-auto mt-8">
+          <h3 className="text-lg font-bold mb-2 text-left">Checked-In Shareholders</h3>
+          <div className="bg-white rounded-lg shadow border divide-y divide-gray-200 max-h-64 overflow-y-auto">
+            {Array.from(new Set(properties.filter(
+              (p: any) => p.checkedIn && shareholders.some(s => String(s.shareholderId).trim() === String(p.shareholderId).trim())
+            ).map((p: any) => String(p.shareholderId).trim())))
+              .map(shareholderId => {
+                const shareholder = shareholders.find(s => String(s.shareholderId).trim() === shareholderId)
+                return shareholder ? (
+                  <div key={shareholder.shareholderId} className="py-2 px-4 flex flex-col text-left">
+                    <span className="font-semibold">{shareholder.name}</span>
+                    <span className="text-xs text-gray-500">Shareholder ID: {shareholder.shareholderId}</span>
+                  </div>
+                ) : null
+              })
+            }
+          </div>
         </div>
 
         {error && (
@@ -223,6 +298,41 @@ export default function AwardsPage() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Spinning Wheel Modal */}
+        {showWheel && eligibleShareholders.length > 0 && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+            <div className="bg-white rounded-lg shadow-lg p-6 relative flex flex-col items-center">
+              <button onClick={handleCloseWheel} className="absolute top-2 right-2 text-gray-500 hover:text-black text-xl">×</button>
+              <div className="mb-4 font-bold text-lg">Spin the Wheel!</div>
+              <div className="relative flex flex-col items-center">
+                {/* Wheel */}
+                <Wheel
+                  mustStartSpinning={spinning}
+                  prizeNumber={winnerIdx ?? 0}
+                  data={data}
+                  backgroundColors={['#1ca9e1', '#fff']}
+                  fontSize={Math.max(10, 12 - data.length * 1.2)}
+                  onStopSpinning={handleStopSpinning}
+                />
+                <button
+                  className="mt-8 px-6 py-2 bg-[#1ca9e1] text-white font-bold rounded disabled:opacity-50"
+                  onClick={handleSpinWheel}
+                  disabled={spinning}
+                >
+                  {spinning ? 'Spinning...' : 'Spin'}
+                </button>
+                {wheelWinner && !spinning && (
+                  <div className="mt-6 text-center">
+                    <div className="text-lg font-bold text-[#1ca9e1]">Winner:</div>
+                    <div className="text-xl font-bold">{wheelWinner.name}</div>
+                    <div className="text-xs text-gray-500">Shareholder ID: {wheelWinner.shareholderId}</div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
