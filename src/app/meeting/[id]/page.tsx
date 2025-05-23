@@ -34,7 +34,7 @@ export default async function MeetingPage({
       <div className="mt-6">
         <h1 className="text-2xl font-bold">Meeting on {meeting.date}</h1>
         <p className="mt-2 text-gray-600">
-          Total Shareholders: {meeting.totalShareholders || 0}
+          Benefit Unit Owners: {meeting.totalShareholders || 0}
         </p>
         <p className="mt-1 text-gray-600">
           Checked In: {meeting.checkedIn || 0}
