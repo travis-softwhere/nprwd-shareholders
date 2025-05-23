@@ -36,18 +36,17 @@ export function AttendanceCard({ checkedIn, total, loading, onRefresh }: Attenda
           </div>
         ) : total > 0 ? (
           <>
-            <p className="text-2xl font-bold">{checkedIn} / {total} checked in</p>
-            <ResponsiveContainer width="100%" height={100}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" innerRadius={25} outerRadius={40} paddingAngle={5}>
-                  {pieData.map((e, i) => <Cell key={i} fill={COLORS[i]} />)}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
-                  itemStyle={{ padding: 0 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <p className="text-2xl font-bold">{checkedIn} / {total} curb stops checked in</p>
+            <div className="w-full mt-4 bg-gray-200 rounded-full h-6 overflow-hidden">
+              <div
+                className="bg-green-500 h-6 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                style={{ width: `${Math.min((checkedIn / total) * 100, 100)}%` }}
+              >
+                <span className="text-white text-xs font-semibold">
+                  {checkedIn > 0 ? checkedIn : ''}
+                </span>
+              </div>
+            </div>
           </>
         ) : (
           <p className="text-sm text-muted-foreground pt-10">
