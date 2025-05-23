@@ -214,7 +214,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     Benefit Unit Owner List
                 </h2>
                 <div>
-                    <span>Total Shareholders: {allShareholders.length}</span>
+                    <span>Total Benefit Unit Owners: {allShareholders.length}</span>
                 </div>
                 <div className="relative flex w-full md:w-auto">
                     <div className="relative w-full md:w-64">
