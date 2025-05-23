@@ -207,7 +207,7 @@ export default function AwardsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto text-center">
-        <h1 className="text-4xl font-bold mb-8">Shareholder Awards</h1>
+        <h1 className="text-4xl font-bold mb-8">Benefit Unit Owner Awards</h1>
 
         <div className="flex justify-center items-center gap-8 mb-8">
           <img 
@@ -262,7 +262,7 @@ export default function AwardsPage() {
           </button>
         </div>
 
-        {/* Checked-in Shareholders List */}
+        {/* Checked-in Shareholders List
         <div className="max-w-xl mx-auto mt-8">
           <h3 className="text-lg font-bold mb-2 text-left">Checked-In Shareholders</h3>
           <div className="bg-white rounded-lg shadow border divide-y divide-gray-200 max-h-64 overflow-y-auto">
@@ -274,13 +274,13 @@ export default function AwardsPage() {
                 return shareholder ? (
                   <div key={shareholder.shareholderId} className="py-2 px-4 flex flex-col text-left">
                     <span className="font-semibold">{shareholder.name}</span>
-                    <span className="text-xs text-gray-500">Shareholder ID: {shareholder.shareholderId}</span>
+                    <span className="text-xs text-gray-500">Benefit Unit Owner ID: {shareholder.shareholderId}</span>
                   </div>
                 ) : null
               })
             }
           </div>
-        </div>
+        </div> */}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-8">
@@ -392,7 +392,7 @@ export default function AwardsPage() {
                   <div className="mt-6 text-center">
                     <div className="text-lg font-bold text-[#1ca9e1]">Winner:</div>
                     <div className="text-xl font-bold">{wheelWinner.name}</div>
-                    <div className="text-xs text-gray-500">Shareholder ID: {wheelWinner.shareholderId}</div>
+                    <div className="text-xs text-gray-500">Benefit Unit Owner ID: {wheelWinner.shareholderId}</div>
                   </div>
                 )}
               </div>
