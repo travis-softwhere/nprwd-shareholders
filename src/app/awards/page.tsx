@@ -207,7 +207,7 @@ export default function AwardsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto text-center">
-        <h1 className="text-4xl font-bold mb-8">Benefit Unit Owner Awards</h1>
+        <h1 className="text-4xl font-bold mb-8">2025 Meeting Awards</h1>
 
         <div className="flex justify-center items-center gap-8 mb-8">
           <img 
