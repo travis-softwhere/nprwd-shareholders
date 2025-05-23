@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 import { AttendanceCard } from "@/components/AttendanceCard"
 import { getMeetingStats } from "@/actions/getMeetingStats"
 import { useMeeting } from "@/contexts/MeetingContext"
-import { Wheel } from 'react-custom-roulette';
 import 'react-spinning-wheel/dist/style.css';
 
 interface Property {
@@ -43,6 +42,7 @@ export default function AwardsPage() {
   const [wheelWinner, setWheelWinner] = useState<Shareholder | null>(null)
   const [winnerIdx, setWinnerIdx] = useState<number | null>(null)
   const wheelRef = useRef<HTMLDivElement>(null)
+  const currentRotation = useRef(0);
 
   const fetchAttendance = useCallback(async () => {
     setAttendanceLoading(true)
@@ -142,34 +142,47 @@ export default function AwardsPage() {
 
   // Get unique checked-in shareholders eligible for draw
   const eligibleShareholders = Array.from(new Set(properties.filter(
-    (p: any) => p.checkedIn && shareholders.some(s => String(s.shareholderId).trim() === String(p.shareholderId).trim())
+    (p: any) => 
+      p.checkedIn &&
+      shareholders.some(s => String(s.shareholderId).trim() === String(p.shareholderId).trim()) &&
+      !winners.some(w => String(w.shareholderId).trim() === String(p.shareholderId).trim())
   ).map((p: any) => String(p.shareholderId).trim())))
     .map(shareholderId => shareholders.find(s => String(s.shareholderId).trim() === shareholderId))
     .filter(Boolean) as Shareholder[]
 
   // Wheel spin handler
   const handleSpinWheel = () => {
-    if (spinning || eligibleShareholders.length === 0) return
-    setSpinning(true)
-    // Pick a random winner
-    const idx = Math.floor(Math.random() * eligibleShareholders.length)
-    setWinnerIdx(idx)
-    setWheelWinner(eligibleShareholders[idx])
-    // No winner removal or setSpinning(false) here
-  }
+    if (spinning || eligibleShareholders.length === 0) return;
 
-  // Called when the wheel stops spinning
-  const handleStopSpinning = () => {
-    setSpinning(false)
-    if (winnerIdx !== null && eligibleShareholders[winnerIdx]) {
-      setWinners(prev => [eligibleShareholders[winnerIdx], ...prev])
+    // Pick a random winner index from the current eligibleShareholders
+    const idx = Math.floor(Math.random() * eligibleShareholders.length);
+    setWinnerIdx(idx);
+    setWheelWinner(eligibleShareholders[idx]);
+    setSpinning(true);
+
+    // Spin the wheel so the pointer lands on the winner
+    const totalSpins = 5;
+    const anglePerSlice = 360 / eligibleShareholders.length;
+    const randomAngle = idx * anglePerSlice + anglePerSlice / 2;
+    const rotationDelta = totalSpins * 360 + (360 - randomAngle);
+    currentRotation.current += rotationDelta;
+    if (wheelRef.current) {
+      wheelRef.current.style.transition = 'transform 4s ease-out';
+      wheelRef.current.style.transform = `rotate(${currentRotation.current}deg)`;
+    }
+
+    // After the spin, remove the winner from eligibleShareholders
+    setTimeout(() => {
+      setSpinning(false);
+      // Add winner to winners array and set checkedIn: false for that winner
+      setWinners(prev => [eligibleShareholders[idx], ...prev]);
       setProperties(prevProps => prevProps.map(p =>
-        String(p.shareholderId).trim() === String(eligibleShareholders[winnerIdx].shareholderId).trim()
+        String(p.shareholderId).trim() === String(eligibleShareholders[idx].shareholderId).trim()
           ? { ...p, checkedIn: false }
           : p
-      ))
-    }
-  }
+      ));
+    }, 4000);
+  };
 
   // Reset wheel when modal closes
   const handleCloseWheel = () => {
@@ -308,15 +321,66 @@ export default function AwardsPage() {
               <button onClick={handleCloseWheel} className="absolute top-2 right-2 text-gray-500 hover:text-black text-xl">×</button>
               <div className="mb-4 font-bold text-lg">Spin the Wheel!</div>
               <div className="relative flex flex-col items-center">
+                {/* SVG Triangle Pointer */}
+                <svg width="20" height="20" viewBox="0 0 100 100" className="absolute -top-5 left-1/2 -translate-x-1/2 z-10">
+                  <polygon points="50,0 0,100 100,100" fill="#1ca9e1" />
+                </svg>
                 {/* Wheel */}
-                <Wheel
-                  mustStartSpinning={spinning}
-                  prizeNumber={winnerIdx ?? 0}
-                  data={data}
-                  backgroundColors={['#1ca9e1', '#fff']}
-                  fontSize={Math.max(10, 12 - data.length * 1.2)}
-                  onStopSpinning={handleStopSpinning}
-                />
+                <div className="w-72 h-72 rounded-full border-4 border-[#1ca9e1] flex items-center justify-center relative overflow-hidden" ref={wheelRef} style={{ background: '#fff' }}>
+                  <svg width="100%" height="100%" viewBox="0 0 300 300" className="absolute top-0 left-0">
+                    {eligibleShareholders.map((s, i) => {
+                      const angle = 360 / eligibleShareholders.length;
+                      const startAngle = i * angle;
+                      const endAngle = (i + 1) * angle;
+                      const largeArc = angle > 180 ? 1 : 0;
+                      const r = 150;
+                      const x1 = 150 + r * Math.cos((Math.PI * (startAngle - 90)) / 180);
+                      const y1 = 150 + r * Math.sin((Math.PI * (startAngle - 90)) / 180);
+                      const x2 = 150 + r * Math.cos((Math.PI * (endAngle - 90)) / 180);
+                      const y2 = 150 + r * Math.sin((Math.PI * (endAngle - 90)) / 180);
+                      return (
+                        <path
+                          key={s.shareholderId}
+                          d={`M150,150 L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`}
+                          fill={i % 2 === 0 ? '#1ca9e1' : '#fff'}
+                          stroke="#1ca9e1"
+                        />
+                      );
+                    })}
+                  </svg>
+                  {/* Names on segments */}
+                  <svg width="100%" height="100%" viewBox="0 0 300 300" className="absolute top-0 left-0">
+                    {eligibleShareholders.map((s, i) => {
+                        const sliceAngle = 360 / eligibleShareholders.length;
+                        const angle = (i + 0.5) * sliceAngle;
+                        const rad = (angle - 90) * (Math.PI / 180);
+
+                        const rStart = 75; // slightly in from the edge
+                        const rEnd = 100;   // not too close to center
+                        const xStart = 150 + rStart * Math.cos(rad);
+                        const yStart = 150 + rStart * Math.sin(rad);
+                        const xEnd = 150 + rEnd * Math.cos(rad);
+                        const yEnd = 150 + rEnd * Math.sin(rad);
+                        const rotation = angle + 90;
+
+                        return (
+                          <text
+                            key={s.shareholderId}
+                            x={(xStart + xEnd) / 2}
+                            y={(yStart + yEnd) / 2}
+                            fill={i % 2 === 0 ? '#fff' : '#1ca9e1'}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fontSize="10"
+                            transform={`rotate(${rotation}, ${(xStart + xEnd) / 2}, ${(yStart + yEnd) / 2})`}
+                          >
+                            {s.name.length > 15 ? s.name.slice(0, 15) + '…' : s.name}
+                          </text>                          
+                        );
+                    })}
+                  </svg>
+
+                </div>
                 <button
                   className="mt-8 px-6 py-2 bg-[#1ca9e1] text-white font-bold rounded disabled:opacity-50"
                   onClick={handleSpinWheel}
