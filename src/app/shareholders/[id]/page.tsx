@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import ManualCheckInButton from "@/components/ManualCheckInButton"
+import SetDesigneeForm from "@/components/SetDesigneeForm"
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
@@ -35,6 +36,7 @@ export default async function ShareholderPage({
 
     return (
       <div className="container mx-auto p-6">
+        <h1 className="text-4xl font-bold mb-8">Benefit Unit Owner Details</h1>
         <Link
           href="/shareholders"
           className="text-primary hover:underline mb-4 inline-flex items-center"
@@ -52,6 +54,12 @@ export default async function ShareholderPage({
                   Benefit Unit Owner ID:
                   </span>{" "}
                   {shareholder.shareholderId}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <span className="bg-yellow-200 font-medium text-foreground">
+                    Manually added:
+                  </span>{" "}
+                  <span className="bg-yellow-200">{shareholder.isNew ? 'Yes' : 'No'}</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">
@@ -76,6 +84,8 @@ export default async function ShareholderPage({
                   shareholderId={shareholder.shareholderId}
                   isFullyCheckedIn={checkedInCount === properties.length}
                   />
+
+                  <SetDesigneeForm shareholderId={shareholder.shareholderId} />
                 </div>
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -51,6 +51,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
 import ShareholdersList from "@/components/ShareholderList"
+import jsPDF from 'jspdf';
 
 // Define Property interface
 interface Property {
@@ -111,6 +112,18 @@ export default function AdminPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showCreatePropertyDialog, setShowCreatePropertyDialog] = useState(false);
+  const [showOwnerSelectionDialog, setShowOwnerSelectionDialog] = useState(false);
+  const [propertyOwnerType, setPropertyOwnerType] = useState<"new" | "existing">("new");
+  const [newPropertyData, setNewPropertyData] = useState({
+    serviceAddress: "",
+    ownerName: "",
+    ownerMailingAddress: "",
+    ownerCityStateZip: "",
+    account: "",
+    shareholderId: "",
+    cityStateZip: "",
+  });
   const [acquisitionType, setAcquisitionType] = useState<"new" | "existing">("new");
   const [newShareholderData, setNewShareholderData] = useState<ShareholderData>({
     name: "",
@@ -814,6 +827,23 @@ export default function AdminPage() {
     );
   }
 
+  const loadImageAsBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = function () {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  };
+
   return (
     <div className="w-full">
       <div className="max-w-6xl mx-auto bg-white px-3 sm:px-6 lg:px-8 py-4 sm:py-6 mb-16 md:mb-6 shadow-sm rounded-lg">
@@ -846,6 +876,106 @@ export default function AdminPage() {
         <div className="w-full flex justify-center items-center">
           <div className="max-w-6xl">
             <CheckinStatusDashboard />
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow transition text-base"
+              onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  
+                  // Fetch properties
+                  const propertiesResponse = await fetch("/api/properties?limit=5000");
+                  if (!propertiesResponse.ok) throw new Error("Failed to fetch properties");
+                  const propertiesData = await propertiesResponse.json();
+                  
+                  // Fetch shareholders
+                  const shareholdersResponse = await fetch("/api/shareholders?limit=5000");
+                  if (!shareholdersResponse.ok) throw new Error("Failed to fetch shareholders");
+                  const shareholdersData = await shareholdersResponse.json();
+                  
+                  // Calculate statistics
+                  const totalProperties = propertiesData.length;
+                  const checkedInProperties = propertiesData.filter((p: any) => p.checked_in).length;
+                  const totalShareholders = shareholdersData.shareholders.length;
+                  const checkedInShareholders = shareholdersData.shareholders.filter((s: any) => 
+                    propertiesData.some((p: any) => p.shareholderId === s.shareholderId && p.checked_in)
+                  ).length;
+                  
+                  // Load logos as base64
+                  const nprwdLogo = await loadImageAsBase64("/NPRWDLogo.png");
+                  const softWhereLogo = await loadImageAsBase64("/soft-where-logo.png");
+
+                  const doc = new jsPDF();
+
+                  // Draw logos (adjust x, y, width, height as needed)
+                  doc.addImage(nprwdLogo, "PNG", 15, 10, 30, 30);
+                  doc.addImage(softWhereLogo, "PNG", 160, 10, 30, 30);
+                  
+                  // Add title
+                  doc.setFontSize(20);
+                  doc.text("NPRWD AquaShare", 105, 20, { align: "center"});
+                  doc.text("Benefit Unit Owner Meeting", 105, 30, { align: "center"});
+                  doc.text("Meeting Report", 105, 40, { align: "center" });
+                  
+                  // Add date
+                  doc.setFontSize(12);
+                  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 50, { align: "center" });
+                  
+                  // Add statistics
+                  doc.setFontSize(14);
+                  doc.text("Meeting Statistics", 20, 70);
+                  
+                  doc.setFontSize(12);
+                  doc.text(`Total Benefit Unit Owners: ${totalShareholders}`, 20, 80);
+                  doc.text(`Checked-in Benefit Unit Owners: ${checkedInShareholders}`, 20, 90);
+                  doc.text(`Attendance Rate: ${((checkedInShareholders / totalShareholders) * 100).toFixed(1)}%`, 20, 100);
+                  
+                  doc.text(`Total Benefit Units: ${totalProperties}`, 20, 120);
+                  doc.text(`Checked-in Benefit Units: ${checkedInProperties}`, 20, 130);
+                  doc.text(`Benefit Units Check-in Rate: ${((checkedInProperties / totalProperties) * 100).toFixed(1)}%`, 20, 140);
+                  
+                  // Add summary
+                  doc.setFontSize(14);
+                  doc.text("Summary", 20, 170);
+                  doc.setFontSize(12);
+                  doc.text(
+                    `This report shows that ${checkedInShareholders} out of ${totalShareholders} shareholders ` +
+                    `(${((checkedInShareholders / totalShareholders) * 100).toFixed(1)}%) have checked in, ` +
+                    `representing ${checkedInProperties} out of ${totalProperties} properties ` +
+                    `(${((checkedInProperties / totalProperties) * 100).toFixed(1)}%).`,
+                    20, 180, { maxWidth: 170 }
+                  );
+                  
+                  // Save the PDF
+                  doc.save("benefit-unit-owner-meeting-report.pdf");
+                  
+                  toast({
+                    title: "Success",
+                    description: "Report generated successfully",
+                  });
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to generate report",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Generate Final Report
+                </>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -1135,6 +1265,7 @@ export default function AdminPage() {
               <h2 className="text-lg font-semibold text-gray-900">Property Management</h2>
             </div>
             <Separator />
+            
             <div className="bg-white rounded-lg border">
               <div className="w-full p-4 space-y-4">
                 <div className="flex items-center justify-between mb-4">
@@ -1149,6 +1280,15 @@ export default function AdminPage() {
                   </div>
                 </div>
                 
+                <div className="bg-white rounded-lg border">
+                  <Button 
+                    className="w-full"
+                    onClick={() => setShowCreatePropertyDialog(true)}
+                  >
+                    Create a new property
+                  </Button>
+                </div>
+
                 {isLoading ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1183,7 +1323,6 @@ export default function AdminPage() {
                               <div>
                                 <h3 className="font-medium text-gray-900">{property.serviceAddress}</h3>
                                 <p className="text-sm text-gray-500">{property.ownerName || property.customerName}</p>
-                                <p className="text-xs text-gray-400">Acct: {property.account}</p>
                               </div>
                               <Badge 
                                 variant={property.checkedIn ? "success" : "secondary"}
@@ -1237,10 +1376,6 @@ export default function AdminPage() {
             <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs text-gray-500">Account</Label>
-                  <p className="font-medium">{selectedProperty.account}</p>
-                </div>
-                <div>
                   <Label className="text-xs text-gray-500">Status</Label>
                   <Badge 
                     variant={selectedProperty.checkedIn ? "success" : "secondary"}
@@ -1261,26 +1396,8 @@ export default function AdminPage() {
               </div>
               
               <div>
-                <Label className="text-xs text-gray-500">Customer</Label>
-                <p className="font-medium">{selectedProperty.customerName}</p>
-                <p className="text-sm text-gray-600">{selectedProperty.customerMailingAddress}</p>
-                <p className="text-sm text-gray-600">{selectedProperty.cityStateZip}</p>
-              </div>
-              
-              <div>
                 <Label className="text-xs text-gray-500">Service Address</Label>
                 <p className="font-medium">{selectedProperty.serviceAddress}</p>
-              </div>
-              
-              <div>
-                <Label className="text-xs text-gray-500">Resident</Label>
-                <p className="font-medium">{selectedProperty.residentName || "Same as owner"}</p>
-                {selectedProperty.residentName && (
-                  <>
-                    <p className="text-sm text-gray-600">{selectedProperty.residentMailingAddress}</p>
-                    <p className="text-sm text-gray-600">{selectedProperty.residentCityStateZip}</p>
-                  </>
-                )}
               </div>
 
               <div className="pt-4">
@@ -1761,6 +1878,356 @@ export default function AdminPage() {
               ) : (
                 "Transfer"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Property Dialog */}
+      <Dialog open={showCreatePropertyDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowCreatePropertyDialog(false);
+          setNewPropertyData({
+            serviceAddress: "",
+            ownerName: "",
+            ownerMailingAddress: "",
+            ownerCityStateZip: "",
+            account: "",
+            shareholderId: "",
+            cityStateZip: "",
+          });
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Property</DialogTitle>
+            <DialogDescription>
+              Add a new property to the system
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Service Address</Label>
+              <Input 
+                placeholder="Enter service address" 
+                value={newPropertyData.serviceAddress}
+                onChange={(e) => setNewPropertyData(prev => ({...prev, serviceAddress: e.target.value.toUpperCase()}))}
+                className="bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Select Owner</Label>
+              <Button 
+                className="w-full"
+                onClick={() => setShowOwnerSelectionDialog(true)}
+              >
+                {newPropertyData.ownerName ? newPropertyData.ownerName : "Select Owner"}
+              </Button>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button 
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setShowCreatePropertyDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={async () => {
+                if (!newPropertyData.serviceAddress || !newPropertyData.ownerName) {
+                  toast({
+                    title: "Error",
+                    description: "Please fill in all required fields",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                try {
+                  setIsLoading(true);
+                  
+                  // Generate a random account number if not provided
+                  let accountNumber = newPropertyData.account;
+                  if (!accountNumber) {
+                    accountNumber = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
+                  }
+                  // Use the shareholderId from newPropertyData
+                  const shareholderId = newPropertyData.shareholderId;
+                  // Validate required fields
+                  if (!accountNumber || !newPropertyData.serviceAddress || !shareholderId) {
+                    toast({
+                      title: "Error",
+                      description: "Account number, service address and shareholder ID are required",
+                      variant: "destructive",
+                    });
+                    setIsLoading(false);
+                    return;
+                  }
+                  // Create the property
+                  const response = await fetch("/api/properties", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      ...newPropertyData,
+                      account: accountNumber,
+                      shareholderId,
+                      cityStateZip: newPropertyData.ownerCityStateZip,
+                    }),
+                  });
+
+                  if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to create property");
+                  }
+
+                  toast({
+                    title: "Success",
+                    description: "Property created successfully",
+                  });
+
+                  // Refresh properties and close dialog
+                  await refreshProperties();
+                  setShowCreatePropertyDialog(false);
+                  
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to create property",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={isLoading || !newPropertyData.serviceAddress || !newPropertyData.ownerName}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Property"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Owner Selection Dialog */}
+      <Dialog open={showOwnerSelectionDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowOwnerSelectionDialog(false);
+          setPropertyOwnerType("new");
+          setSelectedExistingShareholder(null);
+          setShareholderSearchQuery("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Owner</DialogTitle>
+            <DialogDescription>
+              Choose an existing owner or create a new one
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-1">
+            <div>
+              <Label className="text-sm font-medium mb-1 block">Owner Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant={propertyOwnerType === "new" ? "default" : "outline"} 
+                  className={propertyOwnerType === "new" ? "border-primary bg-primary text-white" : "border-gray-200"}
+                  onClick={() => setPropertyOwnerType("new")}
+                >
+                  <UserPlus className="mr-1 h-4 w-4" />
+                  New Owner
+                </Button>
+                <Button 
+                  variant={propertyOwnerType === "existing" ? "default" : "outline"} 
+                  className={propertyOwnerType === "existing" ? "border-primary bg-primary text-white" : "border-gray-200"}
+                  onClick={() => setPropertyOwnerType("existing")}
+                >
+                  <ArrowRightLeft className="mr-1 h-4 w-4" />
+                  Existing Owner
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {propertyOwnerType === "new" && (
+            <div className="space-y-2 mt-2">
+              <div className="border p-2 rounded-md space-y-2">
+                <h3 className="text-sm font-medium">Owner Information</h3>
+                <Input 
+                  placeholder="Owner Name" 
+                  value={newPropertyData.ownerName}
+                  onChange={(e) => setNewPropertyData(prev => ({...prev, ownerName: e.target.value.toUpperCase()}))}
+                  className="bg-white h-8 text-sm"
+                />
+                <Input 
+                  placeholder="Owner Mailing Address" 
+                  value={newPropertyData.ownerMailingAddress}
+                  onChange={(e) => setNewPropertyData(prev => ({...prev, ownerMailingAddress: e.target.value.toUpperCase()}))}
+                  className="bg-white h-8 text-sm"
+                />
+                <Input 
+                  placeholder="City, State, ZIP (e.g. MINOT ND 80000)" 
+                  value={newPropertyData.ownerCityStateZip}
+                  onChange={(e) => setNewPropertyData(prev => ({...prev, ownerCityStateZip: e.target.value.toUpperCase()}))}
+                  className="bg-white h-8 text-sm"
+                />
+                <p className="text-xs text-gray-500">Format as: CITY STATE ZIP (commas allowed)</p>
+              </div>
+            </div>
+          )}
+          
+          {propertyOwnerType === "existing" && (
+            <div className="space-y-2 mt-2">
+              <div className="border p-2 rounded-md space-y-2">
+                <h3 className="text-sm font-medium">Select Existing Shareholder</h3>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by name..."
+                    className="pl-10 border-gray-200 h-8 text-sm"
+                    value={shareholderSearchQuery}
+                    onChange={(e) => setShareholderSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="border rounded-md overflow-hidden max-h-[150px] overflow-y-auto">
+                  {shareholders.length > 0 ? (
+                    shareholders
+                      .filter(shareholder => {
+                        const query = shareholderSearchQuery.toLowerCase();
+                        return !query || shareholder.name?.toLowerCase().includes(query);
+                      })
+                      .map(shareholder => (
+                        <div 
+                          key={shareholder.id} 
+                          className={`py-1 px-2 cursor-pointer hover:bg-gray-50 ${
+                            selectedExistingShareholder?.id === shareholder.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-b'
+                          }`}
+                          onClick={() => {
+                            setSelectedExistingShareholder(shareholder);
+                            setNewPropertyData(prev => ({
+                              ...prev,
+                              ownerName: shareholder.name,
+                              ownerMailingAddress: shareholder.ownerMailingAddress,
+                              ownerCityStateZip: shareholder.ownerCityStateZip,
+                              shareholderId: shareholder.shareholderId,
+                            }));
+                          }}
+                        >
+                          <div className="font-medium text-sm">{shareholder.name}</div>
+                          <div className="text-xs text-gray-500">Shareholder ID: {shareholder.shareholderId}</div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="p-2 text-center text-gray-500">
+                      <p className="text-sm">No shareholders found</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="mt-4">
+            <Button 
+              variant="outline"
+              className="w-full sm:w-auto mr-2"
+              onClick={() => setShowOwnerSelectionDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={async () => {
+                if (propertyOwnerType === "new" && !newPropertyData.ownerName) {
+                  toast({
+                    title: "Error",
+                    description: "Please enter owner name",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (propertyOwnerType === "existing" && !selectedExistingShareholder) {
+                  toast({
+                    title: "Error",
+                    description: "Please select an existing shareholder",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                try {
+                  setIsLoading(true);
+
+                  if (propertyOwnerType === "new") {
+                    // Generate a random shareholder ID for the new owner
+                    const shareholderId = Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
+
+                    // Create the new shareholder
+                    const response = await fetch("/api/shareholders", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        name: newPropertyData.ownerName.trim().toUpperCase(),
+                        shareholderId,
+                        ownerMailingAddress: newPropertyData.ownerMailingAddress,
+                        ownerCityStateZip: newPropertyData.ownerCityStateZip,
+                      }),
+                    });
+
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      throw new Error(errorData.error || "Failed to create shareholder");
+                    }
+
+                    // Get the created shareholder from the response
+                    const createdShareholder = await response.json();
+                    // Update the newPropertyData with the generated shareholderId from the response
+                    setNewPropertyData(prev => ({
+                      ...prev,
+                      shareholderId: createdShareholder.shareholderId,
+                    }));
+
+                    // Add the new shareholder ID to the set of new shareholders
+                    setNewShareholderIds(ids => new Set(ids).add(createdShareholder.shareholderId));
+
+                    toast({
+                      title: "Success",
+                      description: "New shareholder created successfully",
+                    });
+                  }
+
+                  setShowOwnerSelectionDialog(false);
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to create shareholder",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={
+                (propertyOwnerType === "new" && !newPropertyData.ownerName) ||
+                (propertyOwnerType === "existing" && !selectedExistingShareholder)
+              }
+            >
+              {propertyOwnerType === "existing" ? "Select Owner" : "Create and Select New Owner"}
             </Button>
           </DialogFooter>
         </DialogContent>
