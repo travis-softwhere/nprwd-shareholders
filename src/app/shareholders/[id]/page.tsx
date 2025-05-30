@@ -15,6 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import ManualCheckInButton from "@/components/ManualCheckInButton"
 import SetDesigneeForm from "@/components/SetDesigneeForm"
+import EditableName from "@/components/EditableName"
+import React from 'react';
+import ShareholderCommentBox from '@/components/ShareholderCommentBox';
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
@@ -46,7 +49,10 @@ export default async function ShareholderPage({
 
         <Card className="mt-4">
           <CardContent className="p-6">
-            <h1 className="text-2xl font-bold mb-4">{shareholder.name}</h1>
+            <EditableName 
+              initialName={shareholder.name}
+              shareholderId={shareholder.shareholderId}
+            />
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
                 <div className="text-sm text-muted-foreground">
@@ -57,7 +63,7 @@ export default async function ShareholderPage({
                 </div>
                 <div className="text-sm text-muted-foreground">
                   <span className="bg-yellow-200 font-medium text-foreground">
-                    Manually added:
+                    Was new since mailers:
                   </span>{" "}
                   <span className="bg-yellow-200">{shareholder.isNew ? 'Yes' : 'No'}</span>
                 </div>
@@ -88,6 +94,8 @@ export default async function ShareholderPage({
                   <SetDesigneeForm shareholderId={shareholder.shareholderId} />
                 </div>
               </div>
+              {/* Comment Box Below Properties */}
+              <ShareholderCommentBox shareholderId={shareholder.shareholderId} />
             </div>
 
             <h2 className="text-xl font-semibold mb-4">Properties</h2>
@@ -123,6 +131,7 @@ export default async function ShareholderPage({
                 </TableBody>
               </Table>
             </div>
+
           </CardContent>
         </Card>
       </div>

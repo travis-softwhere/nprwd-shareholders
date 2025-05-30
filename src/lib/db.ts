@@ -14,6 +14,7 @@ if (!process.env.DATABASE_URL) {
 // Define the shareholder table schema
 export const shareholders = pgTable("shareholders", {
     shareholderId: varchar("shareholder_id").primaryKey(),
+    name: text("name").notNull(),
     designee: text("designee"),
 });
 
