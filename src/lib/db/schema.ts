@@ -22,6 +22,7 @@ export const shareholders = pgTable("shareholders", {
     ownerCityStateZip: text("owner_city_state_zip"),
     isNew: boolean("is_new").default(false),
     createdAt: timestamp("created_at").defaultNow(),
+    comment: text("comment"),
 })
 
 export const properties = pgTable("properties", {
