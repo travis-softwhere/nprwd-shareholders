@@ -3,9 +3,12 @@ import { db } from '@/lib/db'
 import { shareholders } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params
+    const { id } = await context.params
     const result = await db.select({ comment: shareholders.comment })
       .from(shareholders)
       .where(eq(shareholders.shareholderId, id))
@@ -19,9 +22,12 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params
+    const { id } = await context.params
     const { comment } = await request.json()
     await db.update(shareholders)
       .set({ comment })

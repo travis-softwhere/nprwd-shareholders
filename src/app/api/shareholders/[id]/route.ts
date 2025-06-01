@@ -5,11 +5,11 @@ import { eq } from 'drizzle-orm'
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { name } = await request.json()
-    const { id } = params
+    const { id } = await context.params
 
     // Update the shareholder name in the database
     await db.update(shareholders)
