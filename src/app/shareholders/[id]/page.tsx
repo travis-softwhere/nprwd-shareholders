@@ -48,22 +48,22 @@ export default async function ShareholderPage({
     const checkedInCount = properties.filter((p) => p.checkedIn).length
 
     return (
-      <div className="container mx-auto p-6">
-        <h1 className="text-4xl font-bold mb-8">Benefit Unit Owner Details</h1>
+      <div className="container mx-auto p-2 sm:p-6 max-w-full sm:max-w-3xl">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-8">Benefit Unit Owner Details</h1>
         <Link
           href="/shareholders"
-          className="text-primary hover:underline mb-4 inline-flex items-center"
+          className="text-primary hover:underline mb-2 sm:mb-4 inline-flex items-center"
         >
           ← Back to List
         </Link>
 
-        <Card className="mt-4">
-          <CardContent className="p-6">
+        <Card className="mt-2 sm:mt-4">
+          <CardContent className="p-2 sm:p-6">
             <EditableName 
               initialName={shareholder.name}
               shareholderId={shareholder.shareholderId}
             />
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <div className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">
@@ -108,9 +108,9 @@ export default async function ShareholderPage({
               <ShareholderCommentBox shareholderId={shareholder.shareholderId} />
             </div>
 
-            <h2 className="text-xl font-semibold mb-4">Properties</h2>
-            <div className="rounded-md border">
-              <Table>
+            <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Properties</h2>
+            <div className="rounded-md border overflow-x-auto">
+              <Table className="min-w-[400px]">
                 <TableHeader>
                   <TableRow>
                     {/* <TableHead>Account</TableHead> */}
