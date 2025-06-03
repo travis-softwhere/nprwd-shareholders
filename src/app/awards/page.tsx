@@ -226,12 +226,12 @@ export default function AwardsPage() {
         </div>
         
         <div className="flex flex-row gap-8 items-center justify-center">
-          <AttendanceCard
+          {/* <AttendanceCard
             checkedIn={attendance.checkedIn}
             total={attendance.total}
             loading={attendanceLoading}
             onRefresh={fetchAttendance}
-          />
+          /> */}
 
           <button
             onClick={() => setShowWheel(true)}
