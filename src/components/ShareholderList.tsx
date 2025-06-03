@@ -309,7 +309,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        ID
+                                        Benefit Unit Owner Barcode ID
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Name
@@ -414,7 +414,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="w-5/6">
                                                 <h3 className="font-semibold text-gray-900 text-base truncate">{shareholder.name}</h3>
-                                                <p className="text-sm text-gray-500 mt-0.5">ID: {shareholder.shareholderId}</p>
+                                                <p className="text-sm text-gray-500 mt-0.5">Barcode ID: {shareholder.shareholderId}</p>
                                             </div>
                                             <div className="bg-gray-100 rounded-full p-1">
                                                 <ChevronRight className="h-5 w-5 text-blue-500" />
