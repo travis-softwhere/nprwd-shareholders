@@ -213,9 +213,11 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <Users className="h-6 w-6 text-blue-500" />
                     Benefit Unit Owner List
                 </h2>
+                {/*
                 <div>
                     <span>Total Benefit Unit Owners: {allShareholders.length}</span>
                 </div>
+                */}
                 <div className="relative flex w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                         <Input
