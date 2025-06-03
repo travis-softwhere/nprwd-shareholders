@@ -3,12 +3,15 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useSession } from 'next-auth/react';
 
 interface SetDesigneeFormProps {
   shareholderId: string;
 }
 
 export default function SetDesigneeForm({ shareholderId }: SetDesigneeFormProps) {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin === true;
   const [designee, setDesignee] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentDesignee, setCurrentDesignee] = useState<string | null>(null);
@@ -100,18 +103,24 @@ export default function SetDesigneeForm({ shareholderId }: SetDesigneeFormProps)
           <span className="font-medium">{currentDesignee}</span>
         )}
       </div>
-      <Button className="w-fit" type="button" onClick={handleClear} disabled={isSubmitting || !currentDesignee}>Clear Designee</Button>
+      {isAdmin && (
+        <Button className="w-fit" type="button" onClick={handleClear} disabled={isSubmitting || !currentDesignee}>Clear Designee</Button>
+      )}
       <div className="flex flex-row gap-2 items-center">
-        <Input
-          type="text"
-          value={designee}
-          onChange={(e) => setDesignee(e.target.value)}
-          placeholder="Enter designee name"
-          disabled={isSubmitting}
-        />
-        <Button type="submit" disabled={isSubmitting || !designee.trim()}>
-          Set Designee
-        </Button>
+        {isAdmin && (
+          <>
+            <Input
+              type="text"
+              value={designee}
+              onChange={(e) => setDesignee(e.target.value)}
+              placeholder="Enter designee name"
+              disabled={isSubmitting}
+            />
+            <Button type="submit" disabled={isSubmitting || !designee.trim()}>
+              Set Designee
+            </Button>
+          </>
+        )}
       </div>
     </form>
   );

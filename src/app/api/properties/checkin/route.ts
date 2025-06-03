@@ -40,6 +40,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No properties found for this shareholder" }, { status: 404 });
         }
 
+        // Check if any properties are already checked in
+        const alreadyCheckedIn = propertiesToCheckIn.some(p => p.checkedIn);
+        if (alreadyCheckedIn) {
+            await logToFile("properties", "Shareholder already checked in", LogLevel.INFO, {
+                shareholderId
+            });
+            return NextResponse.json({ 
+                error: "This benefit unit owner is already checked in and has a ballot!",
+                alreadyCheckedIn: true 
+            }, { status: 400 });
+        }
+
         // Update all properties to checked_in = true
         const updatedProperties = await db
             .update(properties)
