@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { checkInShareholders } from "@/actions/checkInShareholders";
 import { undoCheckInShareholders } from "@/actions/undoCheckInShareholders";
 import { logToFile, LogLevel } from "@/utils/logger";
+import { db } from "@/lib/db";
+import { properties } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
     try {
@@ -23,6 +26,33 @@ export async function POST(request: Request) {
                 { error: "Shareholder ID and action are required" },
                 { status: 400 }
             );
+        }
+
+        // If checking in, verify not already checked in
+        if (action === "checkin") {
+            const propertiesToCheckIn = await db
+                .select()
+                .from(properties)
+                .where(eq(properties.shareholderId, shareholderId));
+
+            if (!propertiesToCheckIn.length) {
+                await logToFile("properties", "No properties found for shareholder checkin", LogLevel.ERROR, {
+                    shareholderId
+                });
+                return NextResponse.json({ error: "No properties found for this shareholder" }, { status: 404 });
+            }
+
+            // Check if any properties are already checked in
+            const alreadyCheckedIn = propertiesToCheckIn.some(p => p.checkedIn);
+            if (alreadyCheckedIn) {
+                await logToFile("properties", "Shareholder already checked in", LogLevel.INFO, {
+                    shareholderId
+                });
+                return NextResponse.json({ 
+                    error: "This benefit unit owner is already checked in and has a ballot!",
+                    alreadyCheckedIn: true 
+                }, { status: 400 });
+            }
         }
 
         let result;

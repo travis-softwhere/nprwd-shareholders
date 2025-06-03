@@ -37,7 +37,7 @@ export default function Navigation() {
     const navigation = [
         { name: "Home", href: "/", icon: Home },
         { name: "Shareholders", href: "/shareholders", icon: Users },
-        { name: "Prizes", href: "/awards", icon: Award },
+        { name: "Prizes", href: "/awards", icon: Award, adminOnly: true },
         { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
     ]
 
