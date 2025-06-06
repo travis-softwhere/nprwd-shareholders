@@ -1,24 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NPRWD AquaShare - Shareholder Meeting Management
 
-## Getting Started
+A web application for managing North Prairie Rural Water District shareholder meetings and property ownership.
 
-First, run the development server:
+## What it does
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Meeting Management**: Create meetings, track attendance, generate reports
+- **Shareholder Check-in**: Barcode scanning and manual check-in during meetings  
+- **Property Management**: Track ownership, handle transfers between shareholders
+- **Document Generation**: Create mailers with barcodes, meeting reports
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quick Start
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Set up environment variables**
+   Create `.env.local` with your database and authentication settings:
+   ```env
+   DATABASE_URL="your-postgresql-url"
+   NEXTAUTH_SECRET="your-secret"
+   KEYCLOAK_CLIENT_ID="your-keycloak-client"
+   KEYCLOAK_CLIENT_SECRET="your-keycloak-secret"
+   ```
+
+3. **Run the development server**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Database**: PostgreSQL (Neon)
+- **Authentication**: NextAuth.js with Keycloak
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI
+- **PDF Generation**: PDF-lib, bwip-js for barcodes
+
+## Rights & Ownership
+
+### Copyright
+© 2025 North Prairie Rural Water District (NPRWD). All rights reserved.
+
+### License
+This software is open source and available for public use. While the code is freely accessible, all intellectual property rights, including but not limited to trademarks, service marks, and proprietary methodologies, remain the property of NPRWD.
 
 ## Learn More
 

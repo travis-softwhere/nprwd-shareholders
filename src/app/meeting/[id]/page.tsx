@@ -3,6 +3,11 @@ import { getMeetingById } from "@/actions/getMeetings"; // assuming this action 
 import { PrintMailersButton } from "@/components/PrintMailersButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+// Force dynamic rendering to avoid database calls during build
+export const dynamic = 'force-dynamic'
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function MeetingPage({ 

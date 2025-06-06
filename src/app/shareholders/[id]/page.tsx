@@ -1,9 +1,11 @@
 // [id]/page.tsx
 
-import { getShareholderDetails } from "@/actions/getShareholderDetails"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
+import { getShareholderDetails } from "@/actions/getShareholderDetails"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import ManualCheckInButton from "@/components/ManualCheckInButton"
 import {
   Table,
   TableBody,
@@ -12,8 +14,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import ManualCheckInButton from "@/components/ManualCheckInButton"
+
+
+// Force dynamic rendering to avoid database calls during build
+export const dynamic = 'force-dynamic'
+
+interface PageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
