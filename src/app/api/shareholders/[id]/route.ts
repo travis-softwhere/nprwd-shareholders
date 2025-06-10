@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { shareholders } from '@/lib/db'
-import { eq } from 'drizzle-orm'
+import { queryOne } from '@/lib/db'
 
 export async function PUT(
   request: Request,
@@ -12,9 +10,27 @@ export async function PUT(
     const { id } = await context.params
 
     // Update the shareholder name in the database
-    await db.update(shareholders)
-      .set({ name })
-      .where(eq(shareholders.shareholderId, id))
+    const updatedShareholder = await queryOne<{
+      id: number;
+      shareholder_id: string;
+      name: string;
+      meeting_id: string;
+      owner_mailing_address: string;
+      owner_city_state_zip: string;
+      is_new: boolean;
+      created_at: Date;
+      comment: string;
+    }>(
+      'UPDATE shareholders SET name = $1 WHERE shareholder_id = $2 RETURNING *',
+      [name, id]
+    );
+
+    if (!updatedShareholder) {
+      return NextResponse.json(
+        { error: 'Shareholder not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

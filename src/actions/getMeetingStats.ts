@@ -1,29 +1,37 @@
 "use server"
 
-import { db } from "@/lib/db"
-import { meetings, shareholders, properties } from "@/lib/db/schema"
-import { eq, count, gt, sql } from "drizzle-orm"
+import { query, queryOne } from "@/lib/db"
 
 export async function getMeetingStats() {
     const now = new Date()
 
     const [shareholderStats, nextMeeting] = await Promise.all([
-        db
-            .select({
-                totalShareholders: count(shareholders.id),
-                checkedInCount: sql<number>`COUNT(CASE WHEN ${properties.checkedIn} = true THEN 1 END)`.as("checkedInCount"),
-            })
-            .from(shareholders)
-            .leftJoin(properties, eq(shareholders.shareholderId, properties.shareholderId))
-            .then((result) => result[0]),
+        queryOne<{
+            totalShareholders: number;
+            checkedInCount: number;
+        }>(
+            `SELECT 
+                COUNT(DISTINCT s.id) as "totalShareholders",
+                COUNT(CASE WHEN p.checked_in = true THEN 1 END) as "checkedInCount"
+            FROM shareholders s
+            LEFT JOIN properties p ON s.shareholder_id = p.shareholder_id`
+        ),
 
-        db
-            .select()
-            .from(meetings)
-            .where(gt(meetings.date, now))
-            .orderBy(meetings.date)
-            .limit(1)
-            .then((results) => results[0]),
+        queryOne<{
+            id: number;
+            year: number;
+            date: Date;
+            total_shareholders: number;
+            checked_in: number;
+            data_source: string;
+            has_initial_data: boolean;
+            mailers_generated: boolean;
+            mailer_generation_date: Date | null;
+            created_at: Date;
+        }>(
+            'SELECT * FROM meetings WHERE date > $1 ORDER BY date LIMIT 1',
+            [now]
+        )
     ])
 
     return {

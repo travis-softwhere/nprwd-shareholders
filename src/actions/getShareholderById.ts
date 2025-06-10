@@ -1,16 +1,11 @@
 "use server"
 
 import { query, queryOne } from "@/lib/db"
-import type { ShareholdersListResponse, Shareholder } from "@/types/shareholder"
+import type { Shareholder } from "@/types/shareholder"
 
-export async function getShareholdersList(
-    page: number = 1,
-    itemsPerPage: number = 25
-): Promise<ShareholdersListResponse> {
-    const offset = (page - 1) * itemsPerPage
-
+export async function getShareholderById(id: string): Promise<Shareholder | null> {
     try {
-        const shareholders = await query<{
+        const shareholder = await queryOne<{
             id: number;
             name: string;
             shareholder_id: string;
@@ -31,17 +26,16 @@ export async function getShareholdersList(
                 COUNT(CASE WHEN p.checked_in THEN 1 ELSE NULL END) as checked_in_properties
             FROM shareholders s
             LEFT JOIN properties p ON s.shareholder_id = p.shareholder_id
-            GROUP BY s.id
-            LIMIT $1 OFFSET $2`,
-            [itemsPerPage, offset]
+            WHERE s.id = $1
+            GROUP BY s.id`,
+            [parseInt(id, 10)]
         );
 
-        const totalResult = await queryOne<{ count: number }>(
-            'SELECT COUNT(*) as count FROM shareholders'
-        );
-        const totalShareholders = totalResult?.count || 0;
+        if (!shareholder) {
+            return null;
+        }
 
-        const typedShareholders: Shareholder[] = shareholders.map(shareholder => ({
+        return {
             id: shareholder.id,
             name: shareholder.name,
             shareholderId: shareholder.shareholder_id,
@@ -50,14 +44,9 @@ export async function getShareholdersList(
             isNew: shareholder.is_new,
             totalProperties: shareholder.total_properties,
             checkedInProperties: shareholder.checked_in_properties
-        }));
-
-        return {
-            shareholders: typedShareholders,
-            totalShareholders,
-        }
+        };
     } catch (error) {
-        console.error("Failed to fetch shareholders list:", error)
-        return { shareholders: [], totalShareholders: 0 }
+        console.error("Failed to fetch shareholder:", error)
+        return null
     }
-}
+} 

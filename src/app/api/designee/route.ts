@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, shareholders } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { queryOne } from "@/lib/db";
 
 // GET handler to fetch designee for a shareholder
 export async function GET(request: Request) {
@@ -15,19 +14,19 @@ export async function GET(request: Request) {
       );
     }
 
-    const shareholder = await db.select({ designee: shareholders.designee })
-      .from(shareholders)
-      .where(eq(shareholders.shareholderId, shareholderId))
-      .limit(1);
+    const shareholder = await queryOne<{ designee: string | null }>(
+      'SELECT designee FROM shareholders WHERE shareholder_id = $1',
+      [shareholderId]
+    );
 
-    if (!shareholder.length) {
+    if (!shareholder) {
       return NextResponse.json(
         { error: "Shareholder not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ designee: shareholder[0].designee });
+    return NextResponse.json({ designee: shareholder.designee });
 
   } catch (error) {
     console.error("Error fetching designee:", error);
@@ -51,19 +50,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const updatedShareholder = await db.update(shareholders)
-      .set({ designee })
-      .where(eq(shareholders.shareholderId, shareholderId))
-      .returning({ designee: shareholders.designee });
+    const updatedShareholder = await queryOne<{ designee: string | null }>(
+      'UPDATE shareholders SET designee = $1 WHERE shareholder_id = $2 RETURNING designee',
+      [designee, shareholderId]
+    );
 
-    if (!updatedShareholder.length) {
+    if (!updatedShareholder) {
       return NextResponse.json(
         { error: "Shareholder not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(updatedShareholder[0]);
+    return NextResponse.json(updatedShareholder);
 
   } catch (error) {
     console.error("Error setting designee:", error);
@@ -87,19 +86,19 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const updatedShareholder = await db.update(shareholders)
-      .set({ designee: null })
-      .where(eq(shareholders.shareholderId, shareholderId))
-      .returning({ designee: shareholders.designee });
+    const updatedShareholder = await queryOne<{ designee: string | null }>(
+      'UPDATE shareholders SET designee = NULL WHERE shareholder_id = $1 RETURNING designee',
+      [shareholderId]
+    );
 
-    if (!updatedShareholder.length) {
+    if (!updatedShareholder) {
       return NextResponse.json(
         { error: "Shareholder not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(updatedShareholder[0]);
+    return NextResponse.json(updatedShareholder);
   } catch (error) {
     console.error("Error clearing designee:", error);
     return NextResponse.json(

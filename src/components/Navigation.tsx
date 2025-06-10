@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { LogOut, Users, Home, Settings, Award } from "lucide-react"
+import { LogOut, Users, Home, Settings, Award, FileSignature } from "lucide-react"
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
@@ -39,6 +39,7 @@ export default function Navigation() {
         { name: "Shareholders", href: "/shareholders", icon: Users },
         { name: "Prizes", href: "/awards", icon: Award, adminOnly: true },
         { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
+        { name: "Signatures", href: "/signatures", icon: FileSignature, adminOnly: true },
     ]
 
     // Desktop sidebar navigation

@@ -4,15 +4,8 @@ import * as path from "path"
 import { parse } from "csv-parse/sync"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { shareholders } from "@/lib/db/schema"
-import { meetings } from "@/lib/db/schema" 
+import { query, queryOne } from "@/lib/db"
 import { logToFile, LogLevel } from "@/utils/logger"
-import { desc } from "drizzle-orm"
-import { sql } from "drizzle-orm"
-import { properties } from "@/lib/db/schema"
-import { eq, inArray } from "drizzle-orm"
-
 
 export interface Property {
     account: string
@@ -38,7 +31,6 @@ function getCSVData(): Property[] {
     const records = parse(fileContent, {
         columns: (header: string[]) => {
             return header.map((column) => {
-                // Map CSV headers to our interface properties
                 switch (column) {
                     case "# of":
                         return "numOf"
@@ -94,39 +86,124 @@ export async function GET(request: Request) {
         
         if (shareholderId) {
             // Get the specific shareholder from the database
-            const result = await db.select().from(shareholders).where(sql`${shareholders.shareholderId} = ${shareholderId}`);
-            if (result.length === 0) {
+            const shareholder = await queryOne<{
+                id: number;
+                shareholder_id: string;
+                name: string;
+                meeting_id: string;
+                owner_mailing_address: string;
+                owner_city_state_zip: string;
+                is_new: boolean;
+                created_at: Date;
+                comment: string;
+            }>(
+                'SELECT * FROM shareholders WHERE shareholder_id = $1',
+                [shareholderId]
+            );
+
+            if (!shareholder) {
                 return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
             }
+
             // Also fetch properties for this shareholder
-            const props = await db.select().from(properties).where(eq(properties.shareholderId, shareholderId));
-            return NextResponse.json({ shareholder: { ...result[0], properties: props } });
+            const props = await query<{
+                id: number;
+                account: string;
+                shareholder_id: string;
+                num_of: string;
+                customer_name: string;
+                customer_mailing_address: string;
+                city_state_zip: string;
+                owner_name: string;
+                owner_mailing_address: string;
+                owner_city_state_zip: string;
+                resident_name: string;
+                resident_mailing_address: string;
+                resident_city_state_zip: string;
+                service_address: string;
+                checked_in: boolean;
+                created_at: Date;
+            }>(
+                'SELECT * FROM properties WHERE shareholder_id = $1',
+                [shareholderId]
+            );
+
+            return NextResponse.json({
+                shareholder: {
+                    ...shareholder,
+                    properties: props
+                }
+            });
         }
+
         // Get all shareholders from the database, optionally filter by meetingId
-        let allShareholders;
+        let shareholders;
         if (meetingId) {
-            allShareholders = await db.select().from(shareholders).where(sql`${shareholders.meetingId} = ${meetingId}`);
+            shareholders = await query<{
+                id: number;
+                shareholder_id: string;
+                name: string;
+                meeting_id: string;
+                owner_mailing_address: string;
+                owner_city_state_zip: string;
+                is_new: boolean;
+                created_at: Date;
+                comment: string;
+            }>(
+                'SELECT * FROM shareholders WHERE meeting_id = $1',
+                [meetingId]
+            );
         } else {
-            allShareholders = await db.select().from(shareholders);
+            shareholders = await query<{
+                id: number;
+                shareholder_id: string;
+                name: string;
+                meeting_id: string;
+                owner_mailing_address: string;
+                owner_city_state_zip: string;
+                is_new: boolean;
+                created_at: Date;
+                comment: string;
+            }>('SELECT * FROM shareholders');
         }
 
         // Get all properties for these shareholders
-        const allShareholderIds = allShareholders.map(s => s.shareholderId);
-        const allProperties = allShareholderIds.length
-            ? await db.select().from(properties).where(inArray(properties.shareholderId, allShareholderIds))
+        const shareholderIds = shareholders.map(s => s.shareholder_id);
+        const allProperties = shareholderIds.length
+            ? await query<{
+                id: number;
+                account: string;
+                shareholder_id: string;
+                num_of: string;
+                customer_name: string;
+                customer_mailing_address: string;
+                city_state_zip: string;
+                owner_name: string;
+                owner_mailing_address: string;
+                owner_city_state_zip: string;
+                resident_name: string;
+                resident_mailing_address: string;
+                resident_city_state_zip: string;
+                service_address: string;
+                checked_in: boolean;
+                created_at: Date;
+            }>(
+                'SELECT * FROM properties WHERE shareholder_id = ANY($1)',
+                [shareholderIds]
+            )
             : [];
 
         // Group properties by shareholderId
         const propMap = new Map();
         for (const prop of allProperties) {
-            if (!propMap.has(prop.shareholderId)) propMap.set(prop.shareholderId, []);
-            propMap.get(prop.shareholderId).push(prop);
+            if (!propMap.has(prop.shareholder_id)) propMap.set(prop.shareholder_id, []);
+            propMap.get(prop.shareholder_id).push(prop);
         }
 
         // Attach properties array to each shareholder
-        const result = allShareholders.map(s => ({
+        const result = shareholders.map(s => ({
             ...s,
-            properties: propMap.get(s.shareholderId) || []
+            properties: propMap.get(s.shareholder_id) || []
         }));
 
         return NextResponse.json({ shareholders: result })
@@ -160,40 +237,43 @@ export async function POST(request: Request) {
         const formattedName = name.trim().toUpperCase()
 
         // Get the latest active meeting
-        const latestMeetings = await db
-            .select()
-            .from(meetings)
-            .orderBy(desc(meetings.year))
-            .limit(1)
+        const latestMeeting = await queryOne<{ id: number; year: number }>(
+            'SELECT id, year FROM meetings ORDER BY year DESC LIMIT 1'
+        );
 
-        if (!latestMeetings || latestMeetings.length === 0) {
+        if (!latestMeeting) {
             return NextResponse.json(
                 { error: "No active meeting found to associate shareholder with" },
                 { status: 400 }
             )
         }
 
-        const meetingId = latestMeetings[0].id.toString()
+        const meetingId = latestMeeting.id.toString()
 
         // Create new shareholder
         console.log('New address for new shareholder: ', ownerMailingAddress, ownerCityStateZip)
-        const newShareholder = await db
-            .insert(shareholders)
-            .values({
-                name: formattedName,
-                shareholderId,
-                meetingId,
-                isNew: true,
-                ownerMailingAddress,
-                ownerCityStateZip
-            })
-            .returning()
+        const newShareholder = await queryOne<{
+            id: number;
+            shareholder_id: string;
+            name: string;
+            meeting_id: string;
+            owner_mailing_address: string;
+            owner_city_state_zip: string;
+            is_new: boolean;
+            created_at: Date;
+        }>(
+            `INSERT INTO shareholders 
+            (name, shareholder_id, meeting_id, is_new, owner_mailing_address, owner_city_state_zip)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *`,
+            [formattedName, shareholderId, meetingId, true, ownerMailingAddress, ownerCityStateZip]
+        );
 
         await logToFile("shareholders", "New shareholder created", LogLevel.INFO, {
             shareholderId
         })
 
-        return NextResponse.json(newShareholder[0])
+        return NextResponse.json(newShareholder)
     } catch (error) {
         await logToFile("shareholders", "Error creating shareholder", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -210,7 +290,6 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const { shareholderId, isCheckedIn } = await request.json()
-        
         
         const filePath = path.join(process.cwd(), "public", "PropertyList.csv")
         const properties = getCSVData()
@@ -261,7 +340,6 @@ export async function PUT(request: Request) {
         
         return NextResponse.json({ success: true })
     } catch (error) {
-
         return NextResponse.json({ error: "Failed to update data" }, { status: 500 })
     }
 }

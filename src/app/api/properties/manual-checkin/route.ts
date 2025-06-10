@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { checkInShareholders } from "@/actions/checkInShareholders";
 import { undoCheckInShareholders } from "@/actions/undoCheckInShareholders";
 import { logToFile, LogLevel } from "@/utils/logger";
-import { db } from "@/lib/db";
-import { properties } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { query } from "@/lib/db";
 
 export async function POST(request: Request) {
     try {
@@ -30,10 +28,12 @@ export async function POST(request: Request) {
 
         // If checking in, verify not already checked in
         if (action === "checkin") {
-            const propertiesToCheckIn = await db
-                .select()
-                .from(properties)
-                .where(eq(properties.shareholderId, shareholderId));
+            const propertiesToCheckIn = await query<{
+                checked_in: boolean;
+            }>(
+                'SELECT checked_in FROM properties WHERE shareholder_id = $1',
+                [shareholderId]
+            );
 
             if (!propertiesToCheckIn.length) {
                 await logToFile("properties", "No properties found for shareholder checkin", LogLevel.ERROR, {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
             }
 
             // Check if any properties are already checked in
-            const alreadyCheckedIn = propertiesToCheckIn.some(p => p.checkedIn);
+            const alreadyCheckedIn = propertiesToCheckIn.some(p => p.checked_in);
             if (alreadyCheckedIn) {
                 await logToFile("properties", "Shareholder already checked in", LogLevel.INFO, {
                     shareholderId

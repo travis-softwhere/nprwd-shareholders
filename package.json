@@ -48,6 +48,7 @@
     "pdfkit": "^0.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-signature-canvas": "^1.1.0-alpha.2",
     "react-spinning-wheel": "^2.1.0",
     "recharts": "^2.15.1",
     "sonner": "^2.0.1",

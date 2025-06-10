@@ -1,8 +1,6 @@
 'use server'
 
-import { db } from "@/lib/db"
-import { properties } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { query } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -31,9 +29,10 @@ export async function checkInShareholders(shareholderId: string): Promise<CheckI
         }
 
         // Check in all properties for this shareholder 
-        await db.update(properties)
-        .set({ checkedIn: true })
-        .where(eq(properties.shareholderId, shareholderId))
+        await query(
+            'UPDATE properties SET checked_in = true WHERE shareholder_id = $1',
+            [shareholderId]
+        )
 
         revalidatePath(`/shareholders/${shareholderId}`)
 

@@ -1,28 +1,26 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { properties } from "@/lib/db/schema"
-import { desc, sql, and, eq, like } from "drizzle-orm"
+import { query, queryOne } from "@/lib/db"
 import { logToFile, LogLevel } from "@/utils/logger"
 
 // Define interface for properties to make TypeScript happy
 export interface Property {
     id: number
     account: string
-    shareholderId: string
-    serviceAddress: string
-    cityStateZip: string
-    numOf: string
-    ownerName: string
-    ownerMailingAddress: string
-    ownerCityStateZip: string
-    customerName: string
-    customerMailingAddress: string
-    residentName: string
-    residentMailingAddress: string
-    residentCityStateZip: string
-    checkedIn: boolean
+    shareholder_id: string
+    service_address: string
+    city_state_zip: string
+    num_of: string
+    owner_name: string
+    owner_mailing_address: string
+    owner_city_state_zip: string
+    customer_name: string
+    customer_mailing_address: string
+    resident_name: string
+    resident_mailing_address: string
+    resident_city_state_zip: string
+    checked_in: boolean
 }
 
 // GET endpoint for retrieving properties
@@ -47,62 +45,42 @@ export async function GET(request: Request) {
         }
 
         // Build the query based on filters
-        let whereConditions = undefined;
-        
-        const conditions = []
-        
-        // Add search condition
+        let whereClause = "";
+        const params: any[] = [];
+        let paramIndex = 1;
+
         if (searchTerm) {
-            conditions.push(
-                sql`(
-                    ${properties.serviceAddress} ILIKE ${`%${searchTerm}%`} OR
-                    ${properties.ownerName} ILIKE ${`%${searchTerm}%`} OR
-                    ${properties.customerName} ILIKE ${`%${searchTerm}%`} OR
-                    ${properties.account} ILIKE ${`%${searchTerm}%`}
-                )`
-            )
+            whereClause = `WHERE (
+                service_address ILIKE $${paramIndex} OR
+                owner_name ILIKE $${paramIndex} OR
+                customer_name ILIKE $${paramIndex} OR
+                account ILIKE $${paramIndex}
+            )`;
+            params.push(`%${searchTerm}%`);
+            paramIndex++;
         }
         
-        // Add checked-in filter
         if (checkedInFilter === "true") {
-            conditions.push(eq(properties.checkedIn, true))
+            whereClause += whereClause ? " AND " : "WHERE ";
+            whereClause += `checked_in = $${paramIndex}`;
+            params.push(true);
+            paramIndex++;
         } else if (checkedInFilter === "false") {
-            conditions.push(eq(properties.checkedIn, false))
-        }
-        
-        // Apply all conditions if any
-        if (conditions.length > 0) {
-            whereConditions = and(...conditions);
+            whereClause += whereClause ? " AND " : "WHERE ";
+            whereClause += `checked_in = $${paramIndex}`;
+            params.push(false);
+            paramIndex++;
         }
         
         // Execute the query
-        const propertyList = await db
-            .select({
-                id: properties.id,
-                account: properties.account,
-                shareholderId: properties.shareholderId,
-                numOf: properties.numOf,
-                customerName: properties.customerName,
-                customerMailingAddress: properties.customerMailingAddress,
-                cityStateZip: properties.cityStateZip,
-                ownerName: properties.ownerName,
-                ownerMailingAddress: properties.ownerMailingAddress,
-                ownerCityStateZip: properties.ownerCityStateZip,
-                residentName: properties.residentName,
-                residentMailingAddress: properties.residentMailingAddress,
-                residentCityStateZip: properties.residentCityStateZip,
-                serviceAddress: properties.serviceAddress,
-                checked_in: properties.checkedIn,
-                createdAt: properties.createdAt
-            })
-            .from(properties)
-            .where(whereConditions)
-            .limit(parseInt(limit))
-            .orderBy(desc(properties.id));
+        const propertyList = await query<Property>(
+            `SELECT * FROM properties ${whereClause} ORDER BY id DESC LIMIT $${paramIndex}`,
+            [...params, parseInt(limit)]
+        );
 
         // Log the first few properties to check checked_in values
-        console.log("First few properties from DB:", propertyList.slice(0, 3));
-        console.log("Checked-in properties count:", propertyList.filter(p => p.checked_in).length);
+        // console.log("First few properties from DB:", propertyList.slice(0, 3));
+        // console.log("Checked-in properties count:", propertyList.filter(p => p.checked_in).length);
 
         await logToFile("properties", "Properties fetched successfully", LogLevel.INFO, {
             propertiesCount: propertyList.length,
@@ -175,30 +153,52 @@ export async function POST(request: Request) {
         // Format all input values to uppercase for consistency
         const formattedData = {
             account: body.account?.trim().toUpperCase() || '',
-            shareholderId: body.shareholderId?.trim() || '',
-            serviceAddress: body.serviceAddress?.trim().toUpperCase() || '',
-            cityStateZip: formatCityStateZip(body.cityStateZip),
-            numOf: body.numOf?.trim() || '',
-            ownerName: body.ownerName?.trim().toUpperCase() || '',
-            ownerMailingAddress: body.ownerMailingAddress?.trim().toUpperCase() || '',
-            ownerCityStateZip: formatCityStateZip(body.ownerCityStateZip),
-            customerName: body.customerName?.trim().toUpperCase() || '',
-            customerMailingAddress: body.customerMailingAddress?.trim().toUpperCase() || '',
-            residentName: body.residentName?.trim().toUpperCase() || '',
-            residentMailingAddress: body.residentMailingAddress?.trim().toUpperCase() || '',
-            residentCityStateZip: formatCityStateZip(body.residentCityStateZip),
-            checkedIn: false, // New properties always start unchecked
+            shareholder_id: body.shareholderId?.trim() || '',
+            service_address: body.serviceAddress?.trim().toUpperCase() || '',
+            city_state_zip: formatCityStateZip(body.cityStateZip),
+            num_of: body.numOf?.trim() || '',
+            owner_name: body.ownerName?.trim().toUpperCase() || '',
+            owner_mailing_address: body.ownerMailingAddress?.trim().toUpperCase() || '',
+            owner_city_state_zip: formatCityStateZip(body.ownerCityStateZip),
+            customer_name: body.customerName?.trim().toUpperCase() || '',
+            customer_mailing_address: body.customerMailingAddress?.trim().toUpperCase() || '',
+            resident_name: body.residentName?.trim().toUpperCase() || '',
+            resident_mailing_address: body.residentMailingAddress?.trim().toUpperCase() || '',
+            resident_city_state_zip: formatCityStateZip(body.residentCityStateZip),
+            checked_in: false, // New properties always start unchecked
         };
 
         // Create property
-        const [newProperty] = await db
-            .insert(properties)
-            .values(formattedData)
-            .returning()
+        const newProperty = await queryOne<Property>(
+            `INSERT INTO properties (
+                account, shareholder_id, service_address, city_state_zip, num_of,
+                owner_name, owner_mailing_address, owner_city_state_zip,
+                customer_name, customer_mailing_address, resident_name,
+                resident_mailing_address, resident_city_state_zip, checked_in
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+            ) RETURNING *`,
+            [
+                formattedData.account,
+                formattedData.shareholder_id,
+                formattedData.service_address,
+                formattedData.city_state_zip,
+                formattedData.num_of,
+                formattedData.owner_name,
+                formattedData.owner_mailing_address,
+                formattedData.owner_city_state_zip,
+                formattedData.customer_name,
+                formattedData.customer_mailing_address,
+                formattedData.resident_name,
+                formattedData.resident_mailing_address,
+                formattedData.resident_city_state_zip,
+                formattedData.checked_in
+            ]
+        );
 
         await logToFile("properties", "Property created successfully", LogLevel.INFO, {
-            propertyId: newProperty.id,
-            account: newProperty.account
+            propertyId: newProperty?.id,
+            account: newProperty?.account
         })
 
         return NextResponse.json(newProperty)

@@ -1,24 +1,34 @@
 "use server"
 
-import { db } from "@/lib/db"
-import { meetings } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { query, queryOne } from "@/lib/db"
 import type { Meeting } from "@/types/meeting"
 
 export async function getMeetings(): Promise<Meeting[]> {
     try {
-        const result = await db.select().from(meetings)
+        const result = await query<{
+            id: number;
+            year: number;
+            date: Date;
+            total_shareholders: number;
+            checked_in: number;
+            data_source: string;
+            has_initial_data: boolean;
+            mailers_generated: boolean;
+            mailer_generation_date: Date | null;
+            created_at: Date;
+        }>('SELECT * FROM meetings');
+
         return result.map((meeting) => ({
             id: meeting.id.toString(),
             year: meeting.year,
             date: meeting.date.toISOString(),
-            totalShareholders: meeting.totalShareholders ?? 0,
-            checkedIn: meeting.checkedIn ?? 0,
-            dataSource: meeting.dataSource as "excel" | "database",
-            hasInitialData: meeting.hasInitialData ?? false,
-            mailersGenerated: meeting.mailersGenerated ?? false,
-            mailerGenerationDate: meeting.mailerGenerationDate ? meeting.mailerGenerationDate.toISOString() : null,
-            createdAt: meeting.createdAt?.toISOString() ?? new Date().toISOString(),
+            totalShareholders: meeting.total_shareholders ?? 0,
+            checkedIn: meeting.checked_in ?? 0,
+            dataSource: meeting.data_source as "excel" | "database",
+            hasInitialData: meeting.has_initial_data ?? false,
+            mailersGenerated: meeting.mailers_generated ?? false,
+            mailerGenerationDate: meeting.mailer_generation_date ? meeting.mailer_generation_date.toISOString() : null,
+            createdAt: meeting.created_at?.toISOString() ?? new Date().toISOString(),
         }))
     } catch (error) {
         // Remove console.error for production
@@ -31,24 +41,37 @@ export async function getMeetings(): Promise<Meeting[]> {
  */
 export async function getMeetingById(id: string): Promise<Meeting | null> {
     try {
-        const result = await db.select().from(meetings).where(eq(meetings.id, parseInt(id, 10))).limit(1)
+        const meeting = await queryOne<{
+            id: number;
+            year: number;
+            date: Date;
+            total_shareholders: number;
+            checked_in: number;
+            data_source: string;
+            has_initial_data: boolean;
+            mailers_generated: boolean;
+            mailer_generation_date: Date | null;
+            created_at: Date;
+        }>(
+            'SELECT * FROM meetings WHERE id = $1',
+            [parseInt(id, 10)]
+        );
         
-        if (result.length === 0) {
-            return null
+        if (!meeting) {
+            return null;
         }
         
-        const meeting = result[0]
         return {
             id: meeting.id.toString(),
             year: meeting.year,
             date: meeting.date.toISOString(),
-            totalShareholders: meeting.totalShareholders ?? 0,
-            checkedIn: meeting.checkedIn ?? 0,
-            dataSource: meeting.dataSource as "excel" | "database",
-            hasInitialData: meeting.hasInitialData ?? false,
-            mailersGenerated: meeting.mailersGenerated ?? false,
-            mailerGenerationDate: meeting.mailerGenerationDate ? meeting.mailerGenerationDate.toISOString() : null,
-            createdAt: meeting.createdAt?.toISOString() ?? new Date().toISOString(),
+            totalShareholders: meeting.total_shareholders ?? 0,
+            checkedIn: meeting.checked_in ?? 0,
+            dataSource: meeting.data_source as "excel" | "database",
+            hasInitialData: meeting.has_initial_data ?? false,
+            mailersGenerated: meeting.mailers_generated ?? false,
+            mailerGenerationDate: meeting.mailer_generation_date ? meeting.mailer_generation_date.toISOString() : null,
+            createdAt: meeting.created_at?.toISOString() ?? new Date().toISOString(),
         }
     } catch (error) {
         // Let error bubble up to caller

@@ -1,18 +1,16 @@
 // src/actions/undoCheckInShareholders.ts
 "use server";
-import { db } from "@/lib/db";
-import { properties } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache"; // <-- add this
+import { query } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
 export async function undoCheckInShareholders(shareholderId: string) {
   try {
-    await db
-      .update(properties)
-      .set({ checkedIn: false })
-      .where(eq(properties.shareholderId, shareholderId));
+    await query(
+      'UPDATE properties SET checked_in = false WHERE shareholder_id = $1',
+      [shareholderId]
+    );
 
-    revalidatePath(`/shareholders/${shareholderId}`); // <-- add this
+    revalidatePath(`/shareholders/${shareholderId}`);
 
     return { success: true, message: "Check-in undone for all properties." };
   } catch (error) {

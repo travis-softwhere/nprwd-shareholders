@@ -896,9 +896,33 @@ export default function AdminPage() {
                   const totalProperties = propertiesData.length;
                   const checkedInProperties = propertiesData.filter((p: any) => p.checked_in).length;
                   const totalShareholders = shareholdersData.shareholders.length;
-                  const checkedInShareholders = shareholdersData.shareholders.filter((s: any) => 
-                    propertiesData.some((p: any) => p.shareholderId === s.shareholderId && p.checked_in)
-                  ).length;
+
+                  // Group properties by shareholderId
+                  const propertiesByShareholder: Record<string, any[]> = {};
+                  propertiesData.forEach((property: any) => {
+                    if (!propertiesByShareholder[property.shareholderId]) {
+                      propertiesByShareholder[property.shareholderId] = [];
+                    }
+
+                    propertiesByShareholder[property.shareholderId].push(property);
+                  });
+
+                  console.log('Total properties:', totalProperties);
+                  console.log('Total shareholders:', totalShareholders);
+                  console.log('Properties by shareholder:', propertiesByShareholder);
+
+                  // For each shareholder, check if all their properties are checked in
+                  let checkedInShareholders = 0;
+                  shareholdersData.shareholders.forEach((shareholder: any) => {
+                    const props = propertiesByShareholder[shareholder.shareholderId] || [];
+                    const checkedProps = props.filter((p) => p.checked_in).length;
+                    console.log(`Shareholder ${shareholder.shareholderId}: total properties = ${props.length}, checked in = ${checkedProps}`);
+                    if (props.length > 0 && props.every((p) => p.checked_in)) {
+                      checkedInShareholders += 1;
+                    }
+                  });
+                  
+                  console.log('Checked-in shareholders:', checkedInShareholders);
                   
                   // Load logos as base64
                   const nprwdLogo = await loadImageAsBase64("/NPRWDLogo.png");

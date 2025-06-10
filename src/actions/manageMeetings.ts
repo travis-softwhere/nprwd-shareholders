@@ -1,8 +1,6 @@
 "use server"
 
-import { db } from "@/lib/db"
-import { meetings, shareholders, properties } from "@/lib/db/schema"
-import { eq, inArray } from "drizzle-orm"
+import { query, queryOne } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
 // Update the createMeeting function to ensure dataSource is correctly typed
@@ -16,40 +14,42 @@ export async function createMeeting(formData: FormData) {
             throw new Error("Invalid year, date, or data source")
         }
 
-        const result = await db
-            .insert(meetings)
-            .values({
-                year,
-                date,
-                dataSource,
-            })
-            .returning({
-                id: meetings.id,
-                year: meetings.year,
-                date: meetings.date,
-                totalShareholders: meetings.totalShareholders,
-                checkedIn: meetings.checkedIn,
-                dataSource: meetings.dataSource,
-                hasInitialData: meetings.hasInitialData,
-                mailersGenerated: meetings.mailersGenerated,
-                mailerGenerationDate: meetings.mailerGenerationDate,
-                createdAt: meetings.createdAt,
-            })
+        const result = await queryOne<{
+            id: number;
+            year: number;
+            date: Date;
+            total_shareholders: number;
+            checked_in: number;
+            data_source: string;
+            has_initial_data: boolean;
+            mailers_generated: boolean;
+            mailer_generation_date: Date | null;
+            created_at: Date;
+        }>(
+            `INSERT INTO meetings (year, date, data_source)
+             VALUES ($1, $2, $3)
+             RETURNING id, year, date, total_shareholders, checked_in, data_source, has_initial_data, mailers_generated, mailer_generation_date, created_at`,
+            [year, date, dataSource]
+        )
+
+        if (!result) {
+            return { success: false, error: "Failed to create meeting" }
+        }
 
         revalidatePath("/admin")
         return {
             success: true,
             meeting: {
-                ...result[0],
-                id: result[0].id.toString(),
-                date: result[0].date.toISOString(),
-                totalShareholders: result[0].totalShareholders ?? 0,
-                checkedIn: result[0].checkedIn ?? 0,
-                dataSource: result[0].dataSource as "excel" | "database",
-                hasInitialData: result[0].hasInitialData ?? false,
-                mailersGenerated: result[0].mailersGenerated ?? false,
-                mailerGenerationDate: result[0].mailerGenerationDate?.toISOString() ?? null,
-                createdAt: result[0].createdAt?.toISOString() ?? new Date().toISOString(),
+                ...result,
+                id: result.id.toString(),
+                date: result.date.toISOString(),
+                totalShareholders: result.total_shareholders ?? 0,
+                checkedIn: result.checked_in ?? 0,
+                dataSource: result.data_source as "excel" | "database",
+                hasInitialData: result.has_initial_data ?? false,
+                mailersGenerated: result.mailers_generated ?? false,
+                mailerGenerationDate: result.mailer_generation_date ? result.mailer_generation_date.toISOString() : null,
+                createdAt: result.created_at?.toISOString() ?? new Date().toISOString(),
             },
         }
     } catch (error) {
@@ -62,18 +62,29 @@ export async function deleteMeeting(formData: FormData) {
         const id = formData.get("id") as string
         if (!id) throw new Error("Meeting ID is required")
 
-        const existingShareholders = await db
-            .select({ shareholderId: shareholders.shareholderId })
-            .from(shareholders)
-            .where(eq(shareholders.meetingId, id))
+        const existingShareholders = await query<{
+            shareholder_id: string;
+        }>(
+            'SELECT shareholder_id FROM shareholders WHERE meeting_id = $1',
+            [id]
+        )
 
         if (existingShareholders.length > 0) {
-            const shareholderIds = existingShareholders.map((s) => s.shareholderId)
-            await db.delete(properties).where(inArray(properties.shareholderId, shareholderIds))
-            await db.delete(shareholders).where(eq(shareholders.meetingId, id))
+            const shareholderIds = existingShareholders.map((s) => s.shareholder_id)
+            await query(
+                'DELETE FROM properties WHERE shareholder_id = ANY($1)',
+                [shareholderIds]
+            )
+            await query(
+                'DELETE FROM shareholders WHERE meeting_id = $1',
+                [id]
+            )
         }
 
-        await db.delete(meetings).where(eq(meetings.id, Number(id)))
+        await query(
+            'DELETE FROM meetings WHERE id = $1',
+            [Number(id)]
+        )
 
         revalidatePath("/admin")
         return { success: true }

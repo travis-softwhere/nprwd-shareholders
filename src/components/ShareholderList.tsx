@@ -52,13 +52,23 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             try {
                 const res = await fetch("/api/shareholders")
                 const data = await res.json()
-                const processedShareholders = (data.shareholders || []).map((sh: any) => ({
-                    ...sh,
-                    totalProperties: sh.properties ? sh.properties.length : 0,
-                    checkedInProperties: sh.properties
-                        ? sh.properties.filter((p: any) => p.checkedIn).length
-                        : 0,
-                }))
+                const processedShareholders = (data.shareholders || []).map((sh: any) => {
+                    // Map checked_in to checkedIn for all properties
+                    const properties = (sh.properties || []).map((p: any) => ({
+                        ...p,
+                        checkedIn: p.checkedIn ?? p.checked_in ?? false,
+                    }));
+
+                    return {
+                        ...sh,
+                        properties,
+                        totalProperties: properties.length,
+                        checkedInProperties: properties.filter((p: any) => p.checkedIn).length,
+                        ownerMailingAddress: sh.ownerMailingAddress || sh.owner_mailing_address || "",
+                        ownerCityStateZip: sh.ownerCityStateZip || sh.owner_city_state_zip || "",
+                        shareholderId: sh.shareholderId || sh.shareholder_id,
+                    };
+                })
                 setAllShareholders(processedShareholders)
             } catch (error) {
                 toast({
@@ -348,9 +358,9 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                         </tr>
                                     ))
                                 ) : (
-                                    paginatedShareholders.map((shareholder) => (
+                                    paginatedShareholders.map((shareholder, index) => (
                                         <tr
-                                            key={shareholder.shareholderId}
+                                            key={`${shareholder.shareholderId}-${index}`}
                                             className={cn(
                                                 "hover:bg-blue-50 cursor-pointer transition-colors duration-150",
                                                 shareholder.isNew && "bg-yellow-50 hover:bg-yellow-100"
@@ -401,9 +411,9 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                 </Card>
                             ))
                         ) : (
-                            paginatedShareholders.map((shareholder) => (
+                            paginatedShareholders.map((shareholder, index) => (
                                 <Card 
-                                    key={shareholder.shareholderId}
+                                    key={`${shareholder.shareholderId}-${index}`}
                                     className={cn(
                                         "overflow-hidden hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500",
                                         shareholder.isNew && "bg-yellow-50 border-l-yellow-400 hover:bg-yellow-100"
