@@ -938,7 +938,7 @@ export default function AdminPage() {
                   doc.text("Summary", 20, 170);
                   doc.setFontSize(12);
                   doc.text(
-                    `This report shows that ${checkedInShareholders} out of ${totalShareholders} shareholders ` +
+                    `This report shows that ${checkedInShareholders} out of ${totalShareholders} benefit unit owners ` +
                     `(${((checkedInShareholders / totalShareholders) * 100).toFixed(1)}%) have checked in, ` +
                     `representing ${checkedInProperties} out of ${totalProperties} properties ` +
                     `(${((checkedInProperties / totalProperties) * 100).toFixed(1)}%).`,
