@@ -918,7 +918,7 @@ export default function AdminPage() {
                   
                   // Add date
                   doc.setFontSize(12);
-                  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 50, { align: "center" });
+                  doc.text(`Meeting Date: ${selectedMeeting ? new Date(selectedMeeting.date).toLocaleDateString() : 'Not specified'}`, 105, 50, { align: "center" });
                   
                   // Add statistics
                   doc.setFontSize(14);
