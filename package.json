@@ -10,6 +10,7 @@
     "lint": "next lint",
     "init-db": "ts-node scripts/init-db.ts",
     "migrate-transfers": "node scripts/migrate-transfers.js",
+    "migrate-signatures": "node scripts/migrate-signatures.js",
     "cleanup-logs": "node cleanup-logging.js"
   },
   "dependencies": {

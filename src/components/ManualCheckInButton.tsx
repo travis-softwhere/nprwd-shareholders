@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
+import SignaturePad from "./SignaturePad"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,12 +17,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-export default function ManualCheckInButton({shareholderId, isFullyCheckedIn}: {shareholderId: string, isFullyCheckedIn: boolean}) {
+export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, shareholderName}: {shareholderId: string, isFullyCheckedIn: boolean, shareholderName?: string}) {
     const [isPending, startTransition] = useTransition()
     const [showAlreadyCheckedInDialog, setShowAlreadyCheckedInDialog] = useState(false)
+    const [showSignaturePad, setShowSignaturePad] = useState(false)
     const router = useRouter()
 
     const handleCheckIn = () => {
+        setShowSignaturePad(true);
+    }
+
+    const handleSignatureComplete = (signatureImage: string, signatureHash: string) => {
+        setShowSignaturePad(false);
         startTransition(async () => {
             try {
                 const response = await fetch("/api/properties/manual-checkin", {
@@ -31,7 +38,9 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn}: {
                     },
                     body: JSON.stringify({
                         shareholderId,
-                        action: "checkin"
+                        action: "checkin",
+                        signatureImage,
+                        signatureHash
                     })
                 });
 
@@ -133,6 +142,14 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn}: {
                 >
                     {isPending ? "Undoing..." : "Undo Check In"}
                 </Button>
+            )}
+            
+            {showSignaturePad && (
+                <SignaturePad
+                    onSignatureComplete={handleSignatureComplete}
+                    onCancel={() => setShowSignaturePad(false)}
+                    shareholderName={shareholderName}
+                />
             )}
         </>
     )

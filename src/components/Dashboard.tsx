@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import ShareholderList from "@/components/ShareholderList";
+import SignaturePad from "./SignaturePad";
 
 interface DashboardProps {
   // Add any props needed specifically for check-in if required
@@ -42,10 +43,51 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
     checkForReturnFlag();
   }, []);
 
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [pendingShareholderId, setPendingShareholderId] = useState<string | null>(null);
+  const [pendingShareholderName, setPendingShareholderName] = useState<string | null>(null);
+
   // Handle barcode submission (Check-in logic)
   const handleBarcodeSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!barcodeInput) return;
+    
+    // First, get shareholder info to show in signature pad
+    try {
+      const response = await fetch(`/api/shareholders?shareholderId=${barcodeInput.trim()}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.error || "Shareholder not found.");
+        toast({
+          title: "Error",
+          description: data.error || "Could not find this shareholder.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Store pending check-in info and show signature pad
+      setPendingShareholderId(barcodeInput.trim());
+      setPendingShareholderName(data.shareholder.name);
+      setShowSignaturePad(true);
+      setBarcodeInput("");
+
+    } catch (err) {
+      const errorMessage = "An error occurred while looking up shareholder.";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSignatureComplete = async (signatureImage: string, signatureHash: string) => {
+    if (!pendingShareholderId) return;
+    
+    setShowSignaturePad(false);
     setLoading(true);
     setError("");
 
@@ -58,7 +100,9 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
           "Pragma": "no-cache"
         },
         body: JSON.stringify({
-          shareholderId: barcodeInput.trim(),
+          shareholderId: pendingShareholderId,
+          signatureImage,
+          signatureHash
         }),
       });
       
@@ -83,8 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       });
       
       // Redirect to shareholder details page
-      router.push(`/shareholders/${barcodeInput.trim()}`);
-      setBarcodeInput("");
+      router.push(`/shareholders/${pendingShareholderId}`);
 
     } catch (err) {
       const errorMessage = "An error occurred during check-in.";
@@ -96,6 +139,8 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       });
     } finally {
       setLoading(false);
+      setPendingShareholderId(null);
+      setPendingShareholderName(null);
     }
   };
 
@@ -154,6 +199,18 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
           <ShareholderList />
         </div>
       </div>
+      
+      {showSignaturePad && (
+        <SignaturePad
+          onSignatureComplete={handleSignatureComplete}
+          onCancel={() => {
+            setShowSignaturePad(false);
+            setPendingShareholderId(null);
+            setPendingShareholderName(null);
+          }}
+          shareholderName={pendingShareholderName || undefined}
+        />
+      )}
     </div>
   );
 };

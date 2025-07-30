@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { shareholders } from '@/lib/db/schema'
+import { db, shareholders } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 
 export async function GET(

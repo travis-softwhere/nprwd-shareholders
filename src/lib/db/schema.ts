@@ -21,8 +21,11 @@ export const shareholders = pgTable("shareholders", {
     ownerMailingAddress: text("owner_mailing_address"),
     ownerCityStateZip: text("owner_city_state_zip"),
     isNew: boolean("is_new").default(false),
+    signatureImage: text("signature_image"),
+    signatureHash: text("signature_hash"),
+    checkedIn: boolean("checked_in").default(false),
+    checkedInAt: timestamp("checked_in_at"),
     createdAt: timestamp("created_at").defaultNow(),
-    comment: text("comment"),
 })
 
 export const properties = pgTable("properties", {

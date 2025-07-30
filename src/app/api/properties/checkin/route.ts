@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { logToFile, LogLevel } from "@/utils/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { checkInShareholders } from "@/actions/checkInShareholders";
 
 export async function POST(request: Request) {
     try {
@@ -18,11 +19,19 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json();
-        const { shareholderId } = body;
+        const { shareholderId, signatureImage, signatureHash } = body;
 
         if (!shareholderId) {
             return NextResponse.json(
                 { error: "Shareholder ID is required" },
+                { status: 400 }
+            );
+        }
+
+        // Require signature for check-in
+        if (!signatureImage || !signatureHash) {
+            return NextResponse.json(
+                { error: "Signature is required for check-in" },
                 { status: 400 }
             );
         }
@@ -52,22 +61,23 @@ export async function POST(request: Request) {
             }, { status: 400 });
         }
 
-        // Update all properties to checked_in = true
-        const updatedProperties = await db
-            .update(properties)
-            .set({ checkedIn: true })
-            .where(eq(properties.shareholderId, shareholderId))
-            .returning();
+        // Use the checkInShareholders action to handle the check-in
+        const result = await checkInShareholders(shareholderId, signatureImage, signatureHash);
+
+        if (!result.success) {
+            await logToFile("properties", "Failed to check in shareholder", LogLevel.ERROR, {
+                shareholderId,
+                error: result.message
+            });
+            return NextResponse.json({ error: result.message }, { status: 500 });
+        }
 
         await logToFile("properties", "Properties checked in for shareholder", LogLevel.INFO, {
-            shareholderId,
-            updatedCount: updatedProperties.length
+            shareholderId
         });
 
         return NextResponse.json({
-            message: "Properties checked in successfully",
-            updatedCount: updatedProperties.length,
-            updatedProperties
+            message: "Properties checked in successfully"
         });
     } catch (error) {
         await logToFile("properties", "Error updating property check-in status", LogLevel.ERROR, {

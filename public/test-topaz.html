@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topaz Signature Pad Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .signature-display {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .signature-display img {
+            max-width: 100%;
+            max-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Topaz Signature Pad Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Extension Detection</h2>
+        <button onclick="checkExtension()">Check if SigPlusExtLite is Available</button>
+        <div id="extension-status" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Basic Signature Capture</h2>
+        <button onclick="startCapture()" id="capture-btn">Start Signature Capture</button>
+        <button onclick="clearSignature()">Clear Signature</button>
+        <div id="signature-result" class="signature-display"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Event Log</h2>
+        <div id="event-log" class="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Manual Event Testing</h2>
+        <button onclick="testSignStartEvent()">Test SignStartEvent</button>
+        <button onclick="testSigCaptureAttribute()">Test SigCapture Attribute</button>
+    </div>
+
+    <script>
+        let isCapturing = false;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('event-log');
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('event-log').innerHTML = '';
+        }
+
+        function checkExtension() {
+            const statusElement = document.getElementById('extension-status');
+            
+            // Check for SigPlusExtLite global object
+            const hasGlobal = typeof window.SigPlusExtLite !== 'undefined';
+            
+            // Check for SigCapture attribute
+            const hasAttribute = document.documentElement.hasAttribute('SigCapture');
+            
+            // Check for any related properties
+            const hasProperties = 'SigPlusExtLite' in window || 'sigPlusExtLite' in window;
+            
+            let status = `Global SigPlusExtLite: ${hasGlobal}\n`;
+            status += `SigCapture attribute: ${hasAttribute}\n`;
+            status += `Related properties: ${hasProperties}\n`;
+            
+            if (hasGlobal) {
+                status += `SigPlusExtLite object: ${JSON.stringify(window.SigPlusExtLite, null, 2)}\n`;
+            }
+            
+            statusElement.innerHTML = status;
+            log(`Extension check completed`);
+        }
+
+        function startCapture() {
+            if (isCapturing) {
+                log('Already capturing, ignoring request');
+                return;
+            }
+
+            isCapturing = true;
+            document.getElementById('capture-btn').disabled = true;
+            log('Starting signature capture...');
+
+            // Method 1: Set attribute
+            document.documentElement.setAttribute('SigCapture', 'Start');
+            log('Set SigCapture attribute');
+
+            // Method 2: Dispatch event
+            const event = new CustomEvent('SignStartEvent', {
+                detail: JSON.stringify({
+                    imageFormat: 'png',
+                    imageX: 500,
+                    imageY: 100,
+                    imageTransparency: false,
+                    imageScaling: false,
+                    maxUp: 0,
+                    rawDataFormat: 'ENC',
+                    minSigPoints: 25,
+                    returnFormat: 'base64'
+                })
+            });
+            
+            document.dispatchEvent(event);
+            log('Dispatched SignStartEvent');
+
+            // Method 3: Direct call if available
+            if (typeof window.SigPlusExtLite !== 'undefined') {
+                try {
+                    window.SigPlusExtLite.startCapture({
+                        imageFormat: 'png',
+                        imageX: 500,
+                        imageY: 100,
+                        imageTransparency: false,
+                        imageScaling: false,
+                        maxUp: 0,
+                        rawDataFormat: 'ENC',
+                        minSigPoints: 25,
+                        returnFormat: 'base64'
+                    });
+                    log('Made direct SigPlusExtLite call');
+                } catch (error) {
+                    log(`Direct call failed: ${error.message}`);
+                }
+            }
+
+            // Timeout
+            setTimeout(() => {
+                if (isCapturing) {
+                    log('Capture timeout - no response received');
+                    isCapturing = false;
+                    document.getElementById('capture-btn').disabled = false;
+                }
+            }, 10000);
+        }
+
+        function clearSignature() {
+            document.getElementById('signature-result').innerHTML = '';
+            log('Signature cleared');
+        }
+
+        function testSignStartEvent() {
+            log('Testing SignStartEvent dispatch...');
+            const event = new CustomEvent('SignStartEvent', {
+                detail: JSON.stringify({
+                    imageFormat: 'png',
+                    imageX: 500,
+                    imageY: 100,
+                    imageTransparency: false,
+                    imageScaling: false,
+                    maxUp: 0,
+                    rawDataFormat: 'ENC',
+                    minSigPoints: 25,
+                    returnFormat: 'base64'
+                })
+            });
+            
+            document.dispatchEvent(event);
+            window.dispatchEvent(event);
+            log('SignStartEvent dispatched on document and window');
+        }
+
+        function testSigCaptureAttribute() {
+            log('Testing SigCapture attribute...');
+            document.documentElement.setAttribute('SigCapture', 'Start');
+            log('SigCapture attribute set to "Start"');
+            
+            setTimeout(() => {
+                document.documentElement.removeAttribute('SigCapture');
+                log('SigCapture attribute removed');
+            }, 1000);
+        }
+
+        // Event listeners
+        function handleSignResponse(event) {
+            log(`Received SignResponse event: ${JSON.stringify(event.detail)}`);
+            
+            try {
+                let data;
+                if (typeof event.detail === 'string') {
+                    data = JSON.parse(event.detail);
+                } else {
+                    data = event.detail;
+                }
+
+                if (data.imageData) {
+                    log('Received image data');
+                    document.getElementById('signature-result').innerHTML = `
+                        <h3>Captured Signature:</h3>
+                        <img src="${data.imageData}" alt="Signature" />
+                        <p>Data length: ${data.imageData.length} characters</p>
+                    `;
+                    isCapturing = false;
+                    document.getElementById('capture-btn').disabled = false;
+                } else if (data.error) {
+                    log(`Error: ${data.error}`);
+                    isCapturing = false;
+                    document.getElementById('capture-btn').disabled = false;
+                }
+            } catch (error) {
+                log(`Error processing response: ${error.message}`);
+                isCapturing = false;
+                document.getElementById('capture-btn').disabled = false;
+            }
+        }
+
+        // Listen for various event names
+        window.addEventListener('SignResponse', handleSignResponse);
+        window.addEventListener('signresponse', handleSignResponse);
+        window.addEventListener('SigResponse', handleSignResponse);
+        document.addEventListener('SignResponse', handleSignResponse);
+        document.addEventListener('signresponse', handleSignResponse);
+        document.addEventListener('SigResponse', handleSignResponse);
+
+        // Log page load
+        log('Test page loaded');
+        log('Listening for SignResponse events...');
+    </script>
+</body>
+</html> 

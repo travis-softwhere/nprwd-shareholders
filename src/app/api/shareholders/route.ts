@@ -92,9 +92,14 @@ export async function GET(request: Request) {
         const shareholderId = url.searchParams.get("shareholderId");
         const meetingId = url.searchParams.get("meetingId");
         
+        console.log("Query params:", { shareholderId, meetingId });
+        
         if (shareholderId) {
             // Get the specific shareholder from the database
-            const result = await db.select().from(shareholders).where(sql`${shareholders.shareholderId} = ${shareholderId}`);
+            const result = await db
+                .select()
+                .from(shareholders)
+                .where(eq(shareholders.shareholderId, shareholderId));
             if (result.length === 0) {
                 return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
             }
@@ -104,10 +109,21 @@ export async function GET(request: Request) {
         }
         // Get all shareholders from the database, optionally filter by meetingId
         let allShareholders;
-        if (meetingId) {
-            allShareholders = await db.select().from(shareholders).where(sql`${shareholders.meetingId} = ${meetingId}`);
-        } else {
-            allShareholders = await db.select().from(shareholders);
+        try {
+            if (meetingId) {
+                console.log("Filtering by meetingId:", meetingId);
+                allShareholders = await db
+                    .select()
+                    .from(shareholders)
+                    .where(eq(shareholders.meetingId, meetingId));
+            } else {
+                console.log("Getting all shareholders");
+                allShareholders = await db.select().from(shareholders);
+            }
+            console.log("Found shareholders:", allShareholders.length);
+        } catch (dbError) {
+            console.error("Database error:", dbError);
+            throw dbError;
         }
 
         // Get all properties for these shareholders
@@ -131,6 +147,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ shareholders: result })
     } catch (error) {
+        console.error("Error in GET /api/shareholders:", error);
         return NextResponse.json({ error: "Failed to fetch shareholders" }, { status: 500 })
     }
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/lib/db"
-import { properties } from "@/lib/db/schema"
+import { properties, shareholders } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -12,7 +12,7 @@ type CheckInResult = {
     message?: string
 }
 
-export async function checkInShareholders(shareholderId: string): Promise<CheckInResult> {
+export async function checkInShareholders(shareholderId: string, signatureImage?: string, signatureHash?: string): Promise<CheckInResult> {
     try {
         // Verify user is authenticated
         const session = await getServerSession(authOptions)
@@ -34,6 +34,18 @@ export async function checkInShareholders(shareholderId: string): Promise<CheckI
         await db.update(properties)
         .set({ checkedIn: true })
         .where(eq(properties.shareholderId, shareholderId))
+
+        // Update shareholder record with signature and check-in info
+        await db.update(shareholders)
+        .set({ 
+            checkedIn: true,
+            checkedInAt: new Date(),
+            ...(signatureImage && signatureHash ? {
+                signatureImage,
+                signatureHash
+            } : {})
+        })
+        .where(eq(shareholders.shareholderId, shareholderId))
 
         revalidatePath(`/shareholders/${shareholderId}`)
 

@@ -16,6 +16,7 @@ export const shareholders = pgTable("shareholders", {
     shareholderId: varchar("shareholder_id").primaryKey(),
     name: text("name").notNull(),
     designee: text("designee"),
+    comment: text("comment"),
 });
 
 // Initialize Neon serverless SQL connection

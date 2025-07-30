@@ -99,9 +99,34 @@ export default async function ShareholderPage({
                   <ManualCheckInButton
                   shareholderId={shareholder.shareholderId}
                   isFullyCheckedIn={checkedInCount === properties.length}
+                  shareholderName={shareholder.name}
                   />
 
                   <SetDesigneeForm shareholderId={shareholder.shareholderId} />
+                  
+                  {/* Signature Display */}
+                  {shareholder.signatureImage && (
+                    <div className="mt-4">
+                      <h3 className="text-sm font-medium text-foreground mb-2">Signature</h3>
+                      <div className="border rounded p-2 bg-gray-50">
+                        <img 
+                          src={shareholder.signatureImage} 
+                          alt="Shareholder signature" 
+                          className="max-w-full h-32 object-contain"
+                        />
+                        {shareholder.signatureHash && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Hash: <span className="font-mono break-all">{shareholder.signatureHash}</span>
+                          </div>
+                        )}
+                        {shareholder.checkedInAt && (
+                          <div className="text-xs text-muted-foreground">
+                            Checked in: {new Date(shareholder.checkedInAt).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Comment Box Below Properties */}

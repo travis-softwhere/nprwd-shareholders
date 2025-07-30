@@ -210,19 +210,21 @@ export default function AwardsPage() {
         <h1 className="text-4xl font-bold mb-8">2025 Meeting Awards</h1>
 
         <div className="flex justify-center items-center gap-8 mb-8">
-          <img 
+          {/* <img 
             src="/NPRWDLogo.png" 
             alt="NPRWD Logo" 
             className="h-16 object-contain"
-          />
-          <div className="flex flex-col items-center bg-[#1a2550] px-6 py-2 rounded-xl gap-1">
-            <img 
-              src="/soft-where-logo.png" 
-              alt="SOFT-WHERE Logo" 
-              className="h-16 object-contain bg-transparent"
-            />
-            <span className="text-white text-xs">Powered by SOFT-WHERE, LLC - Minot, ND</span>
-          </div>
+          /> */}
+          <a href='https://soft-where.com' target="_blank">
+            <div className="flex flex-col items-center bg-[#1a2550] px-6 py-2 rounded-xl gap-1">
+              <img 
+                src="/soft-where-logo.png" 
+                alt="SOFT-WHERE Logo" 
+                className="h-20 object-contain bg-transparent"
+              />
+              <span className="text-white text-xs">Powered by SOFT-WHERE, LLC - Minot, ND</span>
+            </div>
+          </a>
         </div>
         
         <div className="flex flex-row gap-8 items-center justify-center">

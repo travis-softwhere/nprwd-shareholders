@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json();
-        const { shareholderId, action } = body;
+        const { shareholderId, action, signatureImage, signatureHash } = body;
 
         if (!shareholderId || !action) {
             return NextResponse.json(
@@ -28,8 +28,16 @@ export async function POST(request: Request) {
             );
         }
 
-        // If checking in, verify not already checked in
+        // If checking in, verify not already checked in and signature is provided
         if (action === "checkin") {
+            // Require signature for check-in
+            if (!signatureImage || !signatureHash) {
+                return NextResponse.json(
+                    { error: "Signature is required for check-in" },
+                    { status: 400 }
+                );
+            }
+
             const propertiesToCheckIn = await db
                 .select()
                 .from(properties)
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
 
         let result;
         if (action === "checkin") {
-            result = await checkInShareholders(shareholderId);
+            result = await checkInShareholders(shareholderId, signatureImage, signatureHash);
         } else if (action === "undo") {
             result = await undoCheckInShareholders(shareholderId);
         } else {
