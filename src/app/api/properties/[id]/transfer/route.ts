@@ -31,6 +31,7 @@ export async function POST(
         const body = await request.json()
         const { 
             newShareholderId, 
+            toShareholderId,
             newOwnerName, 
             newOwnerMailingAddress, 
             newOwnerCityStateZip,
@@ -44,7 +45,10 @@ export async function POST(
             keepExistingService
         } = body
 
-        if (!newShareholderId) {
+        // Accept either newShareholderId or toShareholderId
+        const targetShareholderId = newShareholderId || toShareholderId
+
+        if (!targetShareholderId) {
             return NextResponse.json(
                 { error: "New shareholder ID is required" },
                 { status: 400 }
@@ -71,11 +75,11 @@ export async function POST(
         const [newShareholder] = await db
             .select()
             .from(shareholders)
-            .where(eq(shareholders.shareholderId, newShareholderId))
+            .where(eq(shareholders.shareholderId, targetShareholderId))
 
         if (!newShareholder) {
             await logToFile("properties", "Shareholder not found for transfer", LogLevel.ERROR, {
-                shareholderId: newShareholderId
+                shareholderId: targetShareholderId
             })
             return NextResponse.json({ error: "Shareholder not found" }, { status: 404 })
         }
@@ -87,7 +91,7 @@ export async function POST(
         const existingProperties = await db
             .select()
             .from(properties)
-            .where(eq(properties.shareholderId, newShareholderId));
+            .where(eq(properties.shareholderId, targetShareholderId));
             
         // Get address information from existing property if available
         let existingOwnerMailingAddress, existingOwnerCityStateZip;
@@ -108,7 +112,7 @@ export async function POST(
             existingResidentCityStateZip = existingProperty.residentCityStateZip;
             
             await logToFile("properties", "Found existing properties for new shareholder", LogLevel.INFO, {
-                shareholderId: newShareholderId,
+                shareholderId: targetShareholderId,
                 propertiesCount: existingProperties.length,
                 existingPropertyId: existingProperty.id,
                 existingOwnerMailingAddress,
@@ -131,7 +135,7 @@ export async function POST(
             await logToFile("properties", "Property transfer record created", LogLevel.INFO, {
                 propertyId,
                 fromShareholderId: oldShareholderId,
-                toShareholderId: newShareholderId,
+                toShareholderId: targetShareholderId,
                 meetingId
             });
         } catch (transferError) {
@@ -183,7 +187,7 @@ export async function POST(
         // We're constructing a property update statement with all the fields
         const propertyUpdate = {
             propertyId: parseInt(propertyId),
-            shareholderId: newShareholderId,
+            shareholderId: targetShareholderId,
             ownerName: ownerNameValue,
             ownerMailingAddress: ownerMailingAddressValue,
             ownerCityStateZip: ownerCityStateZipValue,
@@ -203,7 +207,7 @@ export async function POST(
         try {
             await db.execute(
                 sql`UPDATE properties 
-                SET shareholder_id = ${newShareholderId},
+                SET shareholder_id = ${targetShareholderId},
                     owner_name = ${ownerNameValue},
                     owner_mailing_address = ${ownerMailingAddressValue},
                     owner_city_state_zip = ${ownerCityStateZipValue},
@@ -218,7 +222,7 @@ export async function POST(
             
             await logToFile("properties", "Property updated via SQL", LogLevel.INFO, {
                 propertyId,
-                shareholderId: newShareholderId
+                shareholderId: targetShareholderId
             });
         } catch (updateError) {
             await logToFile("properties", "Error updating property via SQL", LogLevel.ERROR, {
@@ -241,7 +245,7 @@ export async function POST(
         await logToFile("properties", "Property transferred successfully", LogLevel.INFO, {
             propertyId,
             oldShareholderId,
-            newShareholderId
+            newShareholderId: targetShareholderId
         });
 
         // Check if we need to delete the old shareholder (if they have no properties left)

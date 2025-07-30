@@ -92,7 +92,7 @@ export async function GET(request: Request) {
                 residentMailingAddress: properties.residentMailingAddress,
                 residentCityStateZip: properties.residentCityStateZip,
                 serviceAddress: properties.serviceAddress,
-                checked_in: properties.checkedIn,
+                checkedIn: properties.checkedIn,
                 createdAt: properties.createdAt
             })
             .from(properties)
@@ -100,16 +100,16 @@ export async function GET(request: Request) {
             .limit(parseInt(limit))
             .orderBy(desc(properties.id));
 
-        // Log the first few properties to check checked_in values
+        // Log the first few properties to check checkedIn values
         console.log("First few properties from DB:", propertyList.slice(0, 3));
-        console.log("Checked-in properties count:", propertyList.filter(p => p.checked_in).length);
+        console.log("Checked-in properties count:", propertyList.filter(p => p.checkedIn).length);
 
         await logToFile("properties", "Properties fetched successfully", LogLevel.INFO, {
             propertiesCount: propertyList.length,
-            checkedInCount: propertyList.filter(p => p.checked_in).length
+            checkedInCount: propertyList.filter(p => p.checkedIn).length
         })
 
-        return NextResponse.json(propertyList)
+        return NextResponse.json({ properties: propertyList })
     } catch (error) {
         await logToFile("properties", "Error fetching properties", LogLevel.ERROR, {
             errorMessage: error instanceof Error ? error.message : "Unknown error",

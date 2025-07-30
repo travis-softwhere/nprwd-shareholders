@@ -47,6 +47,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { getShareholdersList } from "@/actions/getShareholdersList"
 import { useToast } from "@/components/ui/use-toast"
+import EditablePropertyName from "@/components/EditablePropertyName"
 
 interface TransferHistory {
     id: number;
@@ -144,7 +145,7 @@ export function PropertyManagement() {
             }
             
             const data = await response.json();
-            setShareholders(data);
+            setShareholders(data.shareholders || []);
         } catch (error) {
             setError("Failed to fetch shareholders");
         }
@@ -854,4 +855,676 @@ export function PropertyManagement() {
             checkedIn: newShareholder.property.checkedIn
         };
     };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <p className="text-red-600 mb-4">{error}</p>
+                    <Button onClick={fetchProperties}>Retry</Button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header with Add Shareholder Button */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold">Properties</h2>
+                    <p className="text-muted-foreground">
+                        Manage properties and shareholders
+                    </p>
+                </div>
+                <Dialog open={isAddingShareholder} onOpenChange={setIsAddingShareholder}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Shareholder
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Add New Shareholder</DialogTitle>
+                            <DialogDescription>
+                                Add a new shareholder with property information
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        {/* Acquisition Type Selection */}
+                        <div className="space-y-4">
+                            <div>
+                                <Label>Acquisition Type</Label>
+                                <Select value={acquisitionType} onValueChange={(value: "new" | "existing") => setAcquisitionType(value)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="new">New Property</SelectItem>
+                                        <SelectItem value="existing">Existing Property</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Shareholder Information */}
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Shareholder Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="name">Shareholder Name *</Label>
+                                        <Input
+                                            id="name"
+                                            value={newShareholder.name}
+                                            onChange={(e) => handleNameChange(e.target.value)}
+                                            placeholder="Enter shareholder name"
+                                            className={formErrors.name ? "border-red-500" : ""}
+                                        />
+                                        {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="id">Shareholder ID</Label>
+                                        <Input
+                                            id="id"
+                                            value={newShareholder.id}
+                                            onChange={(e) => setNewShareholder({...newShareholder, id: e.target.value})}
+                                            placeholder="Auto-generated if empty"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Property Information */}
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Property Information</h3>
+                                
+                                {acquisitionType === "new" ? (
+                                    <div className="space-y-4">
+                                        {/* Account and Service Address */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label htmlFor="account">Account Number *</Label>
+                                                <Input
+                                                    id="account"
+                                                    value={newShareholder.property.account}
+                                                    onChange={(e) => setNewShareholder({
+                                                        ...newShareholder,
+                                                        property: {
+                                                            ...newShareholder.property,
+                                                            account: e.target.value
+                                                        }
+                                                    })}
+                                                    placeholder="XXXXXXXXXX-XX"
+                                                    className={formErrors.account ? "border-red-500" : ""}
+                                                />
+                                                {formErrors.account && <p className="text-red-500 text-sm">{formErrors.account}</p>}
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="numOf">Number of</Label>
+                                                <Input
+                                                    id="numOf"
+                                                    value={newShareholder.property.numOf}
+                                                    onChange={(e) => setNewShareholder({
+                                                        ...newShareholder,
+                                                        property: {
+                                                            ...newShareholder.property,
+                                                            numOf: e.target.value
+                                                        }
+                                                    })}
+                                                    placeholder="e.g., 1"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Service Address */}
+                                        <div>
+                                            <Label htmlFor="serviceAddress">Service Address *</Label>
+                                            <Input
+                                                id="serviceAddress"
+                                                value={newShareholder.property.serviceAddress}
+                                                onChange={(e) => handleServiceAddressChange(e.target.value)}
+                                                placeholder="Enter service address"
+                                                className={formErrors.serviceAddress ? "border-red-500" : ""}
+                                            />
+                                            {formErrors.serviceAddress && <p className="text-red-500 text-sm">{formErrors.serviceAddress}</p>}
+                                        </div>
+
+                                        {/* Address Copy Options */}
+                                        <div className="space-y-2">
+                                            <Label>Copy Service Address To:</Label>
+                                            <div className="flex gap-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id="useServiceForCustomer"
+                                                        checked={useServiceForCustomer}
+                                                        onCheckedChange={handleUseServiceForCustomer}
+                                                    />
+                                                    <Label htmlFor="useServiceForCustomer">Customer</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id="useServiceForOwner"
+                                                        checked={useServiceForOwner}
+                                                        onCheckedChange={handleUseServiceForOwner}
+                                                    />
+                                                    <Label htmlFor="useServiceForOwner">Owner</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id="useServiceForResident"
+                                                        checked={useServiceForResident}
+                                                        onCheckedChange={handleUseServiceForResident}
+                                                    />
+                                                    <Label htmlFor="useServiceForResident">Resident</Label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Customer Information */}
+                                        <div className="space-y-4">
+                                            <h4 className="font-medium">Customer Information</h4>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <Label htmlFor="customerName">Customer Name *</Label>
+                                                    <Input
+                                                        id="customerName"
+                                                        value={newShareholder.property.customerName}
+                                                        onChange={(e) => handleCustomerNameChange(e.target.value)}
+                                                        placeholder="Enter customer name"
+                                                        className={formErrors.customerName ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.customerName && <p className="text-red-500 text-sm">{formErrors.customerName}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="customerMailingAddress">Customer Mailing Address *</Label>
+                                                    <Input
+                                                        id="customerMailingAddress"
+                                                        value={newShareholder.property.customerMailingAddress}
+                                                        onChange={(e) => handleCustomerMailingAddressChange(e.target.value)}
+                                                        placeholder="Enter customer mailing address"
+                                                        className={formErrors.customerMailingAddress ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.customerMailingAddress && <p className="text-red-500 text-sm">{formErrors.customerMailingAddress}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="cityStateZip">City, State, Zip *</Label>
+                                                    <Input
+                                                        id="cityStateZip"
+                                                        value={newShareholder.property.cityStateZip}
+                                                        onChange={(e) => handleServiceCityStateZipChange(e.target.value)}
+                                                        placeholder="CITY STATE ZIP"
+                                                        className={formErrors.cityStateZip ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.cityStateZip && <p className="text-red-500 text-sm">{formErrors.cityStateZip}</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Owner Information */}
+                                        <div className="space-y-4">
+                                            <h4 className="font-medium">Owner Information</h4>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <Label htmlFor="ownerName">Owner Name *</Label>
+                                                    <Input
+                                                        id="ownerName"
+                                                        value={newShareholder.property.ownerName}
+                                                        onChange={(e) => handleOwnerNameChange(e.target.value)}
+                                                        placeholder="Enter owner name"
+                                                        className={formErrors.ownerName ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.ownerName && <p className="text-red-500 text-sm">{formErrors.ownerName}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="ownerMailingAddress">Owner Mailing Address *</Label>
+                                                    <Input
+                                                        id="ownerMailingAddress"
+                                                        value={newShareholder.property.ownerMailingAddress}
+                                                        onChange={(e) => handleOwnerMailingAddressChange(e.target.value)}
+                                                        placeholder="Enter owner mailing address"
+                                                        className={formErrors.ownerMailingAddress ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.ownerMailingAddress && <p className="text-red-500 text-sm">{formErrors.ownerMailingAddress}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="ownerCityStateZip">Owner City, State, Zip *</Label>
+                                                    <Input
+                                                        id="ownerCityStateZip"
+                                                        value={newShareholder.property.ownerCityStateZip}
+                                                        onChange={(e) => handleOwnerCityStateZipChange(e.target.value)}
+                                                        placeholder="CITY STATE ZIP"
+                                                        className={formErrors.ownerCityStateZip ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.ownerCityStateZip && <p className="text-red-500 text-sm">{formErrors.ownerCityStateZip}</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Resident Information (Optional) */}
+                                        <div className="space-y-4">
+                                            <h4 className="font-medium">Resident Information (Optional)</h4>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <Label htmlFor="residentName">Resident Name</Label>
+                                                    <Input
+                                                        id="residentName"
+                                                        value={newShareholder.property.residentName}
+                                                        onChange={(e) => handleResidentNameChange(e.target.value)}
+                                                        placeholder="LASTNAME, FIRSTNAME"
+                                                        className={formErrors.residentName ? "border-red-500" : ""}
+                                                    />
+                                                    {formErrors.residentName && <p className="text-red-500 text-sm">{formErrors.residentName}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="residentMailingAddress">Resident Mailing Address</Label>
+                                                    <Input
+                                                        id="residentMailingAddress"
+                                                        value={newShareholder.property.residentMailingAddress}
+                                                        onChange={(e) => handleResidentMailingAddressChange(e.target.value)}
+                                                        placeholder="Enter resident mailing address"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="residentCityStateZip">Resident City, State, Zip</Label>
+                                                    <Input
+                                                        id="residentCityStateZip"
+                                                        value={newShareholder.property.residentCityStateZip}
+                                                        onChange={(e) => handleResidentCityStateZipChange(e.target.value)}
+                                                        placeholder="CITY STATE ZIP"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <Label>Search Existing Properties</Label>
+                                            <Input
+                                                value={propertySearchQuery}
+                                                onChange={(e) => setPropertySearchQuery(e.target.value)}
+                                                placeholder="Search by account, address, or name..."
+                                            />
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto border rounded-md p-2">
+                                            {filteredPropertiesForDropdown.map((property) => (
+                                                <div
+                                                    key={property.id}
+                                                    className={`p-2 cursor-pointer rounded hover:bg-gray-100 ${
+                                                        selectedExistingProperty?.id === property.id ? 'bg-blue-100' : ''
+                                                    }`}
+                                                    onClick={() => setSelectedExistingProperty(property)}
+                                                >
+                                                    <div className="font-medium">{property.account}</div>
+                                                    <div className="text-sm text-gray-600">{property.serviceAddress}</div>
+                                                    <div className="text-sm text-gray-600">{property.ownerName}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {selectedExistingProperty && (
+                                            <div className="p-4 bg-gray-50 rounded-md">
+                                                <h4 className="font-medium mb-2">Selected Property:</h4>
+                                                <p><strong>Account:</strong> {selectedExistingProperty.account}</p>
+                                                <p><strong>Service Address:</strong> {selectedExistingProperty.serviceAddress}</p>
+                                                <p><strong>Owner:</strong> {selectedExistingProperty.ownerName}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-2">
+                            <Button variant="outline" onClick={() => setIsAddingShareholder(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleAddShareholder}>
+                                Add Shareholder
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            {/* Search and Filter */}
+            <div className="flex gap-4">
+                <div className="flex-1">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <Input
+                            placeholder="Search properties..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                </div>
+                <Select value={filterStatus} onValueChange={(value: "all" | "checked" | "unchecked") => setFilterStatus(value)}>
+                    <SelectTrigger className="w-48">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Properties</SelectItem>
+                        <SelectItem value="checked">Checked In</SelectItem>
+                        <SelectItem value="unchecked">Not Checked In</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {/* Properties Table */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Properties ({filteredProperties.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Account</TableHead>
+                                <TableHead>Service Address</TableHead>
+                                <TableHead>Owner Name</TableHead>
+                                <TableHead>Customer Name</TableHead>
+                                <TableHead>Check-in Status</TableHead>
+                                <TableHead>Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredProperties.map((property) => (
+                                <TableRow key={property.id}>
+                                    <TableCell className="font-mono">{property.account}</TableCell>
+                                    <TableCell>{property.serviceAddress}</TableCell>
+                                    <TableCell>
+                                        <EditablePropertyName
+                                            initialName={property.ownerName}
+                                            propertyId={property.id}
+                                            onUpdate={(newName) => {
+                                                setProperties(properties.map(p => 
+                                                    p.id === property.id ? { ...p, ownerName: newName } : p
+                                                ))
+                                            }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{property.customerName}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox
+                                                checked={property.checkedIn}
+                                                onCheckedChange={() => handleToggleCheckIn(property)}
+                                            />
+                                            <span className={property.checkedIn ? "text-green-600" : "text-gray-500"}>
+                                                {property.checkedIn ? "Checked In" : "Not Checked In"}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleEdit(property)}
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleViewHistory(property.id)}
+                                            >
+                                                <History className="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="outline" size="sm">
+                                                        Delete
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete Property</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Are you sure you want to delete this property? This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDelete(property.id)}>
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            {/* Edit Property Dialog */}
+            {isEditing && selectedProperty && editedProperty && (
+                <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Edit Property</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="edit-account">Account</Label>
+                                    <Input
+                                        id="edit-account"
+                                        value={editedProperty.account || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            account: e.target.value
+                                        })}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="edit-serviceAddress">Service Address</Label>
+                                    <Input
+                                        id="edit-serviceAddress"
+                                        value={editedProperty.serviceAddress || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            serviceAddress: e.target.value
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="edit-ownerName">Owner Name</Label>
+                                    <Input
+                                        id="edit-ownerName"
+                                        value={editedProperty.ownerName || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            ownerName: e.target.value
+                                        })}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="edit-customerName">Customer Name</Label>
+                                    <Input
+                                        id="edit-customerName"
+                                        value={editedProperty.customerName || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            customerName: e.target.value
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="edit-ownerMailingAddress">Owner Mailing Address</Label>
+                                    <Input
+                                        id="edit-ownerMailingAddress"
+                                        value={editedProperty.ownerMailingAddress || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            ownerMailingAddress: e.target.value
+                                        })}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="edit-customerMailingAddress">Customer Mailing Address</Label>
+                                    <Input
+                                        id="edit-customerMailingAddress"
+                                        value={editedProperty.customerMailingAddress || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            customerMailingAddress: e.target.value
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="edit-ownerCityStateZip">Owner City, State, Zip</Label>
+                                    <Input
+                                        id="edit-ownerCityStateZip"
+                                        value={editedProperty.ownerCityStateZip || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            ownerCityStateZip: e.target.value
+                                        })}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="edit-cityStateZip">Customer City, State, Zip</Label>
+                                    <Input
+                                        id="edit-cityStateZip"
+                                        value={editedProperty.cityStateZip || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            cityStateZip: e.target.value
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="edit-residentName">Resident Name</Label>
+                                    <Input
+                                        id="edit-residentName"
+                                        value={editedProperty.residentName || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            residentName: e.target.value
+                                        })}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="edit-residentMailingAddress">Resident Mailing Address</Label>
+                                    <Input
+                                        id="edit-residentMailingAddress"
+                                        value={editedProperty.residentMailingAddress || ""}
+                                        onChange={(e) => setEditedProperty({
+                                            ...editedProperty,
+                                            residentMailingAddress: e.target.value
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <Label htmlFor="edit-residentCityStateZip">Resident City, State, Zip</Label>
+                                <Input
+                                    id="edit-residentCityStateZip"
+                                    value={editedProperty.residentCityStateZip || ""}
+                                    onChange={(e) => setEditedProperty({
+                                        ...editedProperty,
+                                        residentCityStateZip: e.target.value
+                                    })}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <Button variant="outline" onClick={() => setIsEditing(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSave}>
+                                Save Changes
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {/* Transfer Property Dialog */}
+            <Dialog open={isTransferring} onOpenChange={setIsTransferring}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Transfer Property</DialogTitle>
+                        <DialogDescription>
+                            Select a new shareholder to transfer this property to.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <Select onValueChange={(value) => handleTransferProperty(selectedProperty?.id || 0, value)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select shareholder" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {shareholders.map((shareholder) => (
+                                    <SelectItem key={shareholder.shareholderId} value={shareholder.shareholderId}>
+                                        {shareholder.name} ({shareholder.shareholderId})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Transfer History Dialog */}
+            <Dialog open={isViewingHistory} onOpenChange={setIsViewingHistory}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Transfer History</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {transferHistory.length === 0 ? (
+                            <p className="text-muted-foreground">No transfer history found.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {transferHistory.map((transfer) => (
+                                    <div key={transfer.id} className="p-4 border rounded-lg">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-medium">
+                                                    From: {transfer.fromShareholder.name}
+                                                </p>
+                                                <p className="font-medium">
+                                                    To: {transfer.toShareholder.name}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Transferred by: {transfer.transferredBy.name}
+                                                </p>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground">
+                                                {new Date(transfer.transferredAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
 }
