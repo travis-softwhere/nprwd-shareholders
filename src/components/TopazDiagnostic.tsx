@@ -11,16 +11,16 @@ export default function TopazDiagnostic() {
     const results: any = {};
 
     // 1. Check for SigPlusExtLite global object
-    results.sigPlusExtLite = typeof window.SigPlusExtLite !== 'undefined';
+    results.sigPlusExtLite = typeof (window as any).SigPlusExtLite !== 'undefined';
     if (results.sigPlusExtLite) {
-      results.sigPlusExtLiteObject = window.SigPlusExtLite;
+      results.sigPlusExtLiteObject = (window as any).SigPlusExtLite;
     }
 
     // 2. Check for SigCapture attribute
     results.sigCaptureAttribute = document.documentElement.hasAttribute('SigCapture');
 
     // 3. Check for related properties
-    results.hasProperties = 'SigPlusExtLite' in window || 'sigPlusExtLite' in window;
+    results.hasProperties = 'SigPlusExtLite' in (window as any) || 'sigPlusExtLite' in (window as any);
 
     // 4. Check browser information
     results.userAgent = navigator.userAgent;
@@ -36,7 +36,7 @@ export default function TopazDiagnostic() {
       }
     } catch (e) {
       results.usbSupported = false;
-      results.usbError = e.message;
+      results.usbError = e instanceof Error ? e.message : String(e);
     }
 
     // 6. Test event dispatching
@@ -72,7 +72,7 @@ export default function TopazDiagnostic() {
       EventTarget.prototype.addEventListener = originalAddEventListener;
       results.listenerCount = listenerCount;
     } catch (e) {
-      results.listenerError = e.message;
+      results.listenerError = e instanceof Error ? e.message : String(e);
     }
 
     setDiagnostics(results);
@@ -80,10 +80,10 @@ export default function TopazDiagnostic() {
   };
 
   const testDirectCall = () => {
-    if (typeof window.SigPlusExtLite !== 'undefined') {
+    if (typeof (window as any).SigPlusExtLite !== 'undefined') {
       try {
         console.log('Attempting direct SigPlusExtLite call...');
-        window.SigPlusExtLite.startCapture({
+        (window as any).SigPlusExtLite.startCapture({
           imageFormat: 'png',
           imageX: 500,
           imageY: 100,
@@ -96,7 +96,7 @@ export default function TopazDiagnostic() {
         });
         alert('Direct call made successfully. Check console for any errors.');
       } catch (error) {
-        alert(`Direct call failed: ${error.message}`);
+        alert(`Direct call failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     } else {
       alert('SigPlusExtLite not available');

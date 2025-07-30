@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { properties } from "@/lib/db/schema";
+import { properties, shareholders } from "@/lib/db/schema";
 import { logToFile, LogLevel } from "@/utils/logger";
 
 export async function POST(request: Request) {
@@ -20,12 +20,22 @@ export async function POST(request: Request) {
             .set({ checkedIn: false })
             .returning();
 
+        // Clear signature information and check-in status for all shareholders
+        await db
+            .update(shareholders)
+            .set({ 
+                checkedIn: false,
+                checkedInAt: null,
+                signatureImage: null,
+                signatureHash: null
+            });
+
         await logToFile("properties", "Bulk uncheck-in completed", LogLevel.INFO, {
             updatedCount: updatedProperties.length
         });
 
         return NextResponse.json({
-            message: "All properties unchecked-in successfully",
+            message: "All properties unchecked-in and signatures cleared successfully",
             updatedCount: updatedProperties.length
         });
     } catch (error) {
