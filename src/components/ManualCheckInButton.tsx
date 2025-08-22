@@ -21,6 +21,7 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, sh
     const [isPending, startTransition] = useTransition()
     const [showAlreadyCheckedInDialog, setShowAlreadyCheckedInDialog] = useState(false)
     const [showSignaturePad, setShowSignaturePad] = useState(false)
+    const [showUndoConfirmationDialog, setShowUndoConfirmationDialog] = useState(false)
     const router = useRouter()
 
     const handleCheckIn = () => {
@@ -71,6 +72,11 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, sh
     }
 
     const handleUndoCheckIn = () => {
+        setShowUndoConfirmationDialog(true);
+    }
+
+    const handleConfirmUndoCheckIn = () => {
+        setShowUndoConfirmationDialog(false);
         startTransition(async () => {
             try {
                 const response = await fetch("/api/properties/manual-checkin", {
@@ -143,6 +149,24 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, sh
                     {isPending ? "Undoing..." : "Undo Check In"}
                 </Button>
             )}
+
+            {/* Undo Check-in Confirmation Dialog */}
+            <AlertDialog open={showUndoConfirmationDialog} onOpenChange={setShowUndoConfirmationDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Undo Check-in</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You are trying to undo a check-in after a signature has been captured. Are you sure you want to undo the check-in? This will erase the signature and uncheck in the owner.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmUndoCheckIn}>
+                            Undo Check In
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             
             {showSignaturePad && (
                 <SignaturePad
