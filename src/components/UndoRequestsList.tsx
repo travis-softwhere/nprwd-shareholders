@@ -91,7 +91,6 @@ export default function UndoRequestsList() {
         description: data.message,
       })
 
-      // Refresh the list
       fetchRequests()
     } catch (error) {
       toast({
@@ -137,7 +136,6 @@ export default function UndoRequestsList() {
         </Button>
       </div>
 
-      {/* Pending Requests */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -201,7 +199,6 @@ export default function UndoRequestsList() {
         </CardContent>
       </Card>
 
-      {/* Processed Requests */}
       <Card>
         <CardHeader>
           <CardTitle>Processed Requests</CardTitle>
@@ -253,7 +250,6 @@ export default function UndoRequestsList() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

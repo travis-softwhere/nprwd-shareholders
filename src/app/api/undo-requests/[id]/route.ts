@@ -20,7 +20,7 @@ export async function PUT(
 
         // Only admins can approve/reject requests
         if (!session.user.isAdmin) {
-            await logToFile("undo-requests", "Non-admin access attempt", LogLevel.WARNING, {
+            await logToFile("undo-requests", "Non-admin access attempt", LogLevel.WARN, {
                 user: session.user.email
             });
             return NextResponse.json({ error: "Admin access required" }, { status: 403 });

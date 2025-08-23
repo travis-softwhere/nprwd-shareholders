@@ -69,7 +69,7 @@ export async function GET(request: Request) {
 
         // Only admins can view undo requests
         if (!session.user.isAdmin) {
-            await logToFile("undo-requests", "Non-admin access attempt", LogLevel.WARNING, {
+            await logToFile("undo-requests", "Non-admin access attempt", LogLevel.WARN, {
                 user: session.user.email
             });
             return NextResponse.json({ error: "Admin access required" }, { status: 403 });
@@ -78,13 +78,19 @@ export async function GET(request: Request) {
         const url = new URL(request.url);
         const status = url.searchParams.get("status");
 
-        let query = db.select().from(undoRequests).orderBy(undoRequests.requestedAt);
-
+        let requests;
         if (status) {
-            query = query.where(eq(undoRequests.status, status));
+            requests = await db
+                .select()
+                .from(undoRequests)
+                .where(eq(undoRequests.status, status))
+                .orderBy(undoRequests.requestedAt);
+        } else {
+            requests = await db
+                .select()
+                .from(undoRequests)
+                .orderBy(undoRequests.requestedAt);
         }
-
-        const requests = await query;
 
         return NextResponse.json({
             success: true,
