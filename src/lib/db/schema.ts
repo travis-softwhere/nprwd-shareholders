@@ -68,3 +68,16 @@ export const snapshots = pgTable("snapshots", {
     changes: jsonb("changes"), // Stores changes from previous snapshot
     createdAt: timestamp("created_at").defaultNow(),
 })
+
+export const undoRequests = pgTable("undo_requests", {
+    id: serial("id").primaryKey(),
+    shareholderId: text("shareholder_id").notNull(),
+    shareholderName: text("shareholder_name").notNull(),
+    requestedBy: text("requested_by").notNull(),
+    requestedAt: timestamp("requested_at").defaultNow(),
+    status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at"),
+    reason: text("reason"),
+    createdAt: timestamp("created_at").defaultNow(),
+})

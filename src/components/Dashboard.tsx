@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import ShareholderList from "@/components/ShareholderList";
-import SignaturePad from "./SignaturePad";
 
 interface DashboardProps {
   // Add any props needed specifically for check-in if required
@@ -43,16 +42,17 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
     checkForReturnFlag();
   }, []);
 
-  const [showSignaturePad, setShowSignaturePad] = useState(false);
-  const [pendingShareholderId, setPendingShareholderId] = useState<string | null>(null);
-  const [pendingShareholderName, setPendingShareholderName] = useState<string | null>(null);
 
-  // Handle barcode submission (Check-in logic)
+
+  // Handle barcode submission (Navigate to shareholder details)
   const handleBarcodeSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!barcodeInput) return;
     
-    // First, get shareholder info to show in signature pad
+    setLoading(true);
+    setError("");
+    
+    // First, verify the shareholder exists
     try {
       const response = await fetch(`/api/shareholders?shareholderId=${barcodeInput.trim()}`);
       const data = await response.json();
@@ -67,10 +67,8 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
         return;
       }
 
-      // Store pending check-in info and show signature pad
-      setPendingShareholderId(barcodeInput.trim());
-      setPendingShareholderName(data.shareholder.name);
-      setShowSignaturePad(true);
+      // Navigate directly to the shareholder detail page
+      router.push(`/shareholders/${barcodeInput.trim()}`);
       setBarcodeInput("");
 
     } catch (err) {
@@ -81,68 +79,12 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
         description: errorMessage,
         variant: "destructive",
       });
-    }
-  };
-
-  const handleSignatureComplete = async (signatureImage: string, signatureHash: string) => {
-    if (!pendingShareholderId) return;
-    
-    setShowSignaturePad(false);
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch("/api/properties/checkin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache"
-        },
-        body: JSON.stringify({
-          shareholderId: pendingShareholderId,
-          signatureImage,
-          signatureHash
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        setError(data.error || "Check-in failed.");
-        toast({
-          title: data.alreadyCheckedIn ? "Already Checked In" : "Check-in Failed",
-          description: data.error || "Could not check in this property.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Set the flag for when we return to this page
-      localStorage.setItem(DASHBOARD_RETURN_KEY, "true");
-      
-      toast({
-        title: "Success",
-        description: "Property checked in successfully",
-      });
-      
-      // Redirect to shareholder details page
-      router.push(`/shareholders/${pendingShareholderId}`);
-
-    } catch (err) {
-      const errorMessage = "An error occurred during check-in.";
-      setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
-      setPendingShareholderId(null);
-      setPendingShareholderName(null);
     }
   };
+
+
 
   // Simplified return statement - only the check-in card
   return (
@@ -155,8 +97,8 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
               <div className="mx-auto bg-blue-100 p-3 rounded-full w-fit mb-2">
                  <Search className="h-6 w-6 text-blue-600" />
               </div>
-              <CardTitle className="text-xl">Benefit Unit Owner Check-In</CardTitle>
-              <CardDescription>Scan barcode or enter ID manually</CardDescription>
+              <CardTitle className="text-xl">Find Benefit Unit Owner</CardTitle>
+              <CardDescription>Scan barcode or enter ID to view details</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 pb-8">
               <form onSubmit={handleBarcodeSubmit} className="space-y-5">
@@ -180,10 +122,10 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Checking In...
+                      Looking Up...
                     </>
                   ) : (
-                    "Check In Property"
+                    "Find Benefit Unit Owner"
                   )}
                 </Button>
                 {error && (
@@ -199,18 +141,6 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
           <ShareholderList />
         </div>
       </div>
-      
-      {showSignaturePad && (
-        <SignaturePad
-          onSignatureComplete={handleSignatureComplete}
-          onCancel={() => {
-            setShowSignaturePad(false);
-            setPendingShareholderId(null);
-            setPendingShareholderName(null);
-          }}
-          shareholderName={pendingShareholderName || undefined}
-        />
-      )}
     </div>
   );
 };

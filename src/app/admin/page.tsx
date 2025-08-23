@@ -51,6 +51,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
 import ShareholdersList from "@/components/ShareholderList"
+import UndoRequestsList from "@/components/UndoRequestsList"
 import jsPDF from 'jspdf';
 
 // Define Property interface
@@ -876,6 +877,12 @@ export default function AdminPage() {
         <div className="w-full flex justify-center items-center">
           <div className="max-w-6xl">
             <CheckinStatusDashboard />
+            
+            {/* Undo Requests Section */}
+            <div className="mt-8">
+              <UndoRequestsList />
+            </div>
+            
             <Button 
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow transition text-base"
               onClick={async () => {
