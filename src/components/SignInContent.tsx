@@ -187,8 +187,7 @@ export default function SignInContent() {
           </CardContent>
           <CardFooter className="flex justify-center border-t bg-gray-50 p-4 text-xs text-gray-500">
             <div className="text-center">
-              <p>Forgot your password? <Link href="/reset-password" className="text-blue-600 hover:text-blue-800 transition-colors">Reset it here</Link></p>
-              <p className="mt-2">© {new Date().getFullYear()} AquaShare - All Rights Reserved</p>
+              <p>© {new Date().getFullYear()} AquaShare - All Rights Reserved</p>
               <p className="mt-1 text-xs">Powered by Soft-Where, LLC</p>
             </div>
           </CardFooter>
