@@ -52,6 +52,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
 import ShareholdersList from "@/components/ShareholderList"
 import UndoRequestsList from "@/components/UndoRequestsList"
+import AdminRequestsList from "@/components/AdminRequestsList"
 import jsPDF from 'jspdf';
 
 // Define Property interface
@@ -881,6 +882,11 @@ export default function AdminPage() {
             {/* Undo Requests Section */}
             <div className="mt-8">
               <UndoRequestsList />
+            </div>
+            
+            {/* Admin Requests Section */}
+            <div className="mt-8">
+              <AdminRequestsList />
             </div>
             
             <Button 

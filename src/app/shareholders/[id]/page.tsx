@@ -130,7 +130,7 @@ export default async function ShareholderPage({
                 </div>
               </div>
               {/* Comment Box Below Properties */}
-              <ShareholderCommentBox shareholderId={shareholder.shareholderId} />
+              <ShareholderCommentBox shareholderId={shareholder.shareholderId} shareholderName={shareholder.name} />
             </div>
 
             <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Properties</h2>

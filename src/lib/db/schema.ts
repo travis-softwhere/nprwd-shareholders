@@ -81,3 +81,16 @@ export const undoRequests = pgTable("undo_requests", {
     reason: text("reason"),
     createdAt: timestamp("created_at").defaultNow(),
 })
+
+export const adminRequests = pgTable("admin_requests", {
+    id: serial("id").primaryKey(),
+    shareholderId: text("shareholder_id").notNull(),
+    shareholderName: text("shareholder_name").notNull(),
+    requestedBy: text("requested_by").notNull(),
+    requestedAt: timestamp("requested_at").defaultNow(),
+    status: text("status").notNull().default("pending"), // 'pending', 'completed', 'rejected'
+    completedBy: text("completed_by"),
+    completedAt: timestamp("completed_at"),
+    reason: text("reason").notNull(), // The comment content
+    createdAt: timestamp("created_at").defaultNow(),
+})
