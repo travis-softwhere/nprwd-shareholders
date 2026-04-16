@@ -1406,7 +1406,7 @@ export default function AdminPage() {
                   Dependency Install Links
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Topaz pad capture in the browser needs the Chrome extension plus the SigPlus installer on Windows.
+                  Topaz pad capture needs the Chrome extension, SigPlusExtLite on Windows, and SigPlus where applicable.
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li>
@@ -1418,6 +1418,17 @@ export default function AdminPage() {
                     >
                       <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                       Topaz SigPlusExtLite Extension (Chrome Web Store)
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.topazsystems.com/software/SigPlusExtLite_V3.exe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      Topaz SigPlusExtLite (SigPlusExtLite_V3.exe)
                     </a>
                   </li>
                   <li>
