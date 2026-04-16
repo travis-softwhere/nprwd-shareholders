@@ -20,6 +20,7 @@
 
 # production
 /build
+other/
 
 # misc
 .DS_Store

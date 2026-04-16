@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
 
 interface SignaturePadProps {
   onSignatureComplete: (signatureImage: string, signatureHash: string) => void;
@@ -56,11 +56,48 @@ export default function SignaturePad({ onSignatureComplete, onCancel, shareholde
   const [drawingContext, setDrawingContext] = useState<CanvasRenderingContext2D | null>(null);
   const [topazAvailable, setTopazAvailable] = useState(false);
   const [deviceStatus, setDeviceStatus] = useState<string>("Unknown");
+  const [debugCopied, setDebugCopied] = useState(false);
 
   // Add debug logging
   const logDebug = (message: string) => {
     console.log(`[SignaturePad] ${message}`);
     setDebugInfo(prev => `${prev}\n${new Date().toLocaleTimeString()}: ${message}`);
+  };
+
+  const handleCopyDebugInfo = async () => {
+    const lines = [
+      "SignaturePad debug export",
+      `Page: ${typeof window !== "undefined" ? window.location.href : ""}`,
+      `Time (ISO): ${new Date().toISOString()}`,
+      `SigPlusExtLiteWrapperURL: ${typeof document !== "undefined" ? document.documentElement.getAttribute("SigPlusExtLiteWrapperURL") : "n/a"}`,
+      `topazAvailable: ${topazAvailable}`,
+      `deviceStatus: ${deviceStatus}`,
+      `User-Agent: ${typeof navigator !== "undefined" ? navigator.userAgent : ""}`,
+      "---",
+      debugInfo.trim() || "No debug info yet",
+    ];
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setDebugCopied(true);
+      window.setTimeout(() => setDebugCopied(false), 2000);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setDebugCopied(true);
+        window.setTimeout(() => setDebugCopied(false), 2000);
+      } catch {
+        logDebug("Could not copy debug info to clipboard (clipboard API and fallback both failed)");
+      }
+    }
   };
 
   useEffect(() => {
@@ -477,6 +514,27 @@ export default function SignaturePad({ onSignatureComplete, onCancel, shareholde
           {/* Debug information - remove in production */}
           <details className="mt-4">
             <summary className="cursor-pointer text-sm text-gray-500">Debug Info</summary>
+            <div className="flex justify-end mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleCopyDebugInfo}
+              >
+                {debugCopied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy debug info
+                  </>
+                )}
+              </Button>
+            </div>
             <pre className="text-xs bg-gray-100 p-2 rounded mt-2 whitespace-pre-wrap max-h-32 overflow-y-auto">
               {debugInfo || "No debug info yet"}
             </pre>

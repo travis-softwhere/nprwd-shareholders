@@ -1,0 +1,21 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@tailwind",
+      "description": "Tailwind CSS: include `base`, `components`, and/or `utilities` layers."
+    },
+    {
+      "name": "@apply",
+      "description": "Tailwind CSS: compose existing utility classes into custom CSS."
+    },
+    {
+      "name": "@layer",
+      "description": "Tailwind CSS: assign rules to `base`, `components`, or `utilities` layers."
+    },
+    {
+      "name": "@config",
+      "description": "Tailwind CSS v4: path to config file."
+    }
+  ]
+}

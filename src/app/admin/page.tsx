@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, ChevronDown, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -85,6 +85,22 @@ interface ShareholderData {
   residentCityStateZip: string;
 }
 
+/** GET /api/properties returns `{ properties: Property[] }`; older callers may expect a raw array. */
+function propertiesFromApiPayload(data: unknown): Property[] {
+  if (Array.isArray(data)) {
+    return data as Property[];
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    "properties" in data &&
+    Array.isArray((data as { properties: unknown }).properties)
+  ) {
+    return (data as { properties: Property[] }).properties;
+  }
+  return [];
+}
+
 export default function AdminPage() {
   const { data: session } = useSession();
   const { toast } = useToast();
@@ -159,6 +175,8 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
 
+  const [dependencyInstallLinksOpen, setDependencyInstallLinksOpen] = useState(false);
+
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -175,9 +193,9 @@ export default function AdminPage() {
       if (propertiesResponse.ok) {
         const responseText = await propertiesResponse.text();
         if (responseText) {
-          const propertiesData = JSON.parse(responseText);
+          const propertiesData = propertiesFromApiPayload(JSON.parse(responseText));
           setProperties(propertiesData);
-          
+
           // Directly update filteredProperties as well to ensure
           // immediate display of new properties (since search is empty)
           setFilteredProperties(propertiesData);
@@ -200,7 +218,7 @@ export default function AdminPage() {
         // Add a limit and include all properties
         const response = await fetch("/api/properties?limit=5000");
         if (!response.ok) throw new Error("Failed to fetch properties");
-        const data = await response.json();
+        const data = propertiesFromApiPayload(await response.json());
         setProperties(data);
         setFilteredProperties(data); // Always set all properties initially
       } catch (error) {
@@ -885,8 +903,8 @@ export default function AdminPage() {
                   // Fetch properties
                   const propertiesResponse = await fetch("/api/properties?limit=5000");
                   if (!propertiesResponse.ok) throw new Error("Failed to fetch properties");
-                  const propertiesData = await propertiesResponse.json();
-                  
+                  const propertiesData = propertiesFromApiPayload(await propertiesResponse.json());
+
                   // Fetch shareholders
                   const shareholdersResponse = await fetch("/api/shareholders?limit=5000");
                   if (!shareholdersResponse.ok) throw new Error("Failed to fetch shareholders");
@@ -894,10 +912,10 @@ export default function AdminPage() {
                   
                   // Calculate statistics
                   const totalProperties = propertiesData.length;
-                  const checkedInProperties = propertiesData.filter((p: any) => p.checked_in).length;
+                  const checkedInProperties = propertiesData.filter((p: Property) => p.checkedIn).length;
                   const totalShareholders = shareholdersData.shareholders.length;
                   const checkedInShareholders = shareholdersData.shareholders.filter((s: any) => 
-                    propertiesData.some((p: any) => p.shareholderId === s.shareholderId && p.checked_in)
+                    propertiesData.some((p: Property) => p.shareholderId === s.shareholderId && p.checkedIn)
                   ).length;
                   
                   // Load logos as base64
@@ -1358,6 +1376,64 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-between gap-2 font-normal text-muted-foreground hover:text-foreground"
+              onClick={() => setDependencyInstallLinksOpen((o) => !o)}
+              aria-expanded={dependencyInstallLinksOpen}
+              aria-controls="dependency-install-links-panel"
+            >
+              <span className="text-sm font-medium text-foreground">
+                Dependency install links
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 transition-transform duration-200",
+                  dependencyInstallLinksOpen && "rotate-180"
+                )}
+              />
+            </Button>
+            {dependencyInstallLinksOpen && (
+              <div
+                id="dependency-install-links-panel"
+                className="mt-3 rounded-md border bg-muted/30 p-4 space-y-3"
+              >
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Dependency Install Links
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Topaz pad capture in the browser needs the Chrome extension plus the SigPlus installer on Windows.
+                </p>
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <a
+                      href="https://chromewebstore.google.com/detail/topaz-sigplusextlite-exte/dhcpobccjkdnmibckgpejmbpmpembgco?pli=1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      Topaz SigPlusExtLite Extension (Chrome Web Store)
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.topazsystems.com/software/sigplus.exe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      Topaz SigPlus (sigplus.exe)
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </div>
