@@ -18,9 +18,6 @@ import SetDesigneeForm from "@/components/SetDesigneeForm"
 import EditableName from "@/components/EditableName"
 import React from 'react';
 import ShareholderCommentBox from '@/components/ShareholderCommentBox';
-import { db } from "@/lib/db"
-import { shareholders } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
@@ -38,14 +35,13 @@ export default async function ShareholderPage({
       notFound()
     }
 
-    // Fetch all shareholders for the properties
-    const propertyShareholderIds = properties.map(p => p.shareholderId)
-    const propertyShareholders = await db
-      .select()
-      .from(shareholders)
-      .where(eq(shareholders.shareholderId, propertyShareholderIds[0]))
-
     const checkedInCount = properties.filter((p) => p.checkedIn).length
+
+    const benefitUnitOwnerLabelForProperty = (property: (typeof properties)[number]) => {
+      const fromRow = property.ownerName?.trim()
+      if (fromRow) return fromRow
+      return shareholder.name
+    }
 
     return (
       <div className="container mx-auto p-2 sm:p-6 max-w-full sm:max-w-3xl">
@@ -152,7 +148,7 @@ export default async function ShareholderPage({
                         {property.account}
                       </TableCell> */}
                       <TableCell>{property.serviceAddress}</TableCell>
-                      <TableCell>{propertyShareholders[0]?.name || 'Unknown'}</TableCell>
+                      <TableCell>{benefitUnitOwnerLabelForProperty(property)}</TableCell>
                       <TableCell>
                         <Badge
                           variant={

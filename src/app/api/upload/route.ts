@@ -135,7 +135,7 @@ export async function POST(request: Request) {
                 customerName: record.customer_name || "",
                 customerMailingAddress: record.customer_mailing_address || "",
                 cityStateZip: record.city_state_zip || "",
-                ownerName: record.owner_name || "",
+                ownerName: (record["owner_name"] || "").trim(),
                 ownerMailingAddress: (record["owner_mailing_address"] || "").trim(),
                 ownerCityStateZip: (record["owner_city_state_zip"] || "").trim(),
                 residentName: record.resident_name || "",
