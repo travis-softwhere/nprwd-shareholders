@@ -122,6 +122,14 @@ export default function AdminPage() {
   const [shareholderAdminRefresh, setShareholderAdminRefresh] = useState(0);
   /** Set while `clear-for-meeting` is running (per meeting row). */
   const [wipingMeetingId, setWipingMeetingId] = useState<string | null>(null);
+  const [wipeConfirmMeeting, setWipeConfirmMeeting] = useState<Meeting | null>(null);
+  const [wipeConfirmOpen, setWipeConfirmOpen] = useState(false);
+  const [wipePreviewCounts, setWipePreviewCounts] = useState<{
+    shareholders: number;
+    properties: number;
+  } | null>(null);
+  const [wipePreviewLoading, setWipePreviewLoading] = useState(false);
+  const [wipePreviewError, setWipePreviewError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -599,6 +607,41 @@ export default function AdminPage() {
     uploadInProgressRef.current = false;
   }, []);
 
+  const resetWipeConfirmDialog = useCallback(() => {
+    setWipeConfirmOpen(false);
+    setWipeConfirmMeeting(null);
+    setWipePreviewCounts(null);
+    setWipePreviewError(null);
+    setWipePreviewLoading(false);
+  }, []);
+
+  const openWipeConfirmDialog = useCallback(async (meeting: Meeting) => {
+    setWipeConfirmMeeting(meeting);
+    setWipeConfirmOpen(true);
+    setWipePreviewCounts(null);
+    setWipePreviewError(null);
+    setWipePreviewLoading(true);
+    try {
+      const res = await fetch(
+        `/api/shareholders/clear-for-meeting?meetingId=${encodeURIComponent(meeting.id)}`,
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Could not load counts");
+      }
+      setWipePreviewCounts({
+        shareholders: Number(data.shareholderCount ?? 0),
+        properties: Number(data.propertyCount ?? 0),
+      });
+    } catch (error) {
+      setWipePreviewError(
+        error instanceof Error ? error.message : "Failed to load shareholder and property counts",
+      );
+    } finally {
+      setWipePreviewLoading(false);
+    }
+  }, []);
+
   /** Remove all benefit unit owners and properties for one meeting; keeps the meeting row and snapshots. */
   const handleWipeMeetingShareholdersAndProperties = useCallback(
     async (meetingId: string) => {
@@ -617,6 +660,7 @@ export default function AdminPage() {
           title: "Shareholders and properties removed",
           description: `Removed ${data.deletedShareholders ?? 0} benefit unit owner(s) and ${data.deletedProperties ?? 0} propert${(data.deletedProperties ?? 0) === 1 ? "y" : "ies"}. The meeting record is unchanged; snapshots are still stored.`,
         });
+        resetWipeConfirmDialog();
         setShareholderAdminRefresh((k) => k + 1);
         await refreshMeetings();
         if (String(selectedMeeting?.id ?? "") === String(meetingId)) {
@@ -643,7 +687,7 @@ export default function AdminPage() {
         setWipingMeetingId(null);
       }
     },
-    [refreshMeetings, refreshProperties, selectedMeeting?.id, toast],
+    [refreshMeetings, refreshProperties, resetWipeConfirmDialog, selectedMeeting?.id, toast],
   );
 
   // Handle meeting deletion (server removes shareholders, properties, snapshots, then the meeting row)
@@ -1363,47 +1407,16 @@ export default function AdminPage() {
                         disabled={isUploading || wipingMeetingId !== null}
                       />
 
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-auto max-w-[11rem] shrink-0 border-destructive/50 px-2 py-1.5 text-center text-xs font-medium leading-snug text-destructive hover:bg-destructive/10"
-                            disabled={isUploading || wipingMeetingId !== null}
-                          >
-                            Delete all shareholders &amp; properties
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Delete all shareholders &amp; properties for this meeting?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription className="space-y-2">
-                              <span className="block">
-                                This removes <strong>every benefit unit owner and property</strong> tied to the{" "}
-                                <strong>
-                                  {meeting.year} Annual Meeting (ID {meeting.id})
-                                </strong>
-                                . The meeting row stays so you can re-import CSV; saved change snapshots for this meeting
-                                are <strong>not</strong> removed. To delete the meeting record and snapshots too, use the
-                                trash icon.
-                              </span>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel disabled={wipingMeetingId !== null}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              disabled={wipingMeetingId !== null}
-                              onClick={() => void handleWipeMeetingShareholdersAndProperties(meeting.id)}
-                            >
-                              Delete all data
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-auto max-w-[11rem] shrink-0 border-destructive/50 px-2 py-1.5 text-center text-xs font-medium leading-snug text-destructive hover:bg-destructive/10"
+                        disabled={isUploading || wipingMeetingId !== null}
+                        onClick={() => void openWipeConfirmDialog(meeting)}
+                      >
+                        Delete all shareholders &amp; properties
+                      </Button>
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -1445,6 +1458,85 @@ export default function AdminPage() {
                   </div>
                 ))
               )}
+              <AlertDialog
+                open={wipeConfirmOpen}
+                onOpenChange={(open) => {
+                  if (!open) resetWipeConfirmDialog();
+                }}
+              >
+                <AlertDialogContent className="max-w-md">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete all shareholders and properties?</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3 text-sm text-muted-foreground">
+                        {wipeConfirmMeeting && (
+                          <p>
+                            <span className="font-medium text-foreground">
+                              {wipeConfirmMeeting.year} Annual Meeting
+                            </span>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · ID {wipeConfirmMeeting.id}
+                            </span>
+                          </p>
+                        )}
+                        {wipePreviewLoading && (
+                          <div className="flex items-center gap-2 py-1 text-foreground">
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                            <span>Calculating how many records will be removed…</span>
+                          </div>
+                        )}
+                        {!wipePreviewLoading && wipePreviewError && (
+                          <p className="text-destructive">
+                            {wipePreviewError} You can still confirm deletion below if you want to continue.
+                          </p>
+                        )}
+                        {!wipePreviewLoading && wipePreviewCounts && (
+                          <p className="text-foreground">
+                            This action will remove{" "}
+                            <strong>
+                              {wipePreviewCounts.shareholders.toLocaleString()} benefit unit owner
+                              {wipePreviewCounts.shareholders === 1 ? "" : "s"}
+                            </strong>{" "}
+                            and{" "}
+                            <strong>
+                              {wipePreviewCounts.properties.toLocaleString()} propert
+                              {wipePreviewCounts.properties === 1 ? "y" : "ies"}
+                            </strong>
+                            . The meeting row stays so you can re-import CSV. Saved change snapshots for this meeting are{" "}
+                            <strong>not</strong> removed. To delete the meeting and snapshots, use the trash icon on
+                            this meeting instead.
+                          </p>
+                        )}
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={wipingMeetingId !== null}>Cancel</AlertDialogCancel>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={
+                        wipingMeetingId !== null ||
+                        wipePreviewLoading ||
+                        !wipeConfirmMeeting
+                      }
+                      onClick={() => {
+                        if (wipeConfirmMeeting) void handleWipeMeetingShareholdersAndProperties(wipeConfirmMeeting.id);
+                      }}
+                    >
+                      {wipingMeetingId !== null ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                          Deleting…
+                        </>
+                      ) : (
+                        "Delete all data"
+                      )}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>
