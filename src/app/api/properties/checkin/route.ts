@@ -1,8 +1,8 @@
 // Check-in for all properties owned by a shareholder.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { meetings, properties, shareholders } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { properties } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { logToFile, LogLevel } from "@/utils/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -19,11 +19,18 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json();
-        const { shareholderId, signatureImage, signatureHash } = body;
+        const { shareholderId, signatureImage, signatureHash, meetingId } = body;
 
         if (!shareholderId) {
             return NextResponse.json(
                 { error: "Shareholder ID is required" },
+                { status: 400 }
+            );
+        }
+
+        if (!meetingId || typeof meetingId !== "string") {
+            return NextResponse.json(
+                { error: "Meeting ID is required" },
                 { status: 400 }
             );
         }
@@ -62,14 +69,15 @@ export async function POST(request: Request) {
         }
 
         // Use the checkInShareholders action to handle the check-in
-        const result = await checkInShareholders(shareholderId, signatureImage, signatureHash);
+        const result = await checkInShareholders(shareholderId, signatureImage, signatureHash, meetingId);
 
         if (!result.success) {
             await logToFile("properties", "Failed to check in shareholder", LogLevel.ERROR, {
                 shareholderId,
                 error: result.message
             });
-            return NextResponse.json({ error: result.message }, { status: 500 });
+            const status = result.message?.includes("not part of the selected meeting") ? 400 : 500;
+            return NextResponse.json({ error: result.message }, { status });
         }
 
         await logToFile("properties", "Properties checked in for shareholder", LogLevel.INFO, {

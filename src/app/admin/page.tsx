@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, ChevronDown, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo, type ChangeEvent } from "react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink, Pencil } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import { PrintMailersButton } from "@/components/PrintMailersButton";
 import { BulkUncheckInButton } from "@/components/BulkUncheckInButton";
 import { DataChanges } from "@/components/DataChanges";
 import { getMeetings } from "@/actions/getMeetings";
+import type { Meeting } from "@/types/meeting";
 import { deleteMeeting } from "@/actions/manageMeetings";
 import { CreateMeetingForm } from "@/components/CreateMeetingForm";
 import {
@@ -36,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeList } from "@/components/EmployeeList";
 import { Loader2 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading-screen";
@@ -49,6 +51,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ADMIN_MEETING_FILTER_ALL, formatMeetingLabel } from "@/lib/meetingDisplay";
+import { triggerBenefitUnitOwnerCsvTemplateDownload } from "@/lib/benefitUnitOwnerCsvTemplate";
+import { validateBenefitUnitOwnerCsvFile } from "@/lib/benefitUnitOwnerCsvClientValidate";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
 import ShareholdersList from "@/components/ShareholderList"
 import jsPDF from 'jspdf';
@@ -110,9 +115,20 @@ export default function AdminPage() {
 
   // Local state
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  const [dataManagementOpen, setDataManagementOpen] = useState(false);
+  const [shareholdersShowAllMeetings, setShareholdersShowAllMeetings] = useState(false);
+  /** When “all meetings” is on: optional client-side narrow (same ids as Meetings tab). */
+  const [listAllMeetingNarrow, setListAllMeetingNarrow] = useState<string | null>(null);
+  const [shareholderAdminRefresh, setShareholderAdminRefresh] = useState(0);
+  /** Set while `clear-for-meeting` is running (per meeting row). */
+  const [wipingMeetingId, setWipingMeetingId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  /** CSV chosen and validated locally; user must click Save to POST `/api/upload`. */
+  const [pendingCsvFile, setPendingCsvFile] = useState<File | null>(null);
+  const [pendingCsvRowCount, setPendingCsvRowCount] = useState<number | null>(null);
+  const [isValidatingCsv, setIsValidatingCsv] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>("");
   const [isPrinting, setIsPrinting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -175,12 +191,26 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
 
-  const [dependencyInstallLinksOpen, setDependencyInstallLinksOpen] = useState(false);
+  /** Same id the rest of the app uses for “active meeting” (Meetings tab + context). */
+  const systemSelectedMeetingId = useMemo(
+    () => String(selectedMeetingId ?? selectedMeeting?.id ?? ""),
+    [selectedMeetingId, selectedMeeting?.id],
+  );
 
-  // Reset to page 1 when search changes
+  /** Always scope properties API to the meeting chosen on the Meetings tab (not only context). */
+  const meetingScopeQuery = systemSelectedMeetingId
+    ? `&meetingId=${encodeURIComponent(systemSelectedMeetingId)}`
+    : "";
+
+  const meetingForPropertyScope = useMemo(
+    () => meetings.find((m) => String(m.id) === String(systemSelectedMeetingId)) ?? null,
+    [meetings, systemSelectedMeetingId],
+  );
+
+  // Reset to page 1 when search or scoped meeting changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, systemSelectedMeetingId]);
 
   // Add refreshProperties function to reuse in multiple places
   const refreshProperties = async () => {
@@ -189,7 +219,7 @@ export default function AdminPage() {
       setSearchQuery("");
       
       // Fetch the latest properties
-      const propertiesResponse = await fetch("/api/properties?limit=5000");
+      const propertiesResponse = await fetch(`/api/properties?limit=5000${meetingScopeQuery}`);
       if (propertiesResponse.ok) {
         const responseText = await propertiesResponse.text();
         if (responseText) {
@@ -210,17 +240,22 @@ export default function AdminPage() {
     }
   };
   
-  // Fetch properties on component mount
+  // Fetch properties for the meeting selected on the Meetings tab (systemSelectedMeetingId)
   useEffect(() => {
+    if (!systemSelectedMeetingId) {
+      setProperties([]);
+      setFilteredProperties([]);
+      return;
+    }
     const fetchProperties = async () => {
       try {
         setIsLoading(true);
-        // Add a limit and include all properties
-        const response = await fetch("/api/properties?limit=5000");
+        const q = `&meetingId=${encodeURIComponent(systemSelectedMeetingId)}`;
+        const response = await fetch(`/api/properties?limit=5000${q}`);
         if (!response.ok) throw new Error("Failed to fetch properties");
         const data = propertiesFromApiPayload(await response.json());
         setProperties(data);
-        setFilteredProperties(data); // Always set all properties initially
+        setFilteredProperties(data);
       } catch (error) {
         toast({
           title: "Error",
@@ -232,11 +267,14 @@ export default function AdminPage() {
       }
     };
     fetchProperties();
-  }, [toast]);
+  }, [toast, systemSelectedMeetingId]);
 
   // Filter properties based on search
   useEffect(() => {
-    if (!properties.length) return;
+    if (!properties.length) {
+      setFilteredProperties([]);
+      return;
+    }
     if (!searchQuery) {
       setFilteredProperties(properties);
     } else {
@@ -260,11 +298,17 @@ export default function AdminPage() {
     currentPage * itemsPerPage
   );
 
-  // Fetch shareholders
+  // Fetch shareholders for the selected meeting (aligned with Meetings tab)
   useEffect(() => {
+    if (!systemSelectedMeetingId) {
+      setShareholders([]);
+      return;
+    }
     const fetchShareholders = async () => {
       try {
-        const response = await fetch("/api/shareholders?limit=100");
+        const response = await fetch(
+          `/api/shareholders?meetingId=${encodeURIComponent(systemSelectedMeetingId)}`
+        );
         if (!response.ok) throw new Error("Failed to fetch shareholders");
         const data = await response.json();
         setShareholders(data.shareholders || []);
@@ -278,12 +322,14 @@ export default function AdminPage() {
     };
 
     fetchShareholders();
-  }, [toast]);
+  }, [toast, systemSelectedMeetingId]);
 
   // Refs to track ongoing upload and initialization
   const abortControllerRef = useRef<AbortController | null>(null);
   const uploadInProgressRef = useRef<boolean>(false);
   const initialLoadCompleteRef = useRef<boolean>(false);
+  const csvInputShareholdersRef = useRef<HTMLInputElement>(null);
+  const csvInputDataMgmtRef = useRef<HTMLInputElement>(null);
 
   // Add Employee state
   const [newEmployee, setNewEmployee] = useState({
@@ -317,17 +363,19 @@ export default function AdminPage() {
   }, [cleanupUpload]);
 
   // Fetch and refresh meetings
-  const refreshMeetings = useCallback(async () => {
+  const refreshMeetings = useCallback(async (): Promise<Meeting[] | undefined> => {
     try {
       setIsLoading(true);
       const allMeetings = await getMeetings();
       setMeetings(allMeetings);
+      return allMeetings;
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch meetings"
       });
+      return undefined;
     } finally {
       setIsLoading(false);
     }
@@ -365,17 +413,86 @@ export default function AdminPage() {
     }
   }, [meetings.length, selectedMeetingId, toast, setMeetings]);
 
-  // Update selected meeting if selectedMeetingId changes
+  // Keep admin row highlight in sync with global context (do not clear context when local id is unset)
   useEffect(() => {
-    if (selectedMeetingId) {
-      const meeting = meetings.find((m) => m.id === selectedMeetingId);
-      if (meeting) {
-        setSelectedMeeting(meeting);
-      }
-    } else {
-      setSelectedMeeting(null);
+    if (!selectedMeetingId || meetings.length === 0) return;
+    const meeting = meetings.find((m) => String(m.id) === String(selectedMeetingId));
+    if (meeting) {
+      setSelectedMeeting(meeting);
     }
   }, [selectedMeetingId, meetings, setSelectedMeeting]);
+
+  // When opening Admin after other pages, meetings may already be loaded — align local selection with context
+  useEffect(() => {
+    if (selectedMeetingId !== null) return;
+    if (!meetings.length) return;
+    setSelectedMeetingId(selectedMeeting?.id ?? meetings[0].id);
+  }, [meetings, selectedMeeting?.id, selectedMeetingId]);
+
+  const clearPendingCsvImport = useCallback(() => {
+    setPendingCsvFile(null);
+    setPendingCsvRowCount(null);
+    if (csvInputShareholdersRef.current) csvInputShareholdersRef.current.value = "";
+    if (csvInputDataMgmtRef.current) csvInputDataMgmtRef.current.value = "";
+  }, []);
+
+  const handlePendingCsvFileChosen = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!systemSelectedMeetingId) {
+        toast({
+          title: "Choose active meeting",
+          description: "Set the active meeting on the Meetings tab before importing.",
+          variant: "destructive",
+        });
+        e.target.value = "";
+        return;
+      }
+      if (file.size > 12 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Use a CSV under 12 MB.",
+          variant: "destructive",
+        });
+        e.target.value = "";
+        return;
+      }
+      setIsValidatingCsv(true);
+      try {
+        const result = await validateBenefitUnitOwnerCsvFile(file);
+        if (!result.ok) {
+          toast({
+            title: "Invalid CSV",
+            description: result.error,
+            variant: "destructive",
+          });
+          e.target.value = "";
+          setPendingCsvFile(null);
+          setPendingCsvRowCount(null);
+          return;
+        }
+        setPendingCsvFile(file);
+        setPendingCsvRowCount(result.filteredRowCount);
+        toast({
+          title: "CSV validated",
+          description: `${result.filteredRowCount} data row(s) ready. Click Save to import.`,
+        });
+      } catch (err) {
+        toast({
+          title: "Could not read file",
+          description: err instanceof Error ? err.message : "Unknown error",
+          variant: "destructive",
+        });
+        e.target.value = "";
+        setPendingCsvFile(null);
+        setPendingCsvRowCount(null);
+      } finally {
+        setIsValidatingCsv(false);
+      }
+    },
+    [systemSelectedMeetingId, toast],
+  );
 
   // Handle CSV upload
   const handleUpload = useCallback(
@@ -417,8 +534,7 @@ export default function AdminPage() {
           setUploadProgress(animationProgress);
         }, 100);
 
-        // Update step
-        setCurrentStep("Validating file contents...");
+        setCurrentStep("Uploading and importing…");
 
         const response = await fetch("/api/upload", {
           method: "POST",
@@ -442,6 +558,15 @@ export default function AdminPage() {
         setUploadProgress(100);
         
         await refreshMeetings();
+        setShareholderAdminRefresh((k) => k + 1);
+        setPendingCsvFile(null);
+        setPendingCsvRowCount(null);
+        if (csvInputShareholdersRef.current) csvInputShareholdersRef.current.value = "";
+        if (csvInputDataMgmtRef.current) csvInputDataMgmtRef.current.value = "";
+        toast({
+          title: "Import complete",
+          description: "Benefit unit owner data was loaded. The list below will refresh.",
+        });
       } catch (error) {
         // Clear the interval if there's an error
         if (progressInterval) clearInterval(progressInterval);
@@ -449,8 +574,23 @@ export default function AdminPage() {
         setCurrentStep("Upload failed");
       }
     },
-    [refreshMeetings]
+    [refreshMeetings, toast]
   );
+
+  const handleSavePendingCsvImport = useCallback(async () => {
+    if (!pendingCsvFile || !systemSelectedMeetingId) {
+      toast({
+        title: "Nothing to save",
+        description: "Choose a CSV file and wait for validation first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", pendingCsvFile);
+    formData.append("meetingId", systemSelectedMeetingId);
+    await handleUpload(formData);
+  }, [pendingCsvFile, systemSelectedMeetingId, handleUpload, toast]);
 
   const handleUploadComplete = useCallback(() => {
     setIsUploading(false);
@@ -459,7 +599,54 @@ export default function AdminPage() {
     uploadInProgressRef.current = false;
   }, []);
 
-  // Handle meeting deletion
+  /** Remove all benefit unit owners and properties for one meeting; keeps the meeting row and snapshots. */
+  const handleWipeMeetingShareholdersAndProperties = useCallback(
+    async (meetingId: string) => {
+      setWipingMeetingId(meetingId);
+      try {
+        const res = await fetch("/api/shareholders/clear-for-meeting", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meetingId }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to remove data for this meeting");
+        }
+        toast({
+          title: "Shareholders and properties removed",
+          description: `Removed ${data.deletedShareholders ?? 0} benefit unit owner(s) and ${data.deletedProperties ?? 0} propert${(data.deletedProperties ?? 0) === 1 ? "y" : "ies"}. The meeting record is unchanged; snapshots are still stored.`,
+        });
+        setShareholderAdminRefresh((k) => k + 1);
+        await refreshMeetings();
+        if (String(selectedMeeting?.id ?? "") === String(meetingId)) {
+          await refreshProperties();
+          try {
+            const response = await fetch(
+              `/api/shareholders?meetingId=${encodeURIComponent(meetingId)}`,
+            );
+            if (response.ok) {
+              const sh = await response.json();
+              setShareholders(sh.shareholders || []);
+            }
+          } catch {
+            /* list will refresh on next navigation */
+          }
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Could not remove meeting data",
+          variant: "destructive",
+        });
+      } finally {
+        setWipingMeetingId(null);
+      }
+    },
+    [refreshMeetings, refreshProperties, selectedMeeting?.id, toast],
+  );
+
+  // Handle meeting deletion (server removes shareholders, properties, snapshots, then the meeting row)
   const handleDelete = async (meetingId: string) => {
     try {
       const formData = new FormData();
@@ -468,14 +655,25 @@ export default function AdminPage() {
       const result = await deleteMeeting(formData);
       
       if (result.success) {
+        const allMeetings = await refreshMeetings();
+        const deleted = String(meetingId);
+        const wasActive =
+          String(selectedMeetingId ?? "") === deleted || String(selectedMeeting?.id ?? "") === deleted;
+        if (wasActive && allMeetings) {
+          if (allMeetings.length > 0) {
+            setSelectedMeetingId(allMeetings[0].id);
+            setSelectedMeeting(allMeetings[0]);
+          } else {
+            setSelectedMeetingId(null);
+            setSelectedMeeting(null);
+          }
+        }
         toast({
-          title: "Success",
-          description: "Meeting deleted successfully",
+          title: "Meeting deleted",
+          description:
+            "This meeting and all of its benefit unit owners, properties, and history snapshots were removed.",
           variant: "default",
         });
-        
-        // Refresh meetings after deletion
-        await refreshMeetings();
       } else {
         toast({
           title: "Error",
@@ -571,6 +769,9 @@ export default function AdminPage() {
     selectedMeeting &&
     !selectedMeeting.hasInitialData &&
     selectedMeeting.dataSource === "excel";
+
+  /** Shareholders tab: always offer CSV when meeting uses Excel (re-import replaces meeting data). */
+  const showShareholdersTabCsvUpload = Boolean(selectedMeeting && selectedMeeting.dataSource === "excel");
 
   const showMailersButton =
     selectedMeeting &&
@@ -890,7 +1091,18 @@ export default function AdminPage() {
               {isLoading ? 'Loading...' : 'Refresh'}
             </Button>
         </div>
-        
+
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-muted-foreground sm:grid-cols-3 lg:grid-cols-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="meetings">Meetings</TabsTrigger>
+            <TabsTrigger value="employees">Employees</TabsTrigger>
+            <TabsTrigger value="shareholders">Shareholders</TabsTrigger>
+            <TabsTrigger value="properties">Properties</TabsTrigger>
+            <TabsTrigger value="system">System</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-4 space-y-4">
         <div className="w-full flex justify-center items-center">
           <div className="max-w-6xl">
             <CheckinStatusDashboard />
@@ -901,12 +1113,16 @@ export default function AdminPage() {
                   setIsLoading(true);
                   
                   // Fetch properties
-                  const propertiesResponse = await fetch("/api/properties?limit=5000");
+                  const propertiesResponse = await fetch(`/api/properties?limit=5000${meetingScopeQuery}`);
                   if (!propertiesResponse.ok) throw new Error("Failed to fetch properties");
                   const propertiesData = propertiesFromApiPayload(await propertiesResponse.json());
 
                   // Fetch shareholders
-                  const shareholdersResponse = await fetch("/api/shareholders?limit=5000");
+                  const shareholdersResponse = await fetch(
+                    selectedMeeting
+                      ? `/api/shareholders?meetingId=${encodeURIComponent(selectedMeeting.id)}`
+                      : "/api/shareholders?limit=5000"
+                  );
                   if (!shareholdersResponse.ok) throw new Error("Failed to fetch shareholders");
                   const shareholdersData = await shareholdersResponse.json();
                   
@@ -996,17 +1212,410 @@ export default function AdminPage() {
             </Button>
           </div>
         </div>
+          </TabsContent>
 
-        {/* Employee Section */}
+          <TabsContent value="meetings" className="mt-4 space-y-6">
+            <div
+              className={cn(
+                "rounded-lg border px-4 py-3 text-sm",
+                selectedMeeting
+                  ? "border-blue-200 bg-blue-50/90"
+                  : "border-amber-200 bg-amber-50/90"
+              )}
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <p className="font-semibold text-gray-900">
+                    Active meeting for the system
+                  </p>
+                  {selectedMeeting ? (
+                    <p className="text-gray-700">
+                      <span className="font-medium">
+                        {selectedMeeting.year} Annual Meeting
+                      </span>
+                      <span className="text-gray-500">
+                        {" · "}
+                        {new Date(selectedMeeting.date).toLocaleDateString()}
+                      </span>
+                      <span className="ml-2 font-mono text-xs text-gray-500">
+                        (ID {selectedMeeting.id})
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-amber-900">
+                      No meeting is selected. Uploads, mailers, reports, and check-in all use the
+                      meeting you choose below.
+                    </p>
+                  )}
+                </div>
+                {selectedMeeting && (
+                  <Badge
+                    className="w-fit shrink-0 border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100"
+                    variant="secondary"
+                  >
+                    <Check className="mr-1 h-3.5 w-3.5" aria-hidden />
+                    In use
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+        {/* Shareholder Meetings Card */}
+            <Card>
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Meetings
+            </CardTitle>
+            <CardDescription>
+              Click a meeting to make it the active one for the app. Use the pencil to open uploads and data tools.{" "}
+              <span className="font-medium text-foreground">Uncheck-in all</span> resets check-in and signatures only;{" "}
+              <span className="font-medium text-foreground">Delete all shareholders &amp; properties</span> removes every
+              benefit unit owner and property row for that meeting but keeps the meeting record (use trash to delete the
+              meeting and snapshots). Each row shows the database meeting ID.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            {/* Create a new meeting */}
+            <CreateMeetingForm
+              onSuccess={(meeting) => {
+                setMeetings((prev: any[]) => [...prev, meeting]);
+                toast({
+                  title: "Success",
+                  description: "Meeting created successfully"
+                });
+              }}
+            />
+
+            {/* List existing meetings */}
+            <div className="space-y-3 mt-4">
+              <h3 className="text-sm font-medium text-gray-700">Existing Meetings</h3>
+                  {initialLoading ? (
+                    <div className="flex justify-center items-center h-24">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                    </div>
+                  ) : meetings.length === 0 ? (
+                <div className="p-4 rounded-lg bg-gray-50 text-center text-gray-500 text-sm">
+                  No meetings found. Create your first meeting above.
+                </div>
+              ) : (
+                meetings.map((meeting) => (
+                  <div
+                    key={meeting.id}
+                    className={cn(
+                      "flex w-full flex-wrap items-center gap-2 p-4 rounded-lg border transition-all",
+                      selectedMeetingId === meeting.id 
+                        ? "border-blue-500 bg-blue-50 shadow-sm" 
+                        : "hover:border-gray-300 hover:bg-gray-50"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => {
+                        if (!isUploading) {
+                          setSelectedMeetingId(meeting.id);
+                          setDataManagementOpen(false);
+                        }
+                      }}
+                    >
+                      <div className="flex justify-between items-center gap-2">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {meeting.year} Annual Meeting
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {new Date(meeting.date).toLocaleDateString()}
+                          </p>
+                          <p className="mt-1 text-xs font-mono text-muted-foreground">
+                            Meeting ID <span className="font-semibold text-foreground">{meeting.id}</span>
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {selectedMeetingId === meeting.id && (
+                            <Check className="h-5 w-5 text-blue-500" aria-hidden />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-500 hover:bg-blue-100 hover:text-blue-700"
+                        disabled={isUploading}
+                        aria-label={`Edit data and uploads for ${meeting.year} annual meeting`}
+                        onClick={() => {
+                          if (!isUploading) {
+                            setSelectedMeetingId(meeting.id);
+                            setDataManagementOpen(true);
+                          }
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+
+                      <BulkUncheckInButton
+                        meetingId={meeting.id}
+                        meetingLabel={`${meeting.year} Annual Meeting (ID ${meeting.id})`}
+                        disabled={isUploading || wipingMeetingId !== null}
+                      />
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-auto max-w-[11rem] shrink-0 border-destructive/50 px-2 py-1.5 text-center text-xs font-medium leading-snug text-destructive hover:bg-destructive/10"
+                            disabled={isUploading || wipingMeetingId !== null}
+                          >
+                            Delete all shareholders &amp; properties
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Delete all shareholders &amp; properties for this meeting?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2">
+                              <span className="block">
+                                This removes <strong>every benefit unit owner and property</strong> tied to the{" "}
+                                <strong>
+                                  {meeting.year} Annual Meeting (ID {meeting.id})
+                                </strong>
+                                . The meeting row stays so you can re-import CSV; saved change snapshots for this meeting
+                                are <strong>not</strong> removed. To delete the meeting record and snapshots too, use the
+                                trash icon.
+                              </span>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={wipingMeetingId !== null}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              disabled={wipingMeetingId !== null}
+                              onClick={() => void handleWipeMeetingShareholdersAndProperties(meeting.id)}
+                            >
+                              Delete all data
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                            disabled={isUploading || wipingMeetingId !== null}
+                            aria-label={`Delete meeting ${meeting.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete meeting {meeting.id}?</AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2">
+                              <span className="block">
+                                This permanently deletes this annual meeting record and{" "}
+                                <strong>all benefit unit owners</strong> tied to it (including legacy year IDs),{" "}
+                                <strong>all of their properties</strong>, and{" "}
+                                <strong>saved change snapshots</strong> for this meeting. This cannot be undone.
+                              </span>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700"
+                              onClick={() => handleDelete(meeting.id)}
+                            >
+                              Delete meeting and data
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+          {/* Data Management — opened via pencil on a meeting row */}
+      {dataManagementOpen && selectedMeeting && (
+            <div className="space-y-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold text-gray-900">Data Management</h2>
+                  <span className="text-sm text-muted-foreground">
+                    ({selectedMeeting.year} · {new Date(selectedMeeting.date).toLocaleDateString()})
+                  </span>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setDataManagementOpen(false)}>
+                  Done
+                </Button>
+              </div>
+          <Separator />
+          
+              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
+            {/* Upload Data Card */}
+            {showUploadComponent && (
+              <Card className="overflow-hidden hover:shadow-md transition-all">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-white pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Upload className="h-5 w-5 text-amber-600" />
+                    Upload Benefit Unit Owner Data
+                  </CardTitle>
+                  <CardDescription>
+                    Choose a CSV — it is parsed and checked here first. Click <span className="font-medium">Save</span>{" "}
+                    to import into the {selectedMeeting?.year} meeting (active system meeting).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center w-full">
+                      <label
+                        htmlFor="file-upload"
+                        className={cn(
+                          "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors",
+                          selectedMeeting && !isUploading && !isValidatingCsv
+                            ? "cursor-pointer border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-400"
+                            : "cursor-not-allowed border-gray-200 bg-gray-100"
+                        )}
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6 px-2 text-center">
+                          {isValidatingCsv ? (
+                            <>
+                              <Loader2 className="w-8 h-8 mb-2 animate-spin text-amber-500" />
+                              <p className="text-sm text-gray-700">Parsing and validating CSV…</p>
+                            </>
+                          ) : (
+                            <>
+                              <Upload
+                                className={cn(
+                                  "w-8 h-8 mb-2",
+                                  isUploading ? "text-gray-400" : "text-amber-500"
+                                )}
+                              />
+                              <p className="mb-2 text-sm text-gray-700">
+                                <span className="font-semibold">Choose CSV file</span>
+                              </p>
+                              <p className="text-xs text-gray-500">Then review and click Save below</p>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          ref={csvInputDataMgmtRef}
+                          id="file-upload"
+                          name="file"
+                          type="file"
+                          className="hidden"
+                          accept=".csv,text/csv"
+                          disabled={!selectedMeeting || isUploading || isValidatingCsv}
+                          onChange={handlePendingCsvFileChosen}
+                        />
+                      </label>
+                    </div>
+
+                    {pendingCsvFile && pendingCsvRowCount !== null && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-emerald-950">
+                          <span className="font-medium">{pendingCsvFile.name}</span>
+                          <span className="text-emerald-900">
+                            {" "}
+                            — {pendingCsvRowCount} row(s) passed validation. Import uses the active meeting ID.
+                          </span>
+                        </p>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={clearPendingCsvImport}
+                            disabled={isUploading}
+                          >
+                            Discard
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => void handleSavePendingCsvImport()}
+                            disabled={isUploading || !systemSelectedMeetingId}
+                          >
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Saving…
+                              </>
+                            ) : (
+                              "Save"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <UploadProgress
+                      isUploading={isUploading}
+                      progress={uploadProgress}
+                      currentStep={currentStep}
+                      error={uploadError}
+                      onComplete={handleUploadComplete}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Print Mailers Button */}
+            
+
+            {/* Show Data Changes after mailers generated */}
+            {showDataChanges && (
+              <Card className="overflow-hidden hover:shadow-md transition-all">
+                <CardHeader className="bg-gradient-to-r from-green-50 to-white pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                    Data Changes
+                  </CardTitle>
+                  <CardDescription>
+                    Track changes to shareholder data since mailers were generated
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <DataChanges meetingId={selectedMeeting.id} />
+                </CardContent>
+              </Card>
+            )}
+
+            {!showUploadComponent && !showDataChanges && (
+              <div className="col-span-full rounded-lg border border-dashed border-muted-foreground/25 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                No upload or data-changes tools apply to this meeting right now. Upload appears when the meeting is
+                configured for Excel/CSV and has not had its initial import. Data changes appear after mailers are
+                generated.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+          </TabsContent>
+
+          <TabsContent value="employees" className="mt-4 space-y-6">
         <div className="space-y-6">
               <div className="bg-white rounded-lg border">
             <EmployeeList refreshTrigger={employeeRefreshTrigger} />
           </div>
         </div>
 
-          {/* Cards Grid Section */}
-          <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
-        {/* Add Employee Card */}
             <Card>
           <CardHeader className="bg-gradient-to-r from-green-50 to-white pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -1059,229 +1668,217 @@ export default function AdminPage() {
             </form>
           </CardContent>
         </Card>
-              
-        {/* Shareholder Meetings Card */}
-            <Card>
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              Meetings
-            </CardTitle>
-            <CardDescription>Select or create a meeting to manage</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            {/* Create a new meeting */}
-            <CreateMeetingForm
-              onSuccess={(meeting) => {
-                setMeetings((prev: any[]) => [...prev, meeting]);
-                toast({
-                  title: "Success",
-                  description: "Meeting created successfully"
-                });
-              }}
-            />
+          </TabsContent>
 
-            {/* List existing meetings */}
-            <div className="space-y-3 mt-4">
-              <h3 className="text-sm font-medium text-gray-700">Existing Meetings</h3>
-                  {initialLoading ? (
-                    <div className="flex justify-center items-center h-24">
-                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                    </div>
-                  ) : meetings.length === 0 ? (
-                <div className="p-4 rounded-lg bg-gray-50 text-center text-gray-500 text-sm">
-                  No meetings found. Create your first meeting above.
-                </div>
-              ) : (
-                meetings.map((meeting) => (
-                  <div
-                    key={meeting.id}
-                    className={cn(
-                      "flex w-full items-center justify-between p-4 rounded-lg border transition-all",
-                      selectedMeetingId === meeting.id 
-                        ? "border-blue-500 bg-blue-50 shadow-sm" 
-                        : "hover:border-gray-300 hover:bg-gray-50"
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="flex-1 text-left"
-                      onClick={() => {
-                        if (!isUploading) {
-                          setSelectedMeetingId(selectedMeetingId === meeting.id ? null : meeting.id);
-                        }
-                      }}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {meeting.year} Annual Meeting
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {new Date(meeting.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {selectedMeetingId === meeting.id && (
-                            <Check className="h-5 w-5 text-blue-500" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Delete Meeting */}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <BulkUncheckInButton />
-                        {/* <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="ml-2 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button> */}
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Meeting</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this meeting? This action cannot be undone. All associated shareholder data will be permanently deleted.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-500 hover:bg-red-600"
-                            onClick={() => handleDelete(meeting.id)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-          {/* Data Management Section - Condition changed to hide after data upload */}
-      {selectedMeeting && !selectedMeeting.hasInitialData && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-gray-900">Data Management</h2>
-              </div>
-          <Separator />
-          
-              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
-            {/* Upload Data Card */}
-            {showUploadComponent && (
-              <Card className="overflow-hidden hover:shadow-md transition-all">
+          <TabsContent value="shareholders" className="mt-4 space-y-3">
+            {showShareholdersTabCsvUpload && selectedMeeting && (
+              <Card>
                 <CardHeader className="bg-gradient-to-r from-amber-50 to-white pb-2">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Upload className="h-5 w-5 text-amber-600" />
-                    Upload Benefit Unit Owner Data
+                  <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
+                    <Upload className="h-5 w-5 text-amber-600 shrink-0" />
+                    Import benefit unit owners (CSV)
                   </CardTitle>
                   <CardDescription>
-                    Upload CSV file with Benefit Unit Owner for {selectedMeeting?.year} meeting
+                    Choose a CSV — it is parsed and validated before import. When ready, click{" "}
+                    <span className="font-medium">Save</span> to replace all benefit unit owners for the{" "}
+                    <span className="font-medium">active system meeting</span> ({selectedMeeting.year} ·{" "}
+                    {new Date(selectedMeeting.date).toLocaleDateString()}, ID {selectedMeeting.id}). Set the active meeting
+                    on the Meetings tab first.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center w-full">
+                <CardContent className="space-y-4 pt-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex-1 min-w-0 space-y-4">
                       <label
-                        htmlFor="file-upload"
+                        htmlFor="shareholders-tab-csv-upload"
                         className={cn(
-                          "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors",
-                          selectedMeeting && !isUploading
+                          "flex flex-col items-center justify-center w-full min-h-[7rem] border-2 border-dashed rounded-lg transition-colors px-3 py-4",
+                          !isUploading && !isValidatingCsv
                             ? "cursor-pointer border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-400"
-                            : "cursor-not-allowed border-gray-200 bg-gray-100"
+                            : "cursor-not-allowed border-gray-200 bg-gray-100",
                         )}
                       >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload
-                            className={cn(
-                              "w-8 h-8 mb-2",
-                              isUploading ? "text-gray-400" : "text-amber-500"
-                            )}
-                          />
-                          <p className="mb-2 text-sm text-gray-700">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-gray-500">CSV file only</p>
-                        </div>
+                        {isValidatingCsv ? (
+                          <>
+                            <Loader2 className="w-8 h-8 mb-2 animate-spin text-amber-500" />
+                            <span className="text-sm text-gray-700">Parsing and validating CSV…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className={cn("w-8 h-8 mb-2", isUploading ? "text-gray-400" : "text-amber-500")} />
+                            <span className="text-sm font-semibold text-gray-800">Choose CSV file</span>
+                            <span className="text-xs text-gray-500 mt-1 text-center">
+                              Headers are normalized like the server import; each row needs an account value.
+                            </span>
+                          </>
+                        )}
                         <input
-                          id="file-upload"
+                          ref={csvInputShareholdersRef}
+                          id="shareholders-tab-csv-upload"
                           name="file"
                           type="file"
                           className="hidden"
-                          accept=".csv"
-                          disabled={!selectedMeeting || isUploading}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && selectedMeeting) {
-                              const formData = new FormData();
-                              formData.append("file", file);
-                              formData.append("meetingId", selectedMeeting.id);
-                              handleUpload(formData);
-                            }
-                          }}
+                          accept=".csv,text/csv"
+                          disabled={isUploading || isValidatingCsv}
+                          onChange={handlePendingCsvFileChosen}
                         />
                       </label>
-                    </div>
 
-                    <UploadProgress
-                      isUploading={isUploading}
-                      progress={uploadProgress}
-                      currentStep={currentStep}
-                      error={uploadError}
-                      onComplete={handleUploadComplete}
-                    />
+                      {pendingCsvFile && pendingCsvRowCount !== null && (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-sm text-emerald-950">
+                            <span className="font-medium">{pendingCsvFile.name}</span>
+                            <span className="text-emerald-900">
+                              {" "}
+                              — {pendingCsvRowCount} row(s) passed validation.
+                            </span>
+                          </p>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={clearPendingCsvImport}
+                              disabled={isUploading}
+                            >
+                              Discard
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => void handleSavePendingCsvImport()}
+                              disabled={isUploading || !systemSelectedMeetingId}
+                            >
+                              {isUploading ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Saving…
+                                </>
+                              ) : (
+                                "Save"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      <UploadProgress
+                        isUploading={isUploading}
+                        progress={uploadProgress}
+                        currentStep={currentStep}
+                        error={uploadError}
+                        onComplete={handleUploadComplete}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0 w-full sm:w-auto"
+                      disabled={isUploading || isValidatingCsv}
+                      onClick={() => triggerBenefitUnitOwnerCsvTemplateDownload()}
+                    >
+                      <Download className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+                      Download CSV template
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Print Mailers Button */}
-            
+            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <Checkbox
+                  id="admin-shareholders-all-meetings"
+                  checked={shareholdersShowAllMeetings}
+                  onCheckedChange={(v) => {
+                    const on = v === true;
+                    if (on) {
+                      setListAllMeetingNarrow(null);
+                      setShareholdersShowAllMeetings(true);
+                    } else {
+                      setShareholdersShowAllMeetings(false);
+                      if (listAllMeetingNarrow) {
+                        const m = meetings.find((x) => String(x.id) === String(listAllMeetingNarrow));
+                        if (m) {
+                          setSelectedMeeting(m);
+                          setSelectedMeetingId(String(m.id));
+                        }
+                      }
+                    }
+                  }}
+                />
+                <Label htmlFor="admin-shareholders-all-meetings" className="cursor-pointer font-normal leading-snug">
+                  Show shareholders from <span className="font-medium">all</span> meetings (full database). When off, use{" "}
+                  <span className="font-medium">Meeting</span> under <span className="font-medium">Filters &amp; sorting</span>{" "}
+                  or the Meetings tab to choose which meeting is active app-wide.
+                </Label>
+              </div>
+            </div>
+            <Card className="border-0 shadow-none">
+              <CardContent className="p-0">
+                <ShareholdersList
+                  listAllShareholders={shareholdersShowAllMeetings}
+                  meetingIdForQuery={undefined}
+                  showMeetingColumn
+                  adminMeetingToolbar={
+                    shareholdersShowAllMeetings
+                      ? {
+                          value: listAllMeetingNarrow ?? ADMIN_MEETING_FILTER_ALL,
+                          onChange: (id) =>
+                            setListAllMeetingNarrow(id === ADMIN_MEETING_FILTER_ALL ? null : id),
+                          listAll: true,
+                        }
+                      : {
+                          value: systemSelectedMeetingId || String(meetings[0]?.id ?? ""),
+                          onChange: (id) => {
+                            const m = meetings.find((x) => String(x.id) === id);
+                            if (m) {
+                              setSelectedMeeting(m);
+                              setSelectedMeetingId(String(m.id));
+                            }
+                          },
+                          listAll: false,
+                        }
+                  }
+                  adminManageShareholders={true}
+                  refreshTrigger={shareholderAdminRefresh}
+                  onAdminMutation={() => setShareholderAdminRefresh((k) => k + 1)}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* Show Data Changes after mailers generated */}
-            {showDataChanges && (
-              <Card className="overflow-hidden hover:shadow-md transition-all">
-                <CardHeader className="bg-gradient-to-r from-green-50 to-white pb-2">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                    Data Changes
-                  </CardTitle>
-                  <CardDescription>
-                    Track changes to shareholder data since mailers were generated
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <DataChanges meetingId={selectedMeeting.id} />
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      )}
-      
-      <Card className="border-0 shadow-none">
-        <CardContent className="p-0">
-          <ShareholdersList />
-        </CardContent>
-      </Card>
-        
+          <TabsContent value="properties" className="mt-4 space-y-6">
           {/* Property Management Section */}
           <div className="space-y-6">
             <div className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold text-gray-900">Property Management</h2>
             </div>
+
+            {systemSelectedMeetingId ? (
+              meetingForPropertyScope ? (
+                <div className="rounded-lg border border-blue-200 bg-blue-50/90 px-4 py-3 text-sm">
+                  <p className="font-semibold text-gray-900">Showing properties for</p>
+                  <p className="mt-1 text-gray-800">
+                    {formatMeetingLabel(meetingForPropertyScope)}
+                    <span className="ml-2 font-mono text-xs text-gray-600">
+                      · Database ID {meetingForPropertyScope.id}
+                    </span>
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  Active meeting id <span className="font-mono font-medium">{systemSelectedMeetingId}</span> does not
+                  match the meetings list. Open the Meetings tab or refresh.
+                </div>
+              )
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                Choose an annual meeting on the <span className="font-medium">Meetings</span> tab to scope this list.
+              </div>
+            )}
+
             <Separator />
             
             <div className="bg-white rounded-lg border">
@@ -1311,10 +1908,18 @@ export default function AdminPage() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
+                ) : !systemSelectedMeetingId ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Select a meeting on the Meetings tab to load properties.</p>
+                  </div>
                 ) : filteredProperties.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <Search className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-                    <p>No properties found</p>
+                    <p>
+                      {searchQuery.trim()
+                        ? "No properties match your search for this meeting."
+                        : "No properties found for this meeting."}
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -1377,75 +1982,54 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+          </TabsContent>
 
-          <div className="border-t pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-between gap-2 font-normal text-muted-foreground hover:text-foreground"
-              onClick={() => setDependencyInstallLinksOpen((o) => !o)}
-              aria-expanded={dependencyInstallLinksOpen}
-              aria-controls="dependency-install-links-panel"
-            >
-              <span className="text-sm font-medium text-foreground">
-                Dependency install links
-              </span>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 shrink-0 transition-transform duration-200",
-                  dependencyInstallLinksOpen && "rotate-180"
-                )}
-              />
-            </Button>
-            {dependencyInstallLinksOpen && (
-              <div
-                id="dependency-install-links-panel"
-                className="mt-3 rounded-md border bg-muted/30 p-4 space-y-3"
-              >
-                <h3 className="text-sm font-semibold text-gray-900">
-                  Dependency Install Links
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Topaz pad capture needs the Chrome extension, SigPlusExtLite on Windows, and SigPlus where applicable.
-                </p>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <a
-                      href="https://chromewebstore.google.com/detail/topaz-sigplusextlite-exte/dhcpobccjkdnmibckgpejmbpmpembgco?pli=1"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      Topaz SigPlusExtLite Extension (Chrome Web Store)
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://www.topazsystems.com/software/SigPlusExtLite_V3.exe"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      Topaz SigPlusExtLite (SigPlusExtLite_V3.exe)
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://www.topazsystems.com/software/sigplus.exe"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      Topaz SigPlus (sigplus.exe)
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            )}
-          </div>
+          <TabsContent value="system" className="mt-4">
+            <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Dependency Install Links
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Topaz pad capture needs the Chrome extension, SigPlusExtLite on Windows, and SigPlus where applicable.
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <a
+                    href="https://chromewebstore.google.com/detail/topaz-sigplusextlite-exte/dhcpobccjkdnmibckgpejmbpmpembgco?pli=1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    Topaz SigPlusExtLite Extension (Chrome Web Store)
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.topazsystems.com/software/SigPlusExtLite_V3.exe"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    Topaz SigPlusExtLite (SigPlusExtLite_V3.exe)
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.topazsystems.com/software/sigplus.exe"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    Topaz SigPlus (sigplus.exe)
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </TabsContent>
+        </Tabs>
         </div>
       </div>
 

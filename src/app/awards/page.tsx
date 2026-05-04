@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { AttendanceCard } from "@/components/AttendanceCard"
 import { getMeetingStats } from "@/actions/getMeetingStats"
 import { useMeeting } from "@/contexts/MeetingContext"
+import { shareholderMatchesMeetingFilter } from "@/lib/meetingDisplay"
 import 'react-spinning-wheel/dist/style.css';
 
 interface Property {
@@ -35,7 +36,7 @@ export default function AwardsPage() {
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [properties, setProperties] = useState<Property[]>([])
   const [shareholders, setShareholders] = useState<Shareholder[]>([])
-  const { selectedMeeting } = useMeeting()
+  const { selectedMeeting, meetings } = useMeeting()
   const [winners, setWinners] = useState<Shareholder[]>([])
   const [showWheel, setShowWheel] = useState(false)
   const [spinning, setSpinning] = useState(false)
@@ -47,7 +48,11 @@ export default function AwardsPage() {
   const fetchAttendance = useCallback(async () => {
     setAttendanceLoading(true)
     try {
-      const { totalShareholders, checkedInCount } = await getMeetingStats()
+      if (!selectedMeeting?.id) {
+        setAttendance({ checkedIn: 0, total: 0 })
+        return
+      }
+      const { totalShareholders, checkedInCount } = await getMeetingStats(selectedMeeting.id)
       setAttendance({ checkedIn: checkedInCount, total: totalShareholders })
     } catch (err) {
       setAttendance({ checkedIn: 0, total: 0 })
@@ -55,21 +60,25 @@ export default function AwardsPage() {
     } finally {
       setAttendanceLoading(false)
     }
-  }, [])
+  }, [selectedMeeting?.id])
 
   const fetchPropertiesAndShareholders = useCallback(async () => {
     try {
-      const shareholdersRes = await fetch("/api/shareholders")
+      if (!selectedMeeting?.id) {
+        setShareholders([])
+        setProperties([])
+        return
+      }
+      const mid = encodeURIComponent(selectedMeeting.id)
+      const shareholdersRes = await fetch(`/api/shareholders?meetingId=${mid}`)
       const shareholdersData = await shareholdersRes.json()
       setShareholders(shareholdersData.shareholders || [])
-      console.log("Fetched shareholders:", shareholdersData.shareholders)
 
-      const propertiesRes = await fetch("/api/properties?limit=5000")
-      const propertiesData = await propertiesRes.json()
-      // Log raw data to see what we're getting from the API
-      console.log("Raw API response (first property):", propertiesData[0])
-      console.log("Raw checked_in values:", propertiesData.map((p: any) => p.checked_in))
-      console.log("Raw checkedIn property:", propertiesData.find((p: any) => p.checked_in));
+      const propertiesRes = await fetch(`/api/properties?limit=5000&meetingId=${mid}`)
+      const propertiesJson = await propertiesRes.json()
+      const propertiesData = Array.isArray(propertiesJson)
+        ? propertiesJson
+        : propertiesJson.properties || []
       
       // Map the properties to ensure consistent field names
       const mappedProperties = propertiesData.map((p: any) => ({
@@ -78,19 +87,12 @@ export default function AwardsPage() {
         shareholderId: p.shareholderId || p.shareholder_id || p['shareholderId'] || p['shareholder_id'],
       }))
       setProperties(mappedProperties)
-      console.log("Fetched properties (first 5):", mappedProperties.slice(0, 5))
-      if (mappedProperties.length > 0) {
-        console.log("Property keys:", Object.keys(mappedProperties[0]))
-      }
-      console.log("All checkedIn properties (full objects):", mappedProperties.filter((p: any) => p.checkedIn));
-      console.log("All checkedIn property shareholderIds", mappedProperties.filter((p: Property) => p.checkedIn).map((p: Property) => `[${p.shareholderId}]`));
-      console.log("All keys of a checkedIn property:", Object.keys(mappedProperties.filter((p: any) => p.checkedIn)[0] || {}));
     } catch (err) {
       setProperties([])
       setShareholders([])
       console.error("Error fetching properties/shareholders:", err)
     }
-  }, [])
+  }, [selectedMeeting?.id])
 
   useEffect(() => {
     fetchAttendance()
@@ -107,7 +109,7 @@ export default function AwardsPage() {
       // Exclude previous winners
       const winnerIds = new Set(winners.map(w => w.shareholderId))
       const meetingShareholderIds = shareholders
-        .filter(s => String(s.meetingId).trim() === String(selectedMeeting.id).trim())
+        .filter((s) => shareholderMatchesMeetingFilter(s.meetingId, String(selectedMeeting.id), meetings))
         .map(s => String(s.shareholderId).trim())
       const checkedInProperties = properties.filter(
         (p: any) => p.checkedIn && meetingShareholderIds.includes(String(p.shareholderId).trim()) && !winnerIds.has(String(p.shareholderId).trim())

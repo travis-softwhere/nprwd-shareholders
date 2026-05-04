@@ -44,12 +44,12 @@ export default function Navigation() {
 
     // Desktop sidebar navigation
     const DesktopNavigation = () => (
-        <div className="hidden md:flex h-full w-16 flex-col gap-y-4 border-r bg-white">
-            <div className="flex flex-col h-16 shrink-0 items-center justify-center border-b">
+        <div className="hidden md:flex h-full w-52 flex-col gap-y-4 border-r bg-white">
+            <div className="flex flex-col h-16 shrink-0 items-center justify-center border-b px-2">
                 <Image className="h-8 w-auto" src="/logo.png" alt="AquaShare" width={32} height={32} />
                 <p className="text-[10px]">AquaShare</p>
             </div>
-            <nav className="flex flex-1 flex-col gap-y-4 px-2">
+            <nav className="flex flex-1 flex-col gap-y-1 px-2">
                 {navigation.map((item) => {
                     const Icon = item.icon
                     const isAdminOnly = item.adminOnly
@@ -66,32 +66,27 @@ export default function Navigation() {
                                     pathname === item.href
                                         ? "bg-blue-50 text-blue-600"
                                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
-                                    "group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-colors",
+                                    "group flex items-center gap-x-3 rounded-md px-2 py-2 text-sm font-semibold leading-6 transition-colors",
                                 )}
                             >
                                 <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                                <span className="sr-only">{item.name}</span>
+                                <span>{item.name}</span>
                             </Link>
                         )
                     )
                 })}
             </nav>
             <div className="mt-auto">
-                <div className="flex shrink-0 justify-center px-2 pb-4">
+                <div className="flex shrink-0 px-2 pb-4">
                     <Button
                         variant="ghost"
-                        size="icon"
                         onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-                        className="text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                        className="h-auto w-full justify-start gap-x-3 px-2 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                     >
-                        <LogOut className="h-6 w-6" />
-                        <span className="sr-only">Sign out</span>
+                        <LogOut className="h-6 w-6 shrink-0" aria-hidden="true" />
+                        <span className="text-sm font-semibold">Sign out</span>
                     </Button>
                 </div>
-            </div>
-
-            <div className="mt-auto">
-                
             </div>
         </div>
     )

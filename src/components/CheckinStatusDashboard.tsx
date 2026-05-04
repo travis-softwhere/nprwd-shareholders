@@ -37,13 +37,18 @@ export function CheckinStatusDashboard() {
   const [stats, setStats] = useState({ total: 0, checkedIn: 0 });
   const [loadingStats, setLoadingStats] = useState(false);
 
-  // Next-meeting countdown
-  const [daysLeft, setDaysLeft] = useState<string>("N/A");
+  /** Large figure + short label for time until the selected meeting (from Meeting context). */
+  const [timeUntilMeeting, setTimeUntilMeeting] = useState({ main: "—", sub: "NO MEETING SELECTED" });
 
   // PDF mailer state
   const [isGenerating, setIsGenerating] = useState(false);
   const [mailerProgress, setMailerProgress] = useState(0);
   const [showMailerDialog, setShowMailerDialog] = useState(false);
+  const [currentBatchNumber, setCurrentBatchNumber] = useState(0);
+  const [totalBatches, setTotalBatches] = useState(0);
+  const [currentBatchStatus, setCurrentBatchStatus] = useState("");
+  const [currentBatchShareholderCount, setCurrentBatchShareholderCount] = useState(0);
+  const [isLocalMode, setIsLocalMode] = useState(false);
 
   // Auto-select first meeting if none
   useEffect(() => {
@@ -52,11 +57,46 @@ export function CheckinStatusDashboard() {
     }
   }, [meetings, selectedMeeting, setSelectedMeeting]);
 
-  // Compute days left
-  const computeDays = useCallback(() => {
-    if (!selectedMeeting?.date) return setDaysLeft("N/A");
-    const diff = Math.ceil((new Date(selectedMeeting.date).getTime() - Date.now()) / 86400000);
-    setDaysLeft(isNaN(diff) ? "N/A" : diff.toString());
+  const updateTimeUntilMeeting = useCallback(() => {
+    if (!selectedMeeting?.date) {
+      setTimeUntilMeeting({ main: "—", sub: "NO MEETING SELECTED" });
+      return;
+    }
+    const target = new Date(selectedMeeting.date);
+    if (Number.isNaN(target.getTime())) {
+      setTimeUntilMeeting({ main: "—", sub: "INVALID MEETING DATE" });
+      return;
+    }
+    const now = Date.now();
+    if (target.getTime() <= now) {
+      setTimeUntilMeeting({
+        main: "Already past",
+        sub: "THE SELECTED MEETING DATE HAS PASSED",
+      });
+      return;
+    }
+    const diffMs = target.getTime() - now;
+    const days = Math.floor(diffMs / 86400000);
+    const hours = Math.floor(diffMs / 3600000);
+    const minutes = Math.floor(diffMs / 60000);
+    if (days >= 1) {
+      setTimeUntilMeeting({
+        main: String(days),
+        sub: days === 1 ? "DAY UNTIL THIS MEETING" : "DAYS UNTIL THIS MEETING",
+      });
+      return;
+    }
+    if (hours >= 1) {
+      setTimeUntilMeeting({
+        main: String(hours),
+        sub: hours === 1 ? "HOUR UNTIL THIS MEETING" : "HOURS UNTIL THIS MEETING",
+      });
+      return;
+    }
+    setTimeUntilMeeting({
+      main: String(Math.max(1, minutes)),
+      sub: minutes <= 1 ? "MINUTE UNTIL THIS MEETING" : "MINUTES UNTIL THIS MEETING",
+    });
   }, [selectedMeeting]);
 
   // Fetch attendance stats
@@ -64,7 +104,7 @@ export function CheckinStatusDashboard() {
     if (!selectedMeeting) return;
     setLoadingStats(true);
     try {
-      const { totalShareholders, checkedInCount } = await getMeetingStats(); 
+      const { totalShareholders, checkedInCount } = await getMeetingStats(selectedMeeting.id);
       setStats({ total: totalShareholders, checkedIn: checkedInCount });
     } catch {
       toast({ title: "Error", description: "Failed to load attendance stats", variant: "destructive" });
@@ -75,20 +115,11 @@ export function CheckinStatusDashboard() {
 
   // Handlers
   useEffect(() => {
-    computeDays();
+    updateTimeUntilMeeting();
     fetchStats();
-    // Recompute countdown once a day
-    const timer = setInterval(computeDays, 86400000);
+    const timer = setInterval(updateTimeUntilMeeting, 60_000);
     return () => clearInterval(timer);
-  }, [computeDays, fetchStats]);
-
-  // PDF mailer logic
-  const [currentBatchNumber, setCurrentBatchNumber] = useState(0);
-  const [totalBatches, setTotalBatches] = useState(0);
-  const [currentBatchStatus, setCurrentBatchStatus] = useState('');
-  const [currentBatchShareholderCount, setCurrentBatchShareholderCount] = useState(0);
-
-  const [isLocalMode, setIsLocalMode] = useState(false);
+  }, [updateTimeUntilMeeting, fetchStats]);
 
   // Add effect to detect local mode
   useEffect(() => {
@@ -211,13 +242,21 @@ export function CheckinStatusDashboard() {
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0"> {/* Adjusted layout */}
             <div className="flex items-center gap-2">
                <Calendar className="h-5 w-5 text-amber-600" /> {/* Sized icon */}
-               <CardTitle className="text-sm font-medium">Next Meeting</CardTitle> {/* Adjusted size */}
+               <CardTitle className="text-sm font-medium">Time til current meeting</CardTitle>
             </div>
              {/* Optional: Add refresh button if date can change */}
           </CardHeader>
-          <CardContent className="text-center pt-4"> {/* Adjusted padding */}
-            <p className="text-4xl font-bold">{daysLeft}</p>
-            <p className="text-xs text-amber-600 uppercase tracking-wider">Days Remaining</p> {/* Adjusted text */}
+          <CardContent className="text-center pt-4">
+            <p
+              className={
+                timeUntilMeeting.main === "Already past"
+                  ? "text-2xl font-bold leading-tight"
+                  : "text-4xl font-bold"
+              }
+            >
+              {timeUntilMeeting.main}
+            </p>
+            <p className="text-xs text-amber-600 uppercase tracking-wider mt-1">{timeUntilMeeting.sub}</p>
           </CardContent>
         </Card>
 

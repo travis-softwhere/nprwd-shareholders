@@ -1,9 +1,10 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { meetings, shareholders, properties } from "@/lib/db/schema"
+import { meetings, shareholders, properties, snapshots } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 
 // Update the createMeeting function to ensure dataSource is correctly typed
 export async function createMeeting(formData: FormData) {
@@ -62,16 +63,20 @@ export async function deleteMeeting(formData: FormData) {
         const id = formData.get("id") as string
         if (!id) throw new Error("Meeting ID is required")
 
+        const meetingIdVariants = await shareholderMeetingIdVariantsForFilter(id)
+
         const existingShareholders = await db
             .select({ shareholderId: shareholders.shareholderId })
             .from(shareholders)
-            .where(eq(shareholders.meetingId, id))
+            .where(inArray(shareholders.meetingId, meetingIdVariants))
 
         if (existingShareholders.length > 0) {
             const shareholderIds = existingShareholders.map((s) => s.shareholderId)
             await db.delete(properties).where(inArray(properties.shareholderId, shareholderIds))
-            await db.delete(shareholders).where(eq(shareholders.meetingId, id))
+            await db.delete(shareholders).where(inArray(shareholders.meetingId, meetingIdVariants))
         }
+
+        await db.delete(snapshots).where(inArray(snapshots.meetingId, meetingIdVariants))
 
         await db.delete(meetings).where(eq(meetings.id, Number(id)))
 

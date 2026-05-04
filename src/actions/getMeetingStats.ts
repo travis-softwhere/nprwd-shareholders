@@ -2,20 +2,29 @@
 
 import { db } from "@/lib/db"
 import { meetings, shareholders, properties } from "@/lib/db/schema"
-import { eq, count, gt, sql } from "drizzle-orm"
+import { eq, count, gt, sql, inArray } from "drizzle-orm"
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 
-export async function getMeetingStats() {
+export async function getMeetingStats(meetingId?: string | null) {
     const now = new Date()
 
+    const meetingVariants = meetingId
+        ? await shareholderMeetingIdVariantsForFilter(meetingId)
+        : null
+
+    const shareholderStatsQuery = db
+        .select({
+            totalShareholders: count(shareholders.id),
+            checkedInCount: sql<number>`COUNT(CASE WHEN ${properties.checkedIn} = true THEN 1 END)`.as("checkedInCount"),
+        })
+        .from(shareholders)
+        .leftJoin(properties, eq(shareholders.shareholderId, properties.shareholderId))
+
     const [shareholderStats, nextMeeting] = await Promise.all([
-        db
-            .select({
-                totalShareholders: count(shareholders.id),
-                checkedInCount: sql<number>`COUNT(CASE WHEN ${properties.checkedIn} = true THEN 1 END)`.as("checkedInCount"),
-            })
-            .from(shareholders)
-            .leftJoin(properties, eq(shareholders.shareholderId, properties.shareholderId))
-            .then((result) => result[0]),
+        (meetingId && meetingVariants
+            ? shareholderStatsQuery.where(inArray(shareholders.meetingId, meetingVariants))
+            : shareholderStatsQuery
+        ).then((result) => result[0]),
 
         db
             .select()

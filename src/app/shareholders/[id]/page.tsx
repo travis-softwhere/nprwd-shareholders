@@ -98,6 +98,7 @@ export default async function ShareholderPage({
                   </Badge>
                   <ManualCheckInButton
                   shareholderId={shareholder.shareholderId}
+                  meetingId={shareholder.meetingId}
                   isFullyCheckedIn={checkedInCount === properties.length}
                   shareholderName={shareholder.name}
                   />

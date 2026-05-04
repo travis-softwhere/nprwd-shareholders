@@ -48,6 +48,7 @@ import { Badge } from "@/components/ui/badge"
 import { getShareholdersList } from "@/actions/getShareholdersList"
 import { useToast } from "@/components/ui/use-toast"
 import EditablePropertyName from "@/components/EditablePropertyName"
+import { useMeeting } from "@/contexts/MeetingContext"
 
 interface TransferHistory {
     id: number;
@@ -89,6 +90,10 @@ interface NewShareholder {
 export function PropertyManagement() {
     const router = useRouter()
     const { toast } = useToast()
+    const { selectedMeeting } = useMeeting()
+    const meetingScope = selectedMeeting?.id
+        ? `&meetingId=${encodeURIComponent(selectedMeeting.id)}`
+        : ""
     const [properties, setProperties] = useState<Property[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
@@ -133,11 +138,17 @@ export function PropertyManagement() {
     useEffect(() => {
         fetchProperties()
         fetchShareholders()
-    }, [])
+    }, [selectedMeeting?.id])
 
     const fetchShareholders = async () => {
+        if (!selectedMeeting?.id) {
+            setShareholders([])
+            return
+        }
         try {
-            const response = await fetch("/api/shareholders");
+            const response = await fetch(
+                `/api/shareholders?meetingId=${encodeURIComponent(selectedMeeting.id)}`
+            );
             
             if (!response.ok) {
                 setError("Failed to fetch shareholders");
@@ -152,9 +163,14 @@ export function PropertyManagement() {
     };
 
     const fetchProperties = async () => {
+        if (!selectedMeeting?.id) {
+            setProperties([])
+            setIsLoading(false)
+            return
+        }
         try {
             setIsLoading(true);
-            const response = await fetch("/api/properties?limit=100") // Fetch more properties at once
+            const response = await fetch(`/api/properties?limit=100${meetingScope}`) // Fetch more properties at once
             if (!response.ok) {
                 setError("Failed to fetch properties");
                 return;

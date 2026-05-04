@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import ShareholderList from "@/components/ShareholderList";
 import SignaturePad from "./SignaturePad";
+import { useMeeting } from "@/contexts/MeetingContext";
 
 interface DashboardProps {
   // Add any props needed specifically for check-in if required
@@ -25,6 +26,7 @@ const DASHBOARD_RETURN_KEY = "dashboard_return_from_shareholder";
 
 const Dashboard: React.FC<DashboardProps> = ({}) => {
   const router = useRouter();
+  const { selectedMeeting } = useMeeting();
 
   // UI states for Check-in ONLY
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -51,10 +53,21 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
   const handleBarcodeSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!barcodeInput) return;
-    
+
+    if (!selectedMeeting) {
+      toast({
+        title: "Select a meeting",
+        description: "Choose the active annual meeting (navigation / admin) before checking anyone in.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // First, get shareholder info to show in signature pad
     try {
-      const response = await fetch(`/api/shareholders?shareholderId=${barcodeInput.trim()}`);
+      const response = await fetch(
+        `/api/shareholders?shareholderId=${encodeURIComponent(barcodeInput.trim())}&meetingId=${encodeURIComponent(selectedMeeting.id)}`
+      );
       const data = await response.json();
       
       if (!response.ok) {
@@ -91,6 +104,15 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
     setLoading(true);
     setError("");
 
+    if (!selectedMeeting) {
+      toast({
+        title: "Select a meeting",
+        description: "The active meeting was cleared. Choose a meeting and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const response = await fetch("/api/properties/checkin", {
         method: "POST",
@@ -102,7 +124,8 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
         body: JSON.stringify({
           shareholderId: pendingShareholderId,
           signatureImage,
-          signatureHash
+          signatureHash,
+          meetingId: selectedMeeting.id,
         }),
       });
       
@@ -156,7 +179,16 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
                  <Search className="h-6 w-6 text-blue-600" />
               </div>
               <CardTitle className="text-xl">Benefit Unit Owner Check-In</CardTitle>
-              <CardDescription>Scan barcode or enter ID manually</CardDescription>
+              <CardDescription>
+                {selectedMeeting ? (
+                  <>
+                    Scan barcode or enter ID for the{" "}
+                    <span className="font-medium text-foreground">{selectedMeeting.year}</span> meeting.
+                  </>
+                ) : (
+                  <span className="text-amber-700">Select the active meeting in the app before check-in.</span>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 pb-8">
               <form onSubmit={handleBarcodeSubmit} className="space-y-5">
@@ -175,7 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
                 <Button 
                    type="submit" 
                    className="w-full h-12 text-base rounded-md"
-                   disabled={loading || !barcodeInput}
+                   disabled={loading || !barcodeInput || !selectedMeeting}
                 >
                   {loading ? (
                     <>

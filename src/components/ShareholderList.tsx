@@ -8,19 +8,63 @@ import type { Shareholder } from "@/types/shareholder"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { useSession } from "next-auth/react"
 import { getShareholdersList } from "@/actions/getShareholdersList"
-import { Search, Filter, ChevronRight, ChevronLeft, Users, ArrowUpDown, Loader2 } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronLeft, Users, ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
+import {
+    ADMIN_MEETING_FILTER_ALL,
+    formatMeetingLabel,
+    resolveMeetingFromShareholderMeetingId,
+    shareholderMatchesMeetingFilter,
+} from "@/lib/meetingDisplay"
 
 interface ShareholderListProps {
     initialShareholders?: Shareholder[]
     totalShareholders?: number
+    /** Admin only: load every shareholder row (all meetings), via `?listAll=true` */
+    listAllShareholders?: boolean
+    /**
+     * When set (e.g. admin meeting filter), load this meeting’s shareholders instead of the
+     * globally active meeting. Ignored when `listAllShareholders` is true.
+     */
+    meetingIdForQuery?: string
+    /** Show a Meeting column (annual meeting label; also when `listAllShareholders`) */
+    showMeetingColumn?: boolean
+    /** Admin: Meeting dropdown (list-all: “All meetings” + optional narrow; otherwise sets app-wide active meeting) */
+    adminMeetingToolbar?: {
+        value: string
+        onChange: (meetingId: string) => void
+        listAll: boolean
+    }
+    /** Admin tab: row edit/delete, no row navigation to detail */
+    adminManageShareholders?: boolean
+    /** Increment to refetch list after admin mutations */
+    refreshTrigger?: number
+    onAdminMutation?: () => void
 }
 
 type SortField = "totalProperties" | "name" | "shareholderId"
@@ -29,9 +73,42 @@ type SortOrder = "asc" | "desc"
 const ShareholderList: React.FC<ShareholderListProps> = ({
     initialShareholders = [],
     totalShareholders: initialTotal = 0,
+    listAllShareholders = false,
+    meetingIdForQuery,
+    showMeetingColumn = false,
+    adminMeetingToolbar,
+    adminManageShareholders = false,
+    refreshTrigger = 0,
+    onAdminMutation,
 }) => {
     const { data: session, status } = useSession()
     const router = useRouter()
+    const { selectedMeeting, meetings } = useMeeting()
+
+    const showMeetingCol = showMeetingColumn || listAllShareholders
+
+    const meetingLabel = (meetingId?: string | null) => {
+        if (meetingId == null || meetingId === "") return "—"
+        const m = resolveMeetingFromShareholderMeetingId(meetingId, meetings)
+        if (!m) {
+            const s = String(meetingId).trim()
+            if (/^\d{4}$/.test(s) && meetings.filter((x) => x.year === parseInt(s, 10)).length > 1) {
+                return `Legacy year ${s} — multiple meetings this year; update meeting_id to the numeric DB id`
+            }
+            return `Unknown meeting (${meetingId})`
+        }
+        return formatMeetingLabel(m)
+    }
+
+    const canonicalMeetingIdLine = (meetingId?: string | null) => {
+        const m = resolveMeetingFromShareholderMeetingId(meetingId, meetings)
+        if (m) return `ID ${m.id}`
+        const s = meetingId != null ? String(meetingId).trim() : ""
+        if (s && /^\d{4}$/.test(s) && meetings.filter((x) => x.year === parseInt(s, 10)).length > 1) {
+            return `Raw ${s} (ambiguous)`
+        }
+        return s !== "" ? `Raw ${s}` : "—"
+    }
 
     // Internal state management
     const [allShareholders, setAllShareholders] = useState<Shareholder[]>([])
@@ -44,13 +121,34 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const [propertyFilter, setPropertyFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [isFilterOpen, setIsFilterOpen] = useState(false)
+    const [editTarget, setEditTarget] = useState<Shareholder | null>(null)
+    const [editName, setEditName] = useState("")
+    const [editOwnerMailing, setEditOwnerMailing] = useState("")
+    const [editOwnerCityState, setEditOwnerCityState] = useState("")
+    const [editSaving, setEditSaving] = useState(false)
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+    const [refetchTick, setRefetchTick] = useState(0)
 
-    // Fetch all shareholders on mount
+    // Fetch shareholders: list-all, explicit meeting id (admin), or global active meeting
     useEffect(() => {
         const fetchAllShareholders = async () => {
+            let url: string
+            if (listAllShareholders) {
+                url = "/api/shareholders?listAll=true"
+            } else {
+                const mid = meetingIdForQuery ?? selectedMeeting?.id
+                if (!mid) {
+                    setAllShareholders([])
+                    setIsLoading(false)
+                    return
+                }
+                url = `/api/shareholders?meetingId=${encodeURIComponent(mid)}`
+            }
+
             setIsLoading(true)
             try {
-                const res = await fetch("/api/shareholders")
+                const res = await fetch(url)
                 const data = await res.json()
                 const processedShareholders = (data.shareholders || []).map((sh: any) => ({
                     ...sh,
@@ -71,7 +169,80 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             }
         }
         fetchAllShareholders()
-    }, [])
+    }, [selectedMeeting?.id, listAllShareholders, meetingIdForQuery, refreshTrigger, refetchTick])
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [adminMeetingToolbar?.value, listAllShareholders])
+
+    const fireMutation = () => {
+        setRefetchTick((t) => t + 1)
+        onAdminMutation?.()
+    }
+
+    const openEdit = (sh: Shareholder, e?: React.MouseEvent) => {
+        e?.stopPropagation()
+        setEditTarget(sh)
+        setEditName(sh.name || "")
+        setEditOwnerMailing(sh.ownerMailingAddress || "")
+        setEditOwnerCityState(sh.ownerCityStateZip || "")
+    }
+
+    const saveEdit = async () => {
+        if (!editTarget) return
+        setEditSaving(true)
+        try {
+            const res = await fetch(`/api/shareholders/${encodeURIComponent(editTarget.shareholderId)}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: editName,
+                    ownerMailingAddress: editOwnerMailing,
+                    ownerCityStateZip: editOwnerCityState,
+                }),
+            })
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw new Error(err.error || "Update failed")
+            }
+            toast({ title: "Saved", description: "Shareholder updated." })
+            setEditTarget(null)
+            fireMutation()
+        } catch (err) {
+            toast({
+                title: "Error",
+                description: err instanceof Error ? err.message : "Could not save",
+                variant: "destructive",
+            })
+        } finally {
+            setEditSaving(false)
+        }
+    }
+
+    const confirmDelete = async () => {
+        if (!deleteTargetId) return
+        setDeleteLoading(true)
+        try {
+            const res = await fetch(`/api/shareholders/${encodeURIComponent(deleteTargetId)}`, {
+                method: "DELETE",
+            })
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw new Error(err.error || "Delete failed")
+            }
+            toast({ title: "Deleted", description: "Shareholder and their properties were removed." })
+            setDeleteTargetId(null)
+            fireMutation()
+        } catch (err) {
+            toast({
+                title: "Error",
+                description: err instanceof Error ? err.message : "Could not delete",
+                variant: "destructive",
+            })
+        } finally {
+            setDeleteLoading(false)
+        }
+    }
 
     // Filter shareholders based on search and filters
     const filteredShareholders = useMemo(() => {
@@ -135,6 +306,15 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
 
                 return matchesPropertyFilter && matchesStatusFilter;
             })
+            .filter((shareholder) => {
+                if (!adminMeetingToolbar?.listAll) return true
+                if (adminMeetingToolbar.value === ADMIN_MEETING_FILTER_ALL) return true
+                return shareholderMatchesMeetingFilter(
+                    shareholder.meetingId,
+                    adminMeetingToolbar.value,
+                    meetings,
+                )
+            })
             .sort((a, b) => {
                 let aValue: string | number = a[sortField]
                 let bValue: string | number = b[sortField]
@@ -159,7 +339,31 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                             ? 1
                             : 0
             });
-    }, [allShareholders, searchTerm, sortField, sortOrder, propertyFilter, statusFilter]);
+    }, [
+        allShareholders,
+        searchTerm,
+        sortField,
+        sortOrder,
+        propertyFilter,
+        statusFilter,
+        adminMeetingToolbar,
+        meetings,
+    ]);
+
+    const adminMeetingScopeLine = useMemo(() => {
+        if (!adminMeetingToolbar || meetings.length === 0) return null
+        const { value, listAll } = adminMeetingToolbar
+        const meetingFromValue = meetings.find((x) => String(x.id) === String(value))
+        if (listAll) {
+            if (value === ADMIN_MEETING_FILTER_ALL) {
+                return "All meetings in the database — use Meeting to narrow this table to one meeting."
+            }
+            return meetingFromValue ? `Narrowed to ${formatMeetingLabel(meetingFromValue)}.` : null
+        }
+        return meetingFromValue
+            ? `Active meeting for the app: ${formatMeetingLabel(meetingFromValue)}. Change it below or on the Meetings tab.`
+            : null
+    }, [adminMeetingToolbar, meetings])
 
     const totalShareholders = filteredShareholders.length
     const totalPages = Math.ceil(totalShareholders / itemsPerPage)
@@ -167,6 +371,17 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     )
+
+    const loadedPropertyVotes = useMemo(
+        () => allShareholders.reduce((sum, sh) => sum + (Number(sh.totalProperties) || 0), 0),
+        [allShareholders],
+    )
+    const filteredPropertyVotes = useMemo(
+        () => filteredShareholders.reduce((sum, sh) => sum + (Number(sh.totalProperties) || 0), 0),
+        [filteredShareholders],
+    )
+    const totalsNarrowedByFilters =
+        filteredShareholders.length !== allShareholders.length || filteredPropertyVotes !== loadedPropertyVotes
 
     if (status === "loading") {
         return (
@@ -206,8 +421,22 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         setCurrentPage(1) // Reset to first page when changing items per page
     }
 
+    const showAdminMeetingFilter = Boolean(adminMeetingToolbar && meetings.length > 0)
+
     return (
         <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-4 md:p-6 mb-20 md:mb-6">
+            {!listAllShareholders && !meetingIdForQuery && !selectedMeeting && (
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    Select the active annual meeting (admin or meeting picker) to load benefit unit owners and check-in
+                    status for that meeting.
+                </div>
+            )}
+            {listAllShareholders && (
+                <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+                    Showing every benefit unit owner in the database (all meetings). The home dashboard still filters by
+                    the active meeting.
+                </div>
+            )}
             <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <Users className="h-6 w-6 text-blue-500" />
@@ -243,8 +472,16 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             {/* Filters - Toggleable on mobile */}
             <div className={`mb-6 ${isFilterOpen ? 'block' : 'hidden md:block'}`}>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-sm font-medium text-gray-700 mb-2">Filters & Sorting</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="text-sm font-medium text-gray-700 mb-1">Filters & Sorting</div>
+                    {adminMeetingScopeLine && (
+                        <p className="text-xs text-muted-foreground mb-3 leading-snug">{adminMeetingScopeLine}</p>
+                    )}
+                    <div
+                        className={cn(
+                            "grid grid-cols-1 sm:grid-cols-2 gap-4",
+                            showAdminMeetingFilter ? "lg:grid-cols-4" : "lg:grid-cols-3",
+                        )}
+                    >
                         <div>
                             <label className="block text-xs text-gray-600 mb-1">Sort By</label>
                             <select
@@ -264,6 +501,25 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                 <option value="totalProperties-desc">Properties (High to Low)</option>
                             </select>
                         </div>
+                        {showAdminMeetingFilter && adminMeetingToolbar && (
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Meeting</label>
+                                <select
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                                    value={adminMeetingToolbar.value}
+                                    onChange={(e) => adminMeetingToolbar.onChange(e.target.value)}
+                                >
+                                    {adminMeetingToolbar.listAll && (
+                                        <option value={ADMIN_MEETING_FILTER_ALL}>All meetings</option>
+                                    )}
+                                    {meetings.map((m) => (
+                                        <option key={m.id} value={String(m.id)}>
+                                            {formatMeetingLabel(m)} — ID {m.id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div>
                             <label className="block text-xs text-gray-600 mb-1">Property Count</label>
                             <select
@@ -308,6 +564,11 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
+                                    {showMeetingCol && (
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Meeting
+                                        </th>
+                                    )}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Benefit Unit Owner Barcode ID
                                     </th>
@@ -323,6 +584,11 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Status
                                     </th>
+                                    {adminManageShareholders && (
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -330,6 +596,11 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                     // Loading skeleton for table rows
                                     Array(5).fill(0).map((_, index) => (
                                         <tr key={`loading-${index}`}>
+                                            {showMeetingCol && (
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <Skeleton className="h-4 w-40" />
+                                                </td>
+                                            )}
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <Skeleton className="h-4 w-32" />
                                             </td>
@@ -345,6 +616,11 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <Skeleton className="h-6 w-24 rounded-full" />
                                             </td>
+                                            {adminManageShareholders && (
+                                                <td className="px-4 py-4">
+                                                    <Skeleton className="h-8 w-20" />
+                                                </td>
+                                            )}
                                         </tr>
                                     ))
                                 ) : (
@@ -352,20 +628,66 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                         <tr
                                             key={shareholder.shareholderId}
                                             className={cn(
-                                                "hover:bg-blue-50 cursor-pointer transition-colors duration-150",
+                                                "transition-colors duration-150",
+                                                adminManageShareholders
+                                                    ? "hover:bg-muted/50"
+                                                    : "hover:bg-blue-50 cursor-pointer",
                                                 shareholder.isNew && "bg-yellow-50 hover:bg-yellow-100"
                                             )}
-                                            onClick={() => handleRowClick(shareholder.shareholderId)}
+                                            onClick={() =>
+                                                !adminManageShareholders && handleRowClick(shareholder.shareholderId)
+                                            }
                                         >
+                                            {showMeetingCol && (
+                                                <td className="px-6 py-4 text-sm text-muted-foreground">
+                                                    <div className="font-medium text-foreground max-w-[14rem] leading-snug">
+                                                        {meetingLabel(shareholder.meetingId)}
+                                                    </div>
+                                                    <div className="text-xs font-mono mt-0.5">{canonicalMeetingIdLine(shareholder.meetingId)}</div>
+                                                </td>
+                                            )}
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.shareholderId}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{shareholder.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.ownerMailingAddress + ", " + shareholder.ownerCityStateZip}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                {[shareholder.ownerMailingAddress, shareholder.ownerCityStateZip]
+                                                    .filter(Boolean)
+                                                    .join(", ") || "—"}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.totalProperties}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(shareholder.checkedInProperties, shareholder.totalProperties)}`}>
                                                     {shareholder.checkedInProperties} / {shareholder.totalProperties} Checked In
                                                 </span>
                                             </td>
+                                            {adminManageShareholders && (
+                                                <td className="px-4 py-4 whitespace-nowrap text-right">
+                                                    <div className="flex justify-end gap-1">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            aria-label={`Edit ${shareholder.name}`}
+                                                            onClick={(e) => openEdit(shareholder, e)}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            aria-label={`Delete ${shareholder.name}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setDeleteTargetId(shareholder.shareholderId)
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))
                                 )}
@@ -405,20 +727,58 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                 <Card 
                                     key={shareholder.shareholderId}
                                     className={cn(
-                                        "overflow-hidden hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500",
+                                        "overflow-hidden transition-shadow border-l-4 border-l-blue-500",
+                                        adminManageShareholders ? "" : "hover:shadow-md cursor-pointer",
                                         shareholder.isNew && "bg-yellow-50 border-l-yellow-400 hover:bg-yellow-100"
                                     )}
-                                    onClick={() => handleRowClick(shareholder.shareholderId)}
+                                    onClick={() =>
+                                        !adminManageShareholders && handleRowClick(shareholder.shareholderId)
+                                    }
                                 >
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="w-5/6">
                                                 <h3 className="font-semibold text-gray-900 text-base truncate">{shareholder.name}</h3>
                                                 <p className="text-sm text-gray-500 mt-0.5">Barcode ID: {shareholder.shareholderId}</p>
+                                                {showMeetingCol && (
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {meetingLabel(shareholder.meetingId)}
+                                                        <span className="font-mono"> · {canonicalMeetingIdLine(shareholder.meetingId)}</span>
+                                                    </p>
+                                                )}
                                             </div>
-                                            <div className="bg-gray-100 rounded-full p-1">
-                                                <ChevronRight className="h-5 w-5 text-blue-500" />
-                                            </div>
+                                            {adminManageShareholders ? (
+                                                <div className="flex gap-1 shrink-0">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            openEdit(shareholder, e)
+                                                        }}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-600"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setDeleteTargetId(shareholder.shareholderId)
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-gray-100 rounded-full p-1">
+                                                    <ChevronRight className="h-5 w-5 text-blue-500" />
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                                             <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -438,6 +798,80 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     </div>
                 </>
             )}
+
+            <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit benefit unit owner</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-3 py-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-barcode">Barcode ID</Label>
+                            <Input id="edit-barcode" value={editTarget?.shareholderId ?? ""} disabled readOnly />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-name">Name</Label>
+                            <Input
+                                id="edit-name"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                autoComplete="off"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-mail">Owner mailing address</Label>
+                            <Input
+                                id="edit-mail"
+                                value={editOwnerMailing}
+                                onChange={(e) => setEditOwnerMailing(e.target.value)}
+                                autoComplete="off"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-csz">Owner city, state ZIP</Label>
+                            <Input
+                                id="edit-csz"
+                                value={editOwnerCityState}
+                                onChange={(e) => setEditOwnerCityState(e.target.value)}
+                                autoComplete="off"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={() => void saveEdit()} disabled={editSaving}>
+                            {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={deleteTargetId !== null} onOpenChange={(o) => !o && setDeleteTargetId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this benefit unit owner?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This removes the shareholder record and <strong>all properties</strong> linked to barcode{" "}
+                            <span className="font-mono">{deleteTargetId}</span>. This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700"
+                            disabled={deleteLoading}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                void confirmDelete()
+                            }}
+                        >
+                            {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Pagination Controls */}
             <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -480,6 +914,35 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     </select>
                 </div>
             </div>
+
+            {!isLoading && (
+                <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-6 sm:gap-y-1">
+                        <p className="text-gray-900">
+                            <span className="font-semibold tabular-nums">{allShareholders.length}</span>
+                            <span className="mx-1">benefit unit owner{allShareholders.length === 1 ? "" : "s"}</span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className="mx-1 font-semibold tabular-nums">{loadedPropertyVotes}</span>
+                            <span className="text-gray-800">
+                                total propert{loadedPropertyVotes === 1 ? "y" : "ies"} (votes)
+                            </span>
+                        </p>
+                        {totalsNarrowedByFilters && (
+                            <p className="text-muted-foreground">
+                                Filtered list:{" "}
+                                <span className="font-medium tabular-nums text-foreground">
+                                    {filteredShareholders.length}
+                                </span>{" "}
+                                owner{filteredShareholders.length === 1 ? "" : "s"} ·{" "}
+                                <span className="font-medium tabular-nums text-foreground">
+                                    {filteredPropertyVotes}
+                                </span>{" "}
+                                propert{filteredPropertyVotes === 1 ? "y" : "ies"}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
             
             {/* Mobile spacing for bottom nav */}
             <div className="h-16 md:hidden"></div>

@@ -9,10 +9,39 @@ import { shareholders } from "@/lib/db/schema"
 import { meetings } from "@/lib/db/schema" 
 import { logToFile, LogLevel } from "@/utils/logger"
 import { desc } from "drizzle-orm"
-import { sql } from "drizzle-orm"
 import { properties } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 
+const DEBUG_SH_QUERY = process.env.DEBUG_SHAREHOLDERS_QUERY === "1"
+
+async function logShareholdersQueryDebug(entry: {
+    meetingIdParam: string | null
+    listAll: boolean
+    sqlMeetingIdVariants: string[] | null
+    meetingRow: { id: number; year: number; date: string } | null
+    count: number
+    shareholders: { shareholderId: string; name: string; meetingId: string }[]
+}) {
+    const line =
+        JSON.stringify({
+            ts: new Date().toISOString(),
+            source: "GET /api/shareholders",
+            ...entry,
+        }) + "\n"
+    const logsDir = path.join(process.cwd(), "logs")
+    await fs.promises.mkdir(logsDir, { recursive: true })
+    await fs.promises.appendFile(path.join(logsDir, "database.log"), line, "utf-8")
+    await fs.promises.appendFile(path.join(logsDir, "shareholders-query.log"), line, "utf-8")
+    console.log(
+        "[DEBUG_SHAREHOLDERS_QUERY] meetingId=%s listAll=%s variants=%j count=%d ids=%s",
+        entry.meetingIdParam,
+        entry.listAll,
+        entry.sqlMeetingIdVariants,
+        entry.count,
+        entry.shareholders.map((s) => s.shareholderId).join(","),
+    )
+}
 
 export interface Property {
     account: string
@@ -90,9 +119,10 @@ export async function GET(request: Request) {
         // Parse shareholderId and meetingId from query params
         const url = new URL(request.url);
         const shareholderId = url.searchParams.get("shareholderId");
-        const meetingId = url.searchParams.get("meetingId");
-        
-        console.log("Query params:", { shareholderId, meetingId });
+        const meetingIdParam = url.searchParams.get("meetingId");
+        const listAll = url.searchParams.get("listAll") === "true";
+
+        console.log("Query params:", { shareholderId, meetingId: meetingIdParam, listAll });
         
         if (shareholderId) {
             // Get the specific shareholder from the database
@@ -103,27 +133,82 @@ export async function GET(request: Request) {
             if (result.length === 0) {
                 return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
             }
+            if (meetingIdParam) {
+                const variants = await shareholderMeetingIdVariantsForFilter(meetingIdParam)
+                const rowMid = String(result[0].meetingId).trim()
+                if (!variants.includes(rowMid)) {
+                    return NextResponse.json(
+                        { error: "This benefit unit owner is not part of the selected meeting." },
+                        { status: 404 }
+                    )
+                }
+            }
             // Also fetch properties for this shareholder
             const props = await db.select().from(properties).where(eq(properties.shareholderId, shareholderId));
             return NextResponse.json({ shareholder: { ...result[0], properties: props } });
         }
-        // Get all shareholders from the database, optionally filter by meetingId
+        // Get all shareholders from the database; optional meeting scope or admin list-all
         let allShareholders;
+        let sqlMeetingIdVariants: string[] | null = null;
         try {
-            if (meetingId) {
-                console.log("Filtering by meetingId:", meetingId);
+            if (listAll) {
+                if (session.user?.isAdmin !== true) {
+                    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+                }
+                allShareholders = await db.select().from(shareholders);
+            } else if (meetingIdParam) {
+                const mid = String(meetingIdParam).trim();
+                sqlMeetingIdVariants = await shareholderMeetingIdVariantsForFilter(mid);
                 allShareholders = await db
                     .select()
                     .from(shareholders)
-                    .where(eq(shareholders.meetingId, meetingId));
+                    .where(inArray(shareholders.meetingId, sqlMeetingIdVariants));
             } else {
-                console.log("Getting all shareholders");
                 allShareholders = await db.select().from(shareholders);
             }
-            console.log("Found shareholders:", allShareholders.length);
         } catch (dbError) {
             console.error("Database error:", dbError);
             throw dbError;
+        }
+
+        if (DEBUG_SH_QUERY) {
+            let meetingRow: { id: number; year: number; date: string } | null = null;
+            if (meetingIdParam) {
+                const pk = parseInt(String(meetingIdParam).trim(), 10);
+                if (!Number.isNaN(pk)) {
+                    const rows = await db
+                        .select({
+                            id: meetings.id,
+                            year: meetings.year,
+                            date: meetings.date,
+                        })
+                        .from(meetings)
+                        .where(eq(meetings.id, pk))
+                        .limit(1);
+                    if (rows[0]) {
+                        meetingRow = {
+                            id: rows[0].id,
+                            year: rows[0].year,
+                            date:
+                                rows[0].date instanceof Date
+                                    ? rows[0].date.toISOString()
+                                    : String(rows[0].date),
+                        };
+                    }
+                }
+            }
+            await logShareholdersQueryDebug({
+                meetingIdParam,
+                listAll,
+                sqlMeetingIdVariants,
+                meetingRow,
+                count: allShareholders.length,
+                shareholders: allShareholders.map((s) => ({
+                    shareholderId: s.shareholderId,
+                    name: s.name,
+                    meetingId: s.meetingId,
+                })),
+            });
         }
 
         // Get all properties for these shareholders

@@ -19,11 +19,18 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json();
-        const { shareholderId, action, signatureImage, signatureHash } = body;
+        const { shareholderId, action, signatureImage, signatureHash, meetingId } = body;
 
         if (!shareholderId || !action) {
             return NextResponse.json(
                 { error: "Shareholder ID and action are required" },
+                { status: 400 }
+            );
+        }
+
+        if (!meetingId || typeof meetingId !== "string") {
+            return NextResponse.json(
+                { error: "Meeting ID is required" },
                 { status: 400 }
             );
         }
@@ -65,9 +72,9 @@ export async function POST(request: Request) {
 
         let result;
         if (action === "checkin") {
-            result = await checkInShareholders(shareholderId, signatureImage, signatureHash);
+            result = await checkInShareholders(shareholderId, signatureImage, signatureHash, meetingId);
         } else if (action === "undo") {
-            result = await undoCheckInShareholders(shareholderId);
+            result = await undoCheckInShareholders(shareholderId, meetingId);
         } else {
             return NextResponse.json(
                 { error: "Invalid action. Must be 'checkin' or 'undo'" },
@@ -80,7 +87,8 @@ export async function POST(request: Request) {
                 shareholderId,
                 error: result.message
             });
-            return NextResponse.json({ error: result.message }, { status: 500 });
+            const status = result.message?.includes("not part of the selected meeting") ? 400 : 500;
+            return NextResponse.json({ error: result.message }, { status });
         }
 
         await logToFile("properties", `Successfully ${action}ed shareholder`, LogLevel.INFO, {

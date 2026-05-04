@@ -17,7 +17,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, shareholderName}: {shareholderId: string, isFullyCheckedIn: boolean, shareholderName?: string}) {
+export default function ManualCheckInButton({
+    shareholderId,
+    meetingId,
+    isFullyCheckedIn,
+    shareholderName,
+}: {
+    shareholderId: string
+    meetingId: string
+    isFullyCheckedIn: boolean
+    shareholderName?: string
+}) {
     const [isPending, startTransition] = useTransition()
     const [showAlreadyCheckedInDialog, setShowAlreadyCheckedInDialog] = useState(false)
     const [showSignaturePad, setShowSignaturePad] = useState(false)
@@ -38,6 +48,7 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, sh
                     },
                     body: JSON.stringify({
                         shareholderId,
+                        meetingId,
                         action: "checkin",
                         signatureImage,
                         signatureHash
@@ -80,6 +91,7 @@ export default function ManualCheckInButton({shareholderId, isFullyCheckedIn, sh
                     },
                     body: JSON.stringify({
                         shareholderId,
+                        meetingId,
                         action: "undo"
                     })
                 });

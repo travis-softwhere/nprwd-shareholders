@@ -3,18 +3,14 @@ import { parse } from "csv-parse/sync"
 import { db } from "@/lib/db"
 import { shareholders, properties, meetings } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
+import { normalizeBenefitUnitOwnerColumnName } from "@/lib/benefitUnitOwnerCsvImport"
 //import { v4 as uuidv4 } from "uuid"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
 export async function POST(request: Request) {
     const startTime = Date.now()
-
-    // Generate a random 6-digit numeric ID instead of UUID
-    const generateRandomId = () => {
-        return Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
-    };
-
 
     try {
         // Check authentication
@@ -32,11 +28,29 @@ export async function POST(request: Request) {
         }
 
         const file = formData.get("file") as File
-        const meetingId = formData.get("meetingId") as string
+        const meetingIdRaw = (formData.get("meetingId") as string | null)?.trim() ?? ""
 
-        if (!file || !meetingId) {
+        if (!file || !meetingIdRaw) {
             throw new Error("Missing required fields")
         }
+
+        const meetingPk = Number.parseInt(meetingIdRaw, 10)
+        if (Number.isNaN(meetingPk)) {
+            throw new Error("Invalid meeting id — use the numeric meeting id from the Meetings list")
+        }
+
+        const [meetingRow] = await db
+            .select({ id: meetings.id })
+            .from(meetings)
+            .where(eq(meetings.id, meetingPk))
+            .limit(1)
+
+        if (!meetingRow) {
+            throw new Error(`No meeting found for id ${meetingPk}. Choose the active meeting on the Meetings tab and try again.`)
+        }
+
+        /** Canonical PK string — always stored on imported shareholders so meeting filters match reliably. */
+        const meetingId = String(meetingRow.id)
 
         // Read file content with error boundary
         let content: string
@@ -50,7 +64,8 @@ export async function POST(request: Request) {
         let records: any[]
         try {
             records = parse(content, {
-                columns: true,
+                columns: (headers: string[]) =>
+                    headers.map((h) => normalizeBenefitUnitOwnerColumnName(h)),
                 skip_empty_lines: true,
                 trim: true,
             })
@@ -66,17 +81,18 @@ export async function POST(request: Request) {
             throw new Error(`Failed to parse CSV: ${error}`)
         }
 
-        // Clear existing data
+        // Clear existing data (canonical id and legacy year-stored meeting_id)
         try {
+            const meetingVariants = await shareholderMeetingIdVariantsForFilter(meetingId)
             const existingShareholders = await db
                 .select({ shareholderId: shareholders.shareholderId })
                 .from(shareholders)
-                .where(eq(shareholders.meetingId, meetingId))
+                .where(inArray(shareholders.meetingId, meetingVariants))
 
             if (existingShareholders.length > 0) {
                 const shareholderIds = existingShareholders.map((s) => s.shareholderId)
                 await db.delete(properties).where(inArray(properties.shareholderId, shareholderIds))
-                await db.delete(shareholders).where(eq(shareholders.meetingId, meetingId))
+                await db.delete(shareholders).where(inArray(shareholders.meetingId, meetingVariants))
             }
         } catch (error) {
             throw new Error(`Failed to clear existing data: ${error}`)
@@ -87,7 +103,9 @@ export async function POST(request: Request) {
         const shareholderValues = []
         const propertyValues = []
 
-        let nextId = 100000;
+        /** Prefix IDs with meeting PK so shareholder_id stays globally unique across meetings (plain numeric IDs collide with other imports). */
+        const shareholderIdPrefix = `${meetingId}-`
+        let nextId = 100000
 
         for (const record of records) {
             // Normalize and combine both fields for the key
@@ -99,7 +117,7 @@ export async function POST(request: Request) {
             let shareholderId = uniqueShareholders.get(ownerKey);
 
             if (!shareholderId) {
-                shareholderId = (nextId++).toString();
+                shareholderId = `${shareholderIdPrefix}${nextId++}`
                 uniqueShareholders.set(ownerKey, shareholderId);
                 shareholderValues.push({
                     name: (record["owner_name"] || "Unknown").trim(),
@@ -113,7 +131,7 @@ export async function POST(request: Request) {
             propertyValues.push({
                 account: record["account"] || "",
                 shareholderId,
-                numOf: record.num_of || "",
+                numOf: String(record["num_of"] ?? "").trim(),
                 customerName: record.customer_name || "",
                 customerMailingAddress: record.customer_mailing_address || "",
                 cityStateZip: record.city_state_zip || "",
@@ -136,13 +154,13 @@ export async function POST(request: Request) {
                 for (let i = 0; i < shareholderValues.length; i += BATCH_SIZE) {
                     const batch = shareholderValues.slice(i, i + BATCH_SIZE);
                     console.log(`Inserting shareholder batch ${i + 1} to ${i + batch.length} of ${shareholderValues.length}`);
-                    await db.insert(shareholders).values(batch).onConflictDoNothing();
+                    await db.insert(shareholders).values(batch);
                 }
             } catch (error) {
                 // Try to find the problematic record
                 for (let i = 0; i < shareholderValues.length; i++) {
                     try {
-                        await db.insert(shareholders).values([shareholderValues[i]]).onConflictDoNothing();
+                        await db.insert(shareholders).values([shareholderValues[i]]);
                     } catch (indivError) {
                         console.error(`Shareholder insert failed at index ${i}:`, shareholderValues[i]);
                         throw new Error(
@@ -183,7 +201,7 @@ export async function POST(request: Request) {
             await db
                 .update(meetings)
                 .set({ totalShareholders: uniqueShareholders.size })
-                .where(eq(meetings.id, Number.parseInt(meetingId)))
+                .where(eq(meetings.id, meetingRow.id))
         } catch (error) {
             throw new Error(`Failed to update meeting statistics: ${error}`)
         }
@@ -195,6 +213,7 @@ export async function POST(request: Request) {
             message: `Successfully processed ${records.length} records in ${totalTime} seconds`,
             totalRecords: records.length,
             totalShareholders: uniqueShareholders.size,
+            totalProperties: propertyValues.length,
         })
     } catch (error) {
         return NextResponse.json(

@@ -2,6 +2,8 @@ export interface Shareholder {
     id: number
     name: string
     shareholderId: string
+    /** DB annual-meeting record id this row belongs to */
+    meetingId?: string
     ownerMailingAddress?: string;
     ownerCityStateZip?: string;
     totalProperties: number

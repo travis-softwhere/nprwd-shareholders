@@ -3,10 +3,32 @@
 import { db } from "@/lib/db";
 import { properties, shareholders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 import { revalidatePath } from "next/cache";
 
-export async function undoCheckInShareholders(shareholderId: string) {
+export async function undoCheckInShareholders(shareholderId: string, meetingId?: string) {
   try {
+    const [row] = await db
+      .select()
+      .from(shareholders)
+      .where(eq(shareholders.shareholderId, shareholderId))
+      .limit(1)
+
+    if (!row) {
+      return { success: false, message: "Shareholder not found." }
+    }
+
+    if (meetingId != null) {
+      const variants = await shareholderMeetingIdVariantsForFilter(meetingId)
+      const rowMid = String(row.meetingId).trim()
+      if (!variants.includes(rowMid)) {
+        return {
+          success: false,
+          message: "This benefit unit owner is not part of the selected meeting.",
+        }
+      }
+    }
+
     // Update properties to set checkedIn to false
     await db
       .update(properties)

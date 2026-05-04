@@ -2,8 +2,9 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { properties } from "@/lib/db/schema"
-import { desc, sql, and, eq, like } from "drizzle-orm"
+import { properties, shareholders } from "@/lib/db/schema"
+import { desc, sql, and, eq, inArray } from "drizzle-orm"
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 import { logToFile, LogLevel } from "@/utils/logger"
 
 // Define interface for properties to make TypeScript happy
@@ -32,6 +33,8 @@ export async function GET(request: Request) {
         const limit = url.searchParams.get("limit") || "100" // Default to 100 properties
         const searchTerm = url.searchParams.get("search") || ""
         const checkedInFilter = url.searchParams.get("checkedIn")
+        const meetingIdRaw = url.searchParams.get("meetingId")
+        const meetingId = meetingIdRaw ? String(meetingIdRaw).trim() : null
         
         await logToFile("properties", "Properties request received", LogLevel.INFO, {
             limit,
@@ -48,9 +51,15 @@ export async function GET(request: Request) {
 
         // Build the query based on filters
         let whereConditions = undefined;
-        
+
         const conditions = []
-        
+
+        // Restrict to benefit unit owners imported for a specific annual meeting (PK and legacy year id)
+        if (meetingId) {
+            const variants = await shareholderMeetingIdVariantsForFilter(meetingId)
+            conditions.push(inArray(shareholders.meetingId, variants))
+        }
+
         // Add search condition
         if (searchTerm) {
             conditions.push(
@@ -75,30 +84,40 @@ export async function GET(request: Request) {
             whereConditions = and(...conditions);
         }
         
-        // Execute the query
-        const propertyList = await db
-            .select({
-                id: properties.id,
-                account: properties.account,
-                shareholderId: properties.shareholderId,
-                numOf: properties.numOf,
-                customerName: properties.customerName,
-                customerMailingAddress: properties.customerMailingAddress,
-                cityStateZip: properties.cityStateZip,
-                ownerName: properties.ownerName,
-                ownerMailingAddress: properties.ownerMailingAddress,
-                ownerCityStateZip: properties.ownerCityStateZip,
-                residentName: properties.residentName,
-                residentMailingAddress: properties.residentMailingAddress,
-                residentCityStateZip: properties.residentCityStateZip,
-                serviceAddress: properties.serviceAddress,
-                checkedIn: properties.checkedIn,
-                createdAt: properties.createdAt
-            })
-            .from(properties)
-            .where(whereConditions)
-            .limit(parseInt(limit))
-            .orderBy(desc(properties.id));
+        const propertySelect = {
+            id: properties.id,
+            account: properties.account,
+            shareholderId: properties.shareholderId,
+            numOf: properties.numOf,
+            customerName: properties.customerName,
+            customerMailingAddress: properties.customerMailingAddress,
+            cityStateZip: properties.cityStateZip,
+            ownerName: properties.ownerName,
+            ownerMailingAddress: properties.ownerMailingAddress,
+            ownerCityStateZip: properties.ownerCityStateZip,
+            residentName: properties.residentName,
+            residentMailingAddress: properties.residentMailingAddress,
+            residentCityStateZip: properties.residentCityStateZip,
+            serviceAddress: properties.serviceAddress,
+            checkedIn: properties.checkedIn,
+            createdAt: properties.createdAt,
+        }
+
+        // Execute the query (join shareholders when scoping to a meeting)
+        const propertyList = meetingId
+            ? await db
+                .select(propertySelect)
+                .from(properties)
+                .innerJoin(shareholders, eq(properties.shareholderId, shareholders.shareholderId))
+                .where(whereConditions)
+                .limit(parseInt(limit))
+                .orderBy(desc(properties.id))
+            : await db
+                .select(propertySelect)
+                .from(properties)
+                .where(whereConditions)
+                .limit(parseInt(limit))
+                .orderBy(desc(properties.id));
 
         // Log the first few properties to check checkedIn values
         console.log("First few properties from DB:", propertyList.slice(0, 3));

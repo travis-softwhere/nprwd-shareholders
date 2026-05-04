@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { properties, shareholders } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
+import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -12,7 +13,12 @@ type CheckInResult = {
     message?: string
 }
 
-export async function checkInShareholders(shareholderId: string, signatureImage?: string, signatureHash?: string): Promise<CheckInResult> {
+export async function checkInShareholders(
+    shareholderId: string,
+    signatureImage?: string,
+    signatureHash?: string,
+    meetingId?: string
+): Promise<CheckInResult> {
     try {
         // Verify user is authenticated
         const session = await getServerSession(authOptions)
@@ -27,6 +33,27 @@ export async function checkInShareholders(shareholderId: string, signatureImage?
             return {
                 success: false,
                 message: "Shareholder ID is required"
+            }
+        }
+
+        const [row] = await db
+            .select()
+            .from(shareholders)
+            .where(eq(shareholders.shareholderId, shareholderId))
+            .limit(1)
+
+        if (!row) {
+            return { success: false, message: "Shareholder not found" }
+        }
+
+        if (meetingId != null) {
+            const variants = await shareholderMeetingIdVariantsForFilter(meetingId)
+            const rowMid = String(row.meetingId).trim()
+            if (!variants.includes(rowMid)) {
+                return {
+                    success: false,
+                    message: "This benefit unit owner is not part of the selected meeting.",
+                }
             }
         }
 
