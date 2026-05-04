@@ -58,6 +58,73 @@ export async function createMeeting(formData: FormData) {
     }
 }
 
+export async function updateMeeting(formData: FormData) {
+    try {
+        const id = (formData.get("id") as string | null)?.trim() ?? ""
+        const year = Number.parseInt(formData.get("year") as string, 10)
+        const date = new Date(formData.get("date") as string)
+        const dataSource = formData.get("dataSource") as "excel" | "database"
+
+        if (!id) {
+            return { success: false, error: "Meeting id is required" as const }
+        }
+        if (!year || Number.isNaN(year) || !date || Number.isNaN(date.getTime())) {
+            return { success: false, error: "Invalid year or date" as const }
+        }
+        if (dataSource !== "excel" && dataSource !== "database") {
+            return { success: false, error: "Invalid data source" as const }
+        }
+
+        const pk = Number.parseInt(id, 10)
+        if (Number.isNaN(pk)) {
+            return { success: false, error: "Invalid meeting id" as const }
+        }
+
+        const result = await db
+            .update(meetings)
+            .set({ year, date, dataSource })
+            .where(eq(meetings.id, pk))
+            .returning({
+                id: meetings.id,
+                year: meetings.year,
+                date: meetings.date,
+                totalShareholders: meetings.totalShareholders,
+                checkedIn: meetings.checkedIn,
+                dataSource: meetings.dataSource,
+                hasInitialData: meetings.hasInitialData,
+                mailersGenerated: meetings.mailersGenerated,
+                mailerGenerationDate: meetings.mailerGenerationDate,
+                createdAt: meetings.createdAt,
+            })
+
+        const row = result[0]
+        if (!row) {
+            return { success: false, error: "Meeting not found" as const }
+        }
+
+        const meeting = {
+            id: row.id.toString(),
+            year: row.year,
+            date: row.date.toISOString(),
+            totalShareholders: row.totalShareholders ?? 0,
+            checkedIn: row.checkedIn ?? 0,
+            dataSource: row.dataSource as "excel" | "database",
+            hasInitialData: row.hasInitialData ?? false,
+            mailersGenerated: row.mailersGenerated ?? false,
+            mailerGenerationDate: row.mailerGenerationDate?.toISOString() ?? null,
+            createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+        }
+
+        revalidatePath("/admin")
+        return { success: true as const, meeting }
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to update meeting",
+        }
+    }
+}
+
 export async function deleteMeeting(formData: FormData) {
     try {
         const id = formData.get("id") as string

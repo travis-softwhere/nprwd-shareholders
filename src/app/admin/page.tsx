@@ -21,6 +21,7 @@ import { getMeetings } from "@/actions/getMeetings";
 import type { Meeting } from "@/types/meeting";
 import { deleteMeeting } from "@/actions/manageMeetings";
 import { CreateMeetingForm } from "@/components/CreateMeetingForm";
+import { EditMeetingDialog } from "@/components/EditMeetingDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -115,7 +116,7 @@ export default function AdminPage() {
 
   // Local state
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
-  const [dataManagementOpen, setDataManagementOpen] = useState(false);
+  const [meetingToEdit, setMeetingToEdit] = useState<Meeting | null>(null);
   const [shareholdersShowAllMeetings, setShareholdersShowAllMeetings] = useState(false);
   /** When “all meetings” is on: optional client-side narrow (same ids as Meetings tab). */
   const [listAllMeetingNarrow, setListAllMeetingNarrow] = useState<string | null>(null);
@@ -337,7 +338,6 @@ export default function AdminPage() {
   const uploadInProgressRef = useRef<boolean>(false);
   const initialLoadCompleteRef = useRef<boolean>(false);
   const csvInputShareholdersRef = useRef<HTMLInputElement>(null);
-  const csvInputDataMgmtRef = useRef<HTMLInputElement>(null);
 
   // Add Employee state
   const [newEmployee, setNewEmployee] = useState({
@@ -441,7 +441,6 @@ export default function AdminPage() {
     setPendingCsvFile(null);
     setPendingCsvRowCount(null);
     if (csvInputShareholdersRef.current) csvInputShareholdersRef.current.value = "";
-    if (csvInputDataMgmtRef.current) csvInputDataMgmtRef.current.value = "";
   }, []);
 
   const handlePendingCsvFileChosen = useCallback(
@@ -570,7 +569,6 @@ export default function AdminPage() {
         setPendingCsvFile(null);
         setPendingCsvRowCount(null);
         if (csvInputShareholdersRef.current) csvInputShareholdersRef.current.value = "";
-        if (csvInputDataMgmtRef.current) csvInputDataMgmtRef.current.value = "";
         toast({
           title: "Import complete",
           description: "Benefit unit owner data was loaded. The list below will refresh.",
@@ -807,12 +805,6 @@ export default function AdminPage() {
       setIsPrinting(false);
     }
   };
-
-  // Show/hide certain components based on meeting state
-  const showUploadComponent =
-    selectedMeeting &&
-    !selectedMeeting.hasInitialData &&
-    selectedMeeting.dataSource === "excel";
 
   /** Shareholders tab: always offer CSV when meeting uses Excel (re-import replaces meeting data). */
   const showShareholdersTabCsvUpload = Boolean(selectedMeeting && selectedMeeting.dataSource === "excel");
@@ -1312,7 +1304,8 @@ export default function AdminPage() {
               Meetings
             </CardTitle>
             <CardDescription>
-              Click a meeting to make it the active one for the app. Use the pencil to open uploads and data tools.{" "}
+              Click a meeting to make it the active one for the app. Use the pencil to edit its year, date, and data
+              source. CSV import lives on the Shareholders tab.{" "}
               <span className="font-medium text-foreground">Uncheck-in all</span> resets check-in and signatures only;{" "}
               <span className="font-medium text-foreground">Delete all shareholders &amp; properties</span> removes every
               benefit unit owner and property row for that meeting but keeps the meeting record (use trash to delete the
@@ -1359,7 +1352,6 @@ export default function AdminPage() {
                       onClick={() => {
                         if (!isUploading) {
                           setSelectedMeetingId(meeting.id);
-                          setDataManagementOpen(false);
                         }
                       }}
                     >
@@ -1390,11 +1382,13 @@ export default function AdminPage() {
                         size="icon"
                         className="text-gray-500 hover:bg-blue-100 hover:text-blue-700"
                         disabled={isUploading}
-                        aria-label={`Edit data and uploads for ${meeting.year} annual meeting`}
+                        aria-label={`Edit ${meeting.year} annual meeting details`}
                         onClick={() => {
                           if (!isUploading) {
                             setSelectedMeetingId(meeting.id);
-                            setDataManagementOpen(true);
+                            setMeetingToEdit(
+                              meetings.find((m) => String(m.id) === String(meeting.id)) ?? meeting,
+                            );
                           }
                         }}
                       >
@@ -1541,139 +1535,8 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-          {/* Data Management — opened via pencil on a meeting row */}
-      {dataManagementOpen && selectedMeeting && (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold text-gray-900">Data Management</h2>
-                  <span className="text-sm text-muted-foreground">
-                    ({selectedMeeting.year} · {new Date(selectedMeeting.date).toLocaleDateString()})
-                  </span>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => setDataManagementOpen(false)}>
-                  Done
-                </Button>
-              </div>
-          <Separator />
-          
-              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
-            {/* Upload Data Card */}
-            {showUploadComponent && (
-              <Card className="overflow-hidden hover:shadow-md transition-all">
-                <CardHeader className="bg-gradient-to-r from-amber-50 to-white pb-2">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Upload className="h-5 w-5 text-amber-600" />
-                    Upload Benefit Unit Owner Data
-                  </CardTitle>
-                  <CardDescription>
-                    Choose a CSV — it is parsed and checked here first. Click <span className="font-medium">Save</span>{" "}
-                    to import into the {selectedMeeting?.year} meeting (active system meeting).
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center w-full">
-                      <label
-                        htmlFor="file-upload"
-                        className={cn(
-                          "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors",
-                          selectedMeeting && !isUploading && !isValidatingCsv
-                            ? "cursor-pointer border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-400"
-                            : "cursor-not-allowed border-gray-200 bg-gray-100"
-                        )}
-                      >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6 px-2 text-center">
-                          {isValidatingCsv ? (
-                            <>
-                              <Loader2 className="w-8 h-8 mb-2 animate-spin text-amber-500" />
-                              <p className="text-sm text-gray-700">Parsing and validating CSV…</p>
-                            </>
-                          ) : (
-                            <>
-                              <Upload
-                                className={cn(
-                                  "w-8 h-8 mb-2",
-                                  isUploading ? "text-gray-400" : "text-amber-500"
-                                )}
-                              />
-                              <p className="mb-2 text-sm text-gray-700">
-                                <span className="font-semibold">Choose CSV file</span>
-                              </p>
-                              <p className="text-xs text-gray-500">Then review and click Save below</p>
-                            </>
-                          )}
-                        </div>
-                        <input
-                          ref={csvInputDataMgmtRef}
-                          id="file-upload"
-                          name="file"
-                          type="file"
-                          className="hidden"
-                          accept=".csv,text/csv"
-                          disabled={!selectedMeeting || isUploading || isValidatingCsv}
-                          onChange={handlePendingCsvFileChosen}
-                        />
-                      </label>
-                    </div>
-
-                    {pendingCsvFile && pendingCsvRowCount !== null && (
-                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm text-emerald-950">
-                          <span className="font-medium">{pendingCsvFile.name}</span>
-                          <span className="text-emerald-900">
-                            {" "}
-                            — {pendingCsvRowCount} row(s) passed validation. Import uses the active meeting ID.
-                          </span>
-                        </p>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={clearPendingCsvImport}
-                            disabled={isUploading}
-                          >
-                            Discard
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => void handleSavePendingCsvImport()}
-                            disabled={isUploading || !systemSelectedMeetingId}
-                          >
-                            {isUploading ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving…
-                              </>
-                            ) : (
-                              "Save"
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <UploadProgress
-                      isUploading={isUploading}
-                      progress={uploadProgress}
-                      currentStep={currentStep}
-                      error={uploadError}
-                      onComplete={handleUploadComplete}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Print Mailers Button */}
-            
-
-            {/* Show Data Changes after mailers generated */}
-            {showDataChanges && (
-              <Card className="overflow-hidden hover:shadow-md transition-all">
+            {selectedMeeting && showDataChanges && (
+              <Card className="mt-6 overflow-hidden hover:shadow-md transition-all">
                 <CardHeader className="bg-gradient-to-r from-green-50 to-white pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <FileSpreadsheet className="h-5 w-5 text-green-600" />
@@ -1688,17 +1551,21 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             )}
-
-            {!showUploadComponent && !showDataChanges && (
-              <div className="col-span-full rounded-lg border border-dashed border-muted-foreground/25 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                No upload or data-changes tools apply to this meeting right now. Upload appears when the meeting is
-                configured for Excel/CSV and has not had its initial import. Data changes appear after mailers are
-                generated.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+            <EditMeetingDialog
+              meeting={meetingToEdit}
+              onClose={() => setMeetingToEdit(null)}
+              onSaved={async (updated) => {
+                toast({
+                  title: "Meeting updated",
+                  description: `${updated.year} Annual Meeting · ${new Date(updated.date).toLocaleString()}`,
+                });
+                const list = await refreshMeetings();
+                const fresh = list?.find((m) => String(m.id) === String(updated.id));
+                if (fresh && String(selectedMeetingId) === String(updated.id)) {
+                  setSelectedMeeting(fresh);
+                }
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="employees" className="mt-4 space-y-6">
