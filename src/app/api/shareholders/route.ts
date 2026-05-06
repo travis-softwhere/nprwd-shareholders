@@ -12,6 +12,7 @@ import { desc } from "drizzle-orm"
 import { properties } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
+import { ensureShareholdersSharedIdColumn } from "@/lib/db/ensure-shareholders-shared-id"
 
 const DEBUG_SH_QUERY = process.env.DEBUG_SHAREHOLDERS_QUERY === "1"
 
@@ -115,7 +116,9 @@ export async function GET(request: Request) {
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
-        
+
+        await ensureShareholdersSharedIdColumn()
+
         // Parse shareholderId and meetingId from query params
         const url = new URL(request.url);
         const shareholderId = url.searchParams.get("shareholderId");
@@ -246,6 +249,8 @@ export async function POST(request: Request) {
             await logToFile("shareholders", "Unauthorized access attempt", LogLevel.ERROR)
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
+
+        await ensureShareholdersSharedIdColumn()
 
         // Get request body
         const body = await request.json()

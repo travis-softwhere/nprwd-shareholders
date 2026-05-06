@@ -15,6 +15,7 @@ import {
     formatBenefitUnitOwnerDedupeKey,
 } from "@/lib/benefitUnitOwnerCsvImport"
 import type { InferSelectModel } from "drizzle-orm"
+import { ensureShareholdersSharedIdColumn } from "@/lib/db/ensure-shareholders-shared-id"
 
 type PropertyRow = InferSelectModel<typeof properties>
 
@@ -51,6 +52,8 @@ export async function GET(
         if (!session?.user?.isAdmin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
+
+        await ensureShareholdersSharedIdColumn()
 
         const { meetingId } = await context.params
         const mid = meetingId?.trim() ?? ""

@@ -11,6 +11,7 @@ import {
 //import { v4 as uuidv4 } from "uuid"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { ensureShareholdersSharedIdColumn } from "@/lib/db/ensure-shareholders-shared-id"
 
 export async function POST(request: Request) {
     const startTime = Date.now()
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
         if (!session?.user?.isAdmin) {
             throw new Error("Unauthorized")
         }
+
+        await ensureShareholdersSharedIdColumn()
 
         // Get form data with error boundary
         let formData: FormData

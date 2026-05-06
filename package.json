@@ -11,7 +11,8 @@
     "init-db": "ts-node scripts/init-db.ts",
     "migrate-transfers": "node scripts/migrate-transfers.js",
     "migrate-signatures": "node scripts/migrate-signatures.js",
-    "cleanup-logs": "node cleanup-logging.js"
+    "cleanup-logs": "node cleanup-logging.js",
+    "migrate:shared-id": "ts-node scripts/migrate-shared-id.ts"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
