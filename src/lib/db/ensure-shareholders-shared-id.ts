@@ -17,7 +17,13 @@ export function ensureShareholdersSharedIdColumn(): Promise<void> {
         const sql = neon(url)
         g.__ensureShareholdersSharedId = sql`
             ALTER TABLE shareholders ADD COLUMN IF NOT EXISTS shared_id TEXT
-        `.then(() => undefined)
+        `
+            .then(() => undefined)
+            .catch((err: unknown) => {
+                // Allow retries after transient Neon errors (ECONNRESET, fetch failed).
+                g.__ensureShareholdersSharedId = undefined
+                throw err
+            })
     }
     return g.__ensureShareholdersSharedId
 }

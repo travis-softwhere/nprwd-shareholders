@@ -52,7 +52,9 @@ export function CreateMeetingForm({ onSuccess }: CreateMeetingFormProps) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="w-full">Create New Meeting</Button>
+                <Button type="button" className="w-fit cursor-pointer">
+                    Create New Meeting
+                </Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>

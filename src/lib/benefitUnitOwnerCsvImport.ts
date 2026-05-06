@@ -55,22 +55,6 @@ export const BENEFIT_UNIT_OWNER_SHARED_ID_TEMPLATE_HEADER: string =
     BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS[13] ?? "shared_id"
 
 /**
- * Group key for CSV import: when `shared_id` is set, all rows with the same value share one benefit unit owner
- * (first row’s owner name and mailing fields win on `shareholders`). Otherwise same as mailing + mailer dedupe.
- */
-export function formatBenefitUnitOwnerGroupKey(record: Record<string, unknown>): string {
-    const raw = String(record["shared_id"] ?? "").trim()
-    if (raw.length > 0) {
-        return `shared:${raw.toUpperCase()}`
-    }
-    return formatBenefitUnitOwnerDedupeKey({
-        ownerMailingAddress: record["owner_mailing_address"] as string | undefined,
-        ownerCityStateZip: record["owner_city_state_zip"] as string | undefined,
-        mailerId: record["mailer_id"] as string | undefined,
-    })
-}
-
-/**
  * Same composite string used to group CSV rows into one benefit unit owner on import:
  * `upper(trim(owner_mailing_address))|upper(trim(owner_city_state_zip))|upper(trim(mailer_id))`.
  * Export can write this shape into the `mailer_id` column (mailing fields from DB; CSV mailer token not stored).
@@ -84,6 +68,40 @@ export function formatBenefitUnitOwnerDedupeKey(parts: {
     const z = (parts.ownerCityStateZip ?? "").trim().toUpperCase()
     const id = (parts.mailerId ?? "").trim().toUpperCase()
     return `${m}|${z}|${id}`
+}
+
+/** When mailing + mailer columns are all blank, dedupe is this value — must not merge unrelated rows on import. */
+export const EMPTY_MAILING_OWNER_DEDUPE_KEY = formatBenefitUnitOwnerDedupeKey({
+    ownerMailingAddress: "",
+    ownerCityStateZip: "",
+    mailerId: "",
+})
+
+/**
+ * Group key for CSV import:
+ * - Same non-empty `shared_id` (trimmed, exact characters) → one benefit unit owner.
+ * - Otherwise mailing + mailer_id dedupe when those fields distinguish owners.
+ * - When mailing fields are all blank, every row would otherwise share `EMPTY_MAILING_OWNER_DEDUPE_KEY` — fall back to `account`
+ *   or file row index so unrelated properties are not merged.
+ */
+export function formatBenefitUnitOwnerGroupKey(record: Record<string, unknown>, rowIndex: number): string {
+    const raw = String(record["shared_id"] ?? "").trim()
+    if (raw.length > 0) {
+        return `shared:${raw}`
+    }
+    const dedupe = formatBenefitUnitOwnerDedupeKey({
+        ownerMailingAddress: record["owner_mailing_address"] as string | undefined,
+        ownerCityStateZip: record["owner_city_state_zip"] as string | undefined,
+        mailerId: record["mailer_id"] as string | undefined,
+    })
+    if (dedupe === EMPTY_MAILING_OWNER_DEDUPE_KEY) {
+        const account = String(record["account"] ?? "").trim()
+        if (account.length > 0) {
+            return `account:${account}`
+        }
+        return `row:${rowIndex}`
+    }
+    return dedupe
 }
 
 const ALIAS_MAP: Record<string, string> = {

@@ -113,8 +113,9 @@ export async function POST(request: Request) {
         const shareholderIdPrefix = `${meetingId}-`
         let nextId = 100000
 
-        for (const record of records) {
-            const ownerKey = formatBenefitUnitOwnerGroupKey(record)
+        for (let i = 0; i < records.length; i++) {
+            const record = records[i]
+            const ownerKey = formatBenefitUnitOwnerGroupKey(record, i)
 
             let shareholderId = uniqueShareholders.get(ownerKey);
 
