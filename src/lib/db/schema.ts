@@ -60,6 +60,13 @@ export const propertyTransfers = pgTable("property_transfers", {
     updatedAt: timestamp("updated_at").notNull().defaultNow()
 })
 
+/** Key/value app configuration (e.g. org-wide active meeting id). */
+export const appSettings = pgTable("app_settings", {
+    key: text("key").primaryKey(),
+    value: text("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+})
+
 // New table for tracking data snapshots
 export const snapshots = pgTable("snapshots", {
     id: serial("id").primaryKey(),

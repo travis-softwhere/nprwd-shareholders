@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { getMeetings } from "@/actions/getMeetings";
+import { getStoredActiveMeetingId } from "@/actions/activeMeetingSettings";
 import type { Meeting } from "@/types/meeting";
 
 // Re-export the Meeting type so it can be imported from this module
@@ -40,14 +41,24 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     
     try {
       const data = await getMeetings();
+      let storedId: string | null = null;
+      try {
+        storedId = await getStoredActiveMeetingId();
+      } catch {
+        storedId = null;
+      }
       setMeetings(data);
       lastRefreshTimeRef.current = now;
-      
-      // If we have meetings but no meeting selected, select the first one
-      if (data.length > 0 && !selectedMeeting) {
-        setSelectedMeeting(data[0]);
+
+      if (data.length > 0) {
+        const preferred = storedId
+          ? data.find((m) => String(m.id) === String(storedId))
+          : null;
+        setSelectedMeeting(preferred ?? data[0]);
+      } else {
+        setSelectedMeeting(null);
       }
-      
+
       return data;
     } catch (error) {
       return undefined;

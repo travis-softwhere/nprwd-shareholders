@@ -1,8 +1,9 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { meetings, shareholders, properties, snapshots } from "@/lib/db/schema"
-import { eq, inArray } from "drizzle-orm"
+import { appSettings, meetings, shareholders, properties, snapshots } from "@/lib/db/schema"
+import { ACTIVE_MEETING_SETTING_KEY } from "@/lib/appSettingsKeys"
+import { and, eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 
@@ -144,6 +145,15 @@ export async function deleteMeeting(formData: FormData) {
         }
 
         await db.delete(snapshots).where(inArray(snapshots.meetingId, meetingIdVariants))
+
+        await db
+            .delete(appSettings)
+            .where(
+                and(
+                    eq(appSettings.key, ACTIVE_MEETING_SETTING_KEY),
+                    eq(appSettings.value, String(Number(id))),
+                ),
+            )
 
         await db.delete(meetings).where(eq(meetings.id, Number(id)))
 

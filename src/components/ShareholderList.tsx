@@ -3,12 +3,24 @@
 import type React from "react"
 
 import { useState, useMemo, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Shareholder } from "@/types/shareholder"
 import { useMeeting } from "@/contexts/MeetingContext"
 import { useSession } from "next-auth/react"
 import { getShareholdersList } from "@/actions/getShareholdersList"
-import { Search, Filter, ChevronRight, ChevronLeft, Users, ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react"
+import {
+    Search,
+    Filter,
+    ChevronRight,
+    ChevronLeft,
+    Users,
+    ArrowUpDown,
+    Loader2,
+    Pencil,
+    Trash2,
+    ExternalLink,
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -425,7 +437,12 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const showAdminMeetingFilter = Boolean(adminMeetingToolbar && meetings.length > 0)
 
     return (
-        <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-4 md:p-6 mb-20 md:mb-6">
+        <div
+            className={cn(
+                "w-full bg-white rounded-lg shadow-md p-4 md:p-6 mb-20 md:mb-6",
+                adminManageShareholders ? "max-w-none" : "max-w-7xl mx-auto",
+            )}
+        >
             {!listAllShareholders && !meetingIdForQuery && !selectedMeeting && (
                 <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                     Select the active annual meeting (admin or meeting picker) to load benefit unit owners and check-in
@@ -561,32 +578,42 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             ) : (
                 <>
                     {/* Desktop Table View */}
-                    <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
-                        <table className="min-w-full divide-y divide-gray-200">
+                    <div
+                        className={cn(
+                            "hidden md:block rounded-lg border border-gray-200",
+                            adminManageShareholders ? "w-full overflow-hidden" : "overflow-x-auto",
+                        )}
+                    >
+                        <table className="w-full table-fixed divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     {showMeetingCol && (
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="w-[12%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Meeting
                                         </th>
                                     )}
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th
+                                        className={cn(
+                                            "px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                                            showMeetingCol ? "w-[14%]" : "w-[16%]",
+                                        )}
+                                    >
                                         Benefit Unit Owner Barcode ID
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Name
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Owner Address
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="w-[8%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Total Properties
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="w-[14%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Status
                                     </th>
                                     {adminManageShareholders && (
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="w-[9rem] px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Actions
                                         </th>
                                     )}
@@ -598,28 +625,31 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                     Array(5).fill(0).map((_, index) => (
                                         <tr key={`loading-${index}`}>
                                             {showMeetingCol && (
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 align-top">
                                                     <Skeleton className="h-4 w-40" />
                                                 </td>
                                             )}
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-4 align-top whitespace-nowrap">
                                                 <Skeleton className="h-4 w-32" />
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-4 align-top">
                                                 <div className="space-y-2">
                                                     <Skeleton className="h-4 w-40" />
                                                     <Progress value={45} className="h-1 bg-gray-100" />
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-4 align-top">
+                                                <Skeleton className="h-4 w-full max-w-[12rem]" />
+                                            </td>
+                                            <td className="px-3 py-4 align-top whitespace-nowrap">
                                                 <Skeleton className="h-4 w-8" />
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-4 align-top whitespace-nowrap">
                                                 <Skeleton className="h-6 w-24 rounded-full" />
                                             </td>
                                             {adminManageShareholders && (
-                                                <td className="px-4 py-4">
-                                                    <Skeleton className="h-8 w-20" />
+                                                <td className="px-2 py-4 align-top">
+                                                    <Skeleton className="h-8 w-28 ml-auto" />
                                                 </td>
                                             )}
                                         </tr>
@@ -640,34 +670,53 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                             }
                                         >
                                             {showMeetingCol && (
-                                                <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                    <div className="font-medium text-foreground max-w-[14rem] leading-snug">
+                                                <td className="px-3 py-4 text-sm text-muted-foreground align-top">
+                                                    <div className="font-medium text-foreground leading-snug break-words">
                                                         {meetingLabel(shareholder.meetingId)}
                                                     </div>
                                                     <div className="text-xs font-mono mt-0.5">{canonicalMeetingIdLine(shareholder.meetingId)}</div>
                                                 </td>
                                             )}
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.shareholderId}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{shareholder.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <td className="px-3 py-4 text-sm align-top whitespace-nowrap">{shareholder.shareholderId}</td>
+                                            <td className="px-3 py-4 text-sm font-medium align-top break-words whitespace-normal">
+                                                {shareholder.name}
+                                            </td>
+                                            <td className="px-3 py-4 text-sm align-top break-words whitespace-normal text-gray-800">
                                                 {[shareholder.ownerMailingAddress, shareholder.ownerCityStateZip]
                                                     .filter(Boolean)
                                                     .join(", ") || "—"}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{shareholder.totalProperties}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(shareholder.checkedInProperties, shareholder.totalProperties)}`}>
+                                            <td className="px-3 py-4 text-sm align-top whitespace-nowrap">{shareholder.totalProperties}</td>
+                                            <td className="px-3 py-4 align-top">
+                                                <span
+                                                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(shareholder.checkedInProperties, shareholder.totalProperties)}`}
+                                                >
                                                     {shareholder.checkedInProperties} / {shareholder.totalProperties} Checked In
                                                 </span>
                                             </td>
                                             {adminManageShareholders && (
-                                                <td className="px-4 py-4 whitespace-nowrap text-right">
-                                                    <div className="flex justify-end gap-1">
+                                                <td className="px-2 py-4 align-top text-right">
+                                                    <div className="flex justify-end gap-0.5 flex-wrap">
                                                         <Button
                                                             type="button"
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className="h-8 w-8 shrink-0"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={`/shareholders/${encodeURIComponent(shareholder.shareholderId)}`}
+                                                                aria-label={`Open detail page for ${shareholder.name}`}
+                                                                title="Open shareholder page"
+                                                            >
+                                                                <ExternalLink className="h-4 w-4" />
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 shrink-0"
                                                             aria-label={`Edit ${shareholder.name}`}
                                                             onClick={(e) => openEdit(shareholder, e)}
                                                         >
@@ -677,7 +726,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                                             type="button"
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            className="h-8 w-8 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                                             aria-label={`Delete ${shareholder.name}`}
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
@@ -750,6 +799,21 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                             </div>
                                             {adminManageShareholders ? (
                                                 <div className="flex gap-1 shrink-0">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={`/shareholders/${encodeURIComponent(shareholder.shareholderId)}`}
+                                                            aria-label={`Open detail page for ${shareholder.name}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <ExternalLink className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
                                                     <Button
                                                         type="button"
                                                         variant="ghost"

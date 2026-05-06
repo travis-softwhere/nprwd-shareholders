@@ -17,6 +17,11 @@ import { UploadProgress } from "@/components/UploadProgress";
 import { PrintMailersButton } from "@/components/PrintMailersButton";
 import { DataChanges } from "@/components/DataChanges";
 import { getMeetings } from "@/actions/getMeetings";
+import {
+  clearStoredActiveMeetingId,
+  getStoredActiveMeetingId,
+  setStoredActiveMeetingId,
+} from "@/actions/activeMeetingSettings";
 import type { Meeting } from "@/types/meeting";
 import { deleteMeeting } from "@/actions/manageMeetings";
 import { CreateMeetingForm } from "@/components/CreateMeetingForm";
@@ -56,7 +61,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ADMIN_MEETING_FILTER_ALL, formatMeetingLabel } from "@/lib/meetingDisplay";
+import { formatMeetingLabel } from "@/lib/meetingDisplay";
 import { triggerBenefitUnitOwnerCsvTemplateDownload } from "@/lib/benefitUnitOwnerCsvTemplate";
 import { validateBenefitUnitOwnerCsvFile } from "@/lib/benefitUnitOwnerCsvClientValidate";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
@@ -122,8 +127,6 @@ export default function AdminPage() {
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [meetingToEdit, setMeetingToEdit] = useState<Meeting | null>(null);
   const [shareholdersShowAllMeetings, setShareholdersShowAllMeetings] = useState(false);
-  /** When “all meetings” is on: optional client-side narrow (same ids as Meetings tab). */
-  const [listAllMeetingNarrow, setListAllMeetingNarrow] = useState<string | null>(null);
   const [shareholderAdminRefresh, setShareholderAdminRefresh] = useState(0);
   /** Set while `clear-for-meeting` is running (per meeting row). */
   const [wipingMeetingId, setWipingMeetingId] = useState<string | null>(null);
@@ -405,13 +408,16 @@ export default function AdminPage() {
     const loadInitialData = async () => {
         try {
           const allMeetings = await getMeetings();
+          const storedId = await getStoredActiveMeetingId();
           setMeetings(allMeetings);
-          
-          // Auto-select the first meeting if data exists
+
           if (allMeetings.length > 0 && !selectedMeetingId) {
-            setSelectedMeetingId(allMeetings[0].id);
+            const preferred = storedId
+              ? allMeetings.find((m) => String(m.id) === String(storedId))
+              : null;
+            setSelectedMeetingId((preferred ?? allMeetings[0]).id);
           }
-          
+
           // Mark initial load as complete so we don't fetch again
           initialLoadCompleteRef.current = true;
         } catch (error) {
@@ -444,6 +450,21 @@ export default function AdminPage() {
     if (!meetings.length) return;
     setSelectedMeetingId(selectedMeeting?.id ?? meetings[0].id);
   }, [meetings, selectedMeeting?.id, selectedMeetingId]);
+
+  /** Persist org-wide active meeting (Meetings tab + Shareholders filter); all users pick this up on refresh. */
+  const persistSystemActiveMeeting = useCallback(
+    async (meeting: Meeting) => {
+      const r = await setStoredActiveMeetingId(meeting.id);
+      if (!r.success) {
+        toast({
+          title: "Could not save active meeting",
+          description: r.error ?? "Try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast],
+  );
 
   const clearPendingCsvImport = useCallback(() => {
     setPendingCsvFile(null);
@@ -781,9 +802,11 @@ export default function AdminPage() {
           if (allMeetings.length > 0) {
             setSelectedMeetingId(allMeetings[0].id);
             setSelectedMeeting(allMeetings[0]);
+            void persistSystemActiveMeeting(allMeetings[0]);
           } else {
             setSelectedMeetingId(null);
             setSelectedMeeting(null);
+            void clearStoredActiveMeetingId();
           }
         }
         toast({
@@ -1472,6 +1495,7 @@ export default function AdminPage() {
                           disabled={isUploading || wipingMeetingId !== null}
                           onSelect={() => {
                             setSelectedMeetingId(meeting.id);
+                            void persistSystemActiveMeeting(meeting);
                           }}
                         >
                           <Check className="mr-2 h-4 w-4" />
@@ -1481,6 +1505,7 @@ export default function AdminPage() {
                           disabled={isUploading || wipingMeetingId !== null}
                           onSelect={() => {
                             setSelectedMeetingId(meeting.id);
+                            void persistSystemActiveMeeting(meeting);
                             setMeetingToEdit(
                               meetings.find((m) => String(m.id) === String(meeting.id)) ?? meeting,
                             );
@@ -1915,24 +1940,15 @@ export default function AdminPage() {
                   onCheckedChange={(v) => {
                     const on = v === true;
                     if (on) {
-                      setListAllMeetingNarrow(null);
                       setShareholdersShowAllMeetings(true);
                     } else {
                       setShareholdersShowAllMeetings(false);
-                      if (listAllMeetingNarrow) {
-                        const m = meetings.find((x) => String(x.id) === String(listAllMeetingNarrow));
-                        if (m) {
-                          setSelectedMeeting(m);
-                          setSelectedMeetingId(String(m.id));
-                        }
-                      }
                     }
                   }}
                 />
                 <Label htmlFor="admin-shareholders-all-meetings" className="cursor-pointer font-normal leading-snug">
-                  Show shareholders from <span className="font-medium">all</span> meetings (full database). When off, use{" "}
-                  <span className="font-medium">Meeting</span> under <span className="font-medium">Filters &amp; sorting</span>{" "}
-                  or the Meetings tab to choose which meeting is active app-wide.
+                  Show shareholders from <span className="font-medium">all</span> meetings (full database). When off, the list uses the{" "}
+                  <span className="font-medium">active meeting</span> chosen on the Meetings tab (saved for everyone).
                 </Label>
               </div>
             </div>
@@ -1942,26 +1958,6 @@ export default function AdminPage() {
                   listAllShareholders={shareholdersShowAllMeetings}
                   meetingIdForQuery={undefined}
                   showMeetingColumn
-                  adminMeetingToolbar={
-                    shareholdersShowAllMeetings
-                      ? {
-                          value: listAllMeetingNarrow ?? ADMIN_MEETING_FILTER_ALL,
-                          onChange: (id) =>
-                            setListAllMeetingNarrow(id === ADMIN_MEETING_FILTER_ALL ? null : id),
-                          listAll: true,
-                        }
-                      : {
-                          value: systemSelectedMeetingId || String(meetings[0]?.id ?? ""),
-                          onChange: (id) => {
-                            const m = meetings.find((x) => String(x.id) === id);
-                            if (m) {
-                              setSelectedMeeting(m);
-                              setSelectedMeetingId(String(m.id));
-                            }
-                          },
-                          listAll: false,
-                        }
-                  }
                   adminManageShareholders={true}
                   refreshTrigger={shareholderAdminRefresh}
                   onAdminMutation={() => setShareholderAdminRefresh((k) => k + 1)}
