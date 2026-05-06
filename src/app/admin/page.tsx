@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo, type ChangeEvent } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink, Pencil } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, ChevronDown, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink, Pencil } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,7 +15,6 @@ import { useMeeting } from "@/contexts/MeetingContext";
 import { cn } from "@/lib/utils";
 import { UploadProgress } from "@/components/UploadProgress";
 import { PrintMailersButton } from "@/components/PrintMailersButton";
-import { BulkUncheckInButton } from "@/components/BulkUncheckInButton";
 import { DataChanges } from "@/components/DataChanges";
 import { getMeetings } from "@/actions/getMeetings";
 import type { Meeting } from "@/types/meeting";
@@ -24,14 +23,12 @@ import { CreateMeetingForm } from "@/components/CreateMeetingForm";
 import { EditMeetingDialog } from "@/components/EditMeetingDialog";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from "next-auth/react";
 import { Label } from "@/components/ui/label";
@@ -43,6 +40,13 @@ import { EmployeeList } from "@/components/EmployeeList";
 import { Loader2 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -131,6 +135,10 @@ export default function AdminPage() {
   } | null>(null);
   const [wipePreviewLoading, setWipePreviewLoading] = useState(false);
   const [wipePreviewError, setWipePreviewError] = useState<string | null>(null);
+  const [uncheckMeetingDialog, setUncheckMeetingDialog] = useState<Meeting | null>(null);
+  const [uncheckInProgress, setUncheckInProgress] = useState(false);
+  const [deleteMeetingDialog, setDeleteMeetingDialog] = useState<Meeting | null>(null);
+  const [exportingMeetingId, setExportingMeetingId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -640,6 +648,74 @@ export default function AdminPage() {
     }
   }, []);
 
+  const handleExportMeetingCsv = useCallback(async (meeting: Meeting) => {
+    setExportingMeetingId(meeting.id);
+    try {
+      const res = await fetch(`/api/admin/meetings/${encodeURIComponent(meeting.id)}/export-csv`);
+      const disposition = res.headers.get("Content-Disposition");
+      let filename = `benefit-unit-owners-meeting-${meeting.year}-${meeting.id}.csv`;
+      const match = disposition?.match(/filename="([^"]+)"/);
+      if (match?.[1]) filename = match[1];
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === "string" ? err.error : "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Export ready",
+        description: `Downloaded CSV for ${meeting.year} Annual Meeting (ID ${meeting.id}).`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Could not export CSV",
+      });
+    } finally {
+      setExportingMeetingId(null);
+    }
+  }, [toast]);
+
+  const runBulkUncheckInForMeeting = useCallback(async () => {
+    if (!uncheckMeetingDialog) return;
+    setUncheckInProgress(true);
+    try {
+      const response = await fetch("/api/properties/bulk-uncheckin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meetingId: uncheckMeetingDialog.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to uncheck-in properties for this meeting");
+      }
+      toast({
+        title: "Unchecked",
+        description: `Unchecked ${data.updatedCount ?? 0} propert${(data.updatedCount ?? 0) === 1 ? "y" : "ies"}; cleared check-in for ${data.shareholdersCleared ?? 0} benefit unit owner${(data.shareholdersCleared ?? 0) === 1 ? "" : "s"}.`,
+      });
+      setUncheckMeetingDialog(null);
+      setShareholderAdminRefresh((k) => k + 1);
+      await refreshMeetings();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to uncheck-in",
+      });
+    } finally {
+      setUncheckInProgress(false);
+    }
+  }, [uncheckMeetingDialog, refreshMeetings, toast]);
+
   /** Remove all benefit unit owners and properties for one meeting; keeps the meeting row and snapshots. */
   const handleWipeMeetingShareholdersAndProperties = useCallback(
     async (meetingId: string) => {
@@ -689,13 +765,13 @@ export default function AdminPage() {
   );
 
   // Handle meeting deletion (server removes shareholders, properties, snapshots, then the meeting row)
-  const handleDelete = async (meetingId: string) => {
+  const handleDelete = async (meetingId: string): Promise<boolean> => {
     try {
       const formData = new FormData();
       formData.append("id", meetingId);
-      
+
       const result = await deleteMeeting(formData);
-      
+
       if (result.success) {
         const allMeetings = await refreshMeetings();
         const deleted = String(meetingId);
@@ -716,19 +792,21 @@ export default function AdminPage() {
             "This meeting and all of its benefit unit owners, properties, and history snapshots were removed.",
           variant: "default",
         });
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to delete meeting",
-          variant: "destructive",
-        });
+        return true;
       }
+      toast({
+        title: "Error",
+        description: result.error || "Failed to delete meeting",
+        variant: "destructive",
+      });
+      return false;
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete meeting",
         variant: "destructive",
       });
+      return false;
     }
   };
 
@@ -1073,7 +1151,7 @@ export default function AdminPage() {
           </p>
           <Button 
             onClick={() => window.location.href = "/"} 
-            className="mt-4"
+            className="mt-4 cursor-pointer"
           >
             Return to Home
           </Button>
@@ -1100,7 +1178,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full [&_button:not(:disabled)]:cursor-pointer [&_[role=menuitem]:not([data-disabled])]:cursor-pointer [&_[role=tab]:not(:disabled)]:cursor-pointer [&_[role=option]:not([data-disabled])]:cursor-pointer [&_[role=combobox]:not(:disabled)]:cursor-pointer [&_label:has(input[type=file]:not(:disabled))]:cursor-pointer">
       <div className="max-w-6xl mx-auto bg-white px-3 sm:px-6 lg:px-8 py-4 sm:py-6 mb-16 md:mb-6 shadow-sm rounded-lg">
         <div className="space-y-6">
           {/* Header Section */}
@@ -1304,12 +1382,12 @@ export default function AdminPage() {
               Meetings
             </CardTitle>
             <CardDescription>
-              Click a meeting to make it the active one for the app. Use the pencil to edit its year, date, and data
-              source. CSV import lives on the Shareholders tab.{" "}
+              Use <span className="font-medium text-foreground">Actions</span> on each row to set the active meeting,
+              edit details, export benefit unit owners as CSV (same columns as import), or run destructive tools. CSV import
+              is on the Shareholders tab.{" "}
               <span className="font-medium text-foreground">Uncheck-in all</span> resets check-in and signatures only;{" "}
-              <span className="font-medium text-foreground">Delete all shareholders &amp; properties</span> removes every
-              benefit unit owner and property row for that meeting but keeps the meeting record (use trash to delete the
-              meeting and snapshots). Each row shows the database meeting ID.
+              <span className="font-medium text-foreground">Delete all shareholders &amp; properties</span> removes benefit
+              unit owner and property rows but keeps the meeting record.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
@@ -1340,22 +1418,14 @@ export default function AdminPage() {
                   <div
                     key={meeting.id}
                     className={cn(
-                      "flex w-full flex-wrap items-center gap-2 p-4 rounded-lg border transition-all",
-                      selectedMeetingId === meeting.id 
-                        ? "border-blue-500 bg-blue-50 shadow-sm" 
-                        : "hover:border-gray-300 hover:bg-gray-50"
+                      "flex w-full flex-wrap items-center gap-3 p-4 rounded-lg border transition-all",
+                      selectedMeetingId === meeting.id
+                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                        : "hover:border-gray-300 hover:bg-gray-50",
                     )}
                   >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => {
-                        if (!isUploading) {
-                          setSelectedMeetingId(meeting.id);
-                        }
-                      }}
-                    >
-                      <div className="flex justify-between items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex justify-between items-start gap-2">
                         <div>
                           <h3 className="font-semibold text-gray-900">
                             {meeting.year} Annual Meeting
@@ -1367,88 +1437,101 @@ export default function AdminPage() {
                             Meeting ID <span className="font-semibold text-foreground">{meeting.id}</span>
                           </p>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          {selectedMeetingId === meeting.id && (
-                            <Check className="h-5 w-5 text-blue-500" aria-hidden />
-                          )}
-                        </div>
+                        {selectedMeetingId === meeting.id && (
+                          <Badge
+                            className="shrink-0 border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100"
+                            variant="secondary"
+                          >
+                            <Check className="mr-1 h-3 w-3" aria-hidden />
+                            Active
+                          </Badge>
+                        )}
                       </div>
-                    </button>
+                    </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-gray-500 hover:bg-blue-100 hover:text-blue-700"
-                        disabled={isUploading}
-                        aria-label={`Edit ${meeting.year} annual meeting details`}
-                        onClick={() => {
-                          if (!isUploading) {
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 gap-1"
+                          disabled={
+                            isUploading ||
+                            wipingMeetingId !== null ||
+                            exportingMeetingId === meeting.id
+                          }
+                          aria-label={`Actions for ${meeting.year} annual meeting`}
+                        >
+                          Actions
+                          <ChevronDown className="h-4 w-4 opacity-70" aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[min(100vw-2rem,17rem)]">
+                        <DropdownMenuItem
+                          disabled={isUploading || wipingMeetingId !== null}
+                          onSelect={() => {
+                            setSelectedMeetingId(meeting.id);
+                          }}
+                        >
+                          <Check className="mr-2 h-4 w-4" />
+                          Set as active meeting
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={isUploading || wipingMeetingId !== null}
+                          onSelect={() => {
                             setSelectedMeetingId(meeting.id);
                             setMeetingToEdit(
                               meetings.find((m) => String(m.id) === String(meeting.id)) ?? meeting,
                             );
+                          }}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit meeting
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={
+                            isUploading ||
+                            wipingMeetingId !== null ||
+                            exportingMeetingId === meeting.id
                           }
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-
-                      <BulkUncheckInButton
-                        meetingId={meeting.id}
-                        meetingLabel={`${meeting.year} Annual Meeting (ID ${meeting.id})`}
-                        disabled={isUploading || wipingMeetingId !== null}
-                      />
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-auto max-w-[11rem] shrink-0 border-destructive/50 px-2 py-1.5 text-center text-xs font-medium leading-snug text-destructive hover:bg-destructive/10"
-                        disabled={isUploading || wipingMeetingId !== null}
-                        onClick={() => void openWipeConfirmDialog(meeting)}
-                      >
-                        Delete all shareholders &amp; properties
-                      </Button>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                            disabled={isUploading || wipingMeetingId !== null}
-                            aria-label={`Delete meeting ${meeting.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete meeting {meeting.id}?</AlertDialogTitle>
-                            <AlertDialogDescription className="space-y-2">
-                              <span className="block">
-                                This permanently deletes this annual meeting record and{" "}
-                                <strong>all benefit unit owners</strong> tied to it (including legacy year IDs),{" "}
-                                <strong>all of their properties</strong>, and{" "}
-                                <strong>saved change snapshots</strong> for this meeting. This cannot be undone.
-                              </span>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-red-600 hover:bg-red-700"
-                              onClick={() => handleDelete(meeting.id)}
-                            >
-                              Delete meeting and data
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                          onSelect={() => {
+                            void handleExportMeetingCsv(meeting);
+                          }}
+                        >
+                          {exportingMeetingId === meeting.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                          ) : (
+                            <Download className="mr-2 h-4 w-4" aria-hidden />
+                          )}
+                          Export benefit unit owners (CSV)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          disabled={isUploading || wipingMeetingId !== null}
+                          onSelect={() => setUncheckMeetingDialog(meeting)}
+                        >
+                          Uncheck-in all
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          disabled={isUploading || wipingMeetingId !== null}
+                          onSelect={() => void openWipeConfirmDialog(meeting)}
+                        >
+                          Delete all shareholders &amp; properties
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          disabled={isUploading || wipingMeetingId !== null}
+                          onSelect={() => setDeleteMeetingDialog(meeting)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" aria-hidden />
+                          Delete meeting…
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 ))
               )}
@@ -1498,8 +1581,8 @@ export default function AdminPage() {
                               {wipePreviewCounts.properties === 1 ? "y" : "ies"}
                             </strong>
                             . The meeting row stays so you can re-import CSV. Saved change snapshots for this meeting are{" "}
-                            <strong>not</strong> removed. To delete the meeting and snapshots, use the trash icon on
-                            this meeting instead.
+                            <strong>not</strong> removed. To delete the meeting and snapshots, use{" "}
+                            <strong>Delete meeting</strong> in Actions.
                           </p>
                         )}
                       </div>
@@ -1527,6 +1610,86 @@ export default function AdminPage() {
                       ) : (
                         "Delete all data"
                       )}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog
+                open={uncheckMeetingDialog !== null}
+                onOpenChange={(open) => {
+                  if (!open) setUncheckMeetingDialog(null);
+                }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Uncheck-in all for this meeting?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <span className="block">
+                        For{" "}
+                        <span className="font-medium text-foreground">
+                          {uncheckMeetingDialog
+                            ? `${uncheckMeetingDialog.year} Annual Meeting (ID ${uncheckMeetingDialog.id})`
+                            : ""}
+                        </span>
+                        , this sets every benefit unit to not checked in and clears owner signatures and check-in
+                        timestamps for benefit unit owners tied to this meeting. Other meetings are not affected.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={uncheckInProgress}>Cancel</AlertDialogCancel>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={uncheckInProgress}
+                      onClick={() => void runBulkUncheckInForMeeting()}
+                    >
+                      {uncheckInProgress ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                          Working…
+                        </>
+                      ) : (
+                        "Uncheck-in all"
+                      )}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog
+                open={deleteMeetingDialog !== null}
+                onOpenChange={(open) => {
+                  if (!open) setDeleteMeetingDialog(null);
+                }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete meeting {deleteMeetingDialog?.id}?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <span className="block">
+                        This permanently deletes this annual meeting record and{" "}
+                        <strong>all benefit unit owners</strong> tied to it (including legacy year IDs),{" "}
+                        <strong>all of their properties</strong>, and{" "}
+                        <strong>saved change snapshots</strong> for this meeting. This cannot be undone.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <Button
+                      type="button"
+                      className="bg-red-600 text-white hover:bg-red-700"
+                      onClick={() => {
+                        void (async () => {
+                          if (!deleteMeetingDialog) return;
+                          const ok = await handleDelete(deleteMeetingDialog.id);
+                          if (ok) setDeleteMeetingDialog(null);
+                        })();
+                      }}
+                    >
+                      Delete meeting and data
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>

@@ -263,6 +263,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 const matchesShareholder = 
                     shareholder.name.toLowerCase().includes(searchLower) ||
                     shareholder.shareholderId.toLowerCase().includes(searchLower) ||
+                    (shareholder.sharedId?.toLowerCase().includes(searchLower) ?? false) ||
                     (shareholder.ownerMailingAddress?.toLowerCase().includes(searchLower) ?? false) ||
                     (shareholder.ownerCityStateZip?.toLowerCase().includes(searchLower) ?? false);
 

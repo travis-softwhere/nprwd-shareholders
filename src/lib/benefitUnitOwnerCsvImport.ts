@@ -18,6 +18,7 @@ export const BENEFIT_UNIT_OWNER_CANONICAL_FIELDS = new Set([
     "resident_mailing_address",
     "resident_city_state_zip",
     "service_address",
+    "shared_id",
 ])
 
 /**
@@ -38,7 +39,52 @@ export const BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS: readonly string[] = [
     "resident_mailing_address",
     "resident_city_state_zip",
     "mailer_id",
+    "shared_id",
 ]
+
+/** Column groups for sparse export (omit blocks when all values empty). */
+export const BENEFIT_UNIT_OWNER_CORE_TEMPLATE_HEADERS: readonly string[] =
+    BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS.slice(0, 6)
+export const BENEFIT_UNIT_OWNER_CUSTOMER_TEMPLATE_HEADERS: readonly string[] =
+    BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS.slice(6, 9)
+export const BENEFIT_UNIT_OWNER_RESIDENT_TEMPLATE_HEADERS: readonly string[] =
+    BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS.slice(9, 12)
+export const BENEFIT_UNIT_OWNER_MAILER_TEMPLATE_HEADER: string =
+    BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS[12] ?? "mailer_id"
+export const BENEFIT_UNIT_OWNER_SHARED_ID_TEMPLATE_HEADER: string =
+    BENEFIT_UNIT_OWNER_TEMPLATE_HEADERS[13] ?? "shared_id"
+
+/**
+ * Group key for CSV import: when `shared_id` is set, all rows with the same value share one benefit unit owner
+ * (first row’s owner name and mailing fields win on `shareholders`). Otherwise same as mailing + mailer dedupe.
+ */
+export function formatBenefitUnitOwnerGroupKey(record: Record<string, unknown>): string {
+    const raw = String(record["shared_id"] ?? "").trim()
+    if (raw.length > 0) {
+        return `shared:${raw.toUpperCase()}`
+    }
+    return formatBenefitUnitOwnerDedupeKey({
+        ownerMailingAddress: record["owner_mailing_address"] as string | undefined,
+        ownerCityStateZip: record["owner_city_state_zip"] as string | undefined,
+        mailerId: record["mailer_id"] as string | undefined,
+    })
+}
+
+/**
+ * Same composite string used to group CSV rows into one benefit unit owner on import:
+ * `upper(trim(owner_mailing_address))|upper(trim(owner_city_state_zip))|upper(trim(mailer_id))`.
+ * Export can write this shape into the `mailer_id` column (mailing fields from DB; CSV mailer token not stored).
+ */
+export function formatBenefitUnitOwnerDedupeKey(parts: {
+    ownerMailingAddress?: string | null
+    ownerCityStateZip?: string | null
+    mailerId?: string | null
+}): string {
+    const m = (parts.ownerMailingAddress ?? "").trim().toUpperCase()
+    const z = (parts.ownerCityStateZip ?? "").trim().toUpperCase()
+    const id = (parts.mailerId ?? "").trim().toUpperCase()
+    return `${m}|${z}|${id}`
+}
 
 const ALIAS_MAP: Record<string, string> = {
     account: "account",
@@ -59,6 +105,8 @@ const ALIAS_MAP: Record<string, string> = {
     resident_mailing_address: "resident_mailing_address",
     resident_city_state_zip: "resident_city_state_zip",
     service_address: "service_address",
+    shared_id: "shared_id",
+    sharedid: "shared_id",
 }
 
 function toSnakeCase(raw: string): string {

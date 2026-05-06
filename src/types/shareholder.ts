@@ -6,6 +6,8 @@ export interface Shareholder {
     meetingId?: string
     ownerMailingAddress?: string;
     ownerCityStateZip?: string;
+    /** CSV `shared_id`: merge multiple billing addresses into one mailer when set on import. */
+    sharedId?: string;
     totalProperties: number
     checkedInProperties: number
     isNew: boolean

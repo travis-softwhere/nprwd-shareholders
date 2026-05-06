@@ -4,7 +4,10 @@ import { db } from "@/lib/db"
 import { shareholders, properties, meetings } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
-import { normalizeBenefitUnitOwnerColumnName } from "@/lib/benefitUnitOwnerCsvImport"
+import {
+    formatBenefitUnitOwnerGroupKey,
+    normalizeBenefitUnitOwnerColumnName,
+} from "@/lib/benefitUnitOwnerCsvImport"
 //import { v4 as uuidv4 } from "uuid"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -108,23 +111,21 @@ export async function POST(request: Request) {
         let nextId = 100000
 
         for (const record of records) {
-            // Normalize and combine both fields for the key
-            const ownerMailingAddress = (record["owner_mailing_address"] || "").trim().toUpperCase();
-            const ownerCityStateZip = (record["owner_city_state_zip"] || "").trim().toUpperCase();
-            const mailerId = (record["mailer_id"] || "").trim().toUpperCase();
-            const ownerKey = `${ownerMailingAddress}|${ownerCityStateZip}|${mailerId}`;
+            const ownerKey = formatBenefitUnitOwnerGroupKey(record)
 
             let shareholderId = uniqueShareholders.get(ownerKey);
 
             if (!shareholderId) {
                 shareholderId = `${shareholderIdPrefix}${nextId++}`
                 uniqueShareholders.set(ownerKey, shareholderId);
+                const sharedRaw = String(record["shared_id"] ?? "").trim()
                 shareholderValues.push({
                     name: (record["owner_name"] || "Unknown").trim(),
                     meetingId,
                     shareholderId,
                     ownerMailingAddress: (record["owner_mailing_address"] || "").trim(),
                     ownerCityStateZip: (record["owner_city_state_zip"] || "").trim(),
+                    ...(sharedRaw.length > 0 ? { sharedId: sharedRaw } : {}),
                 });
             }
 

@@ -20,6 +20,8 @@ export const shareholders = pgTable("shareholders", {
     meetingId: text("meeting_id").notNull(),
     ownerMailingAddress: text("owner_mailing_address"),
     ownerCityStateZip: text("owner_city_state_zip"),
+    /** CSV `shared_id`: groups rows into one mailer; canonical mailing on shareholder is first row in file order. */
+    sharedId: text("shared_id"),
     isNew: boolean("is_new").default(false),
     signatureImage: text("signature_image"),
     signatureHash: text("signature_hash"),
