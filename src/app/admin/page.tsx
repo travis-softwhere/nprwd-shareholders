@@ -19,7 +19,6 @@ import { DataChanges } from "@/components/DataChanges";
 import { getMeetings } from "@/actions/getMeetings";
 import {
   clearStoredActiveMeetingId,
-  getStoredActiveMeetingId,
   setStoredActiveMeetingId,
 } from "@/actions/activeMeetingSettings";
 import type { Meeting } from "@/types/meeting";
@@ -121,7 +120,13 @@ export default function AdminPage() {
   const { toast } = useToast();
 
   // Destructure the properties provided by the MeetingContext.
-  const { selectedMeeting, setSelectedMeeting, meetings, setMeetings } = useMeeting();
+  const {
+    selectedMeeting,
+    setSelectedMeeting,
+    meetings,
+    setMeetings,
+    refreshMeetings: reloadMeetingsFromDb,
+  } = useMeeting();
 
   // Local state
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
@@ -381,24 +386,23 @@ export default function AdminPage() {
     };
   }, [cleanupUpload]);
 
-  // Fetch and refresh meetings
+  /** Refresh meetings list and re-apply active meeting from DB (`app_settings`). */
   const refreshMeetings = useCallback(async (): Promise<Meeting[] | undefined> => {
     try {
       setIsLoading(true);
-      const allMeetings = await getMeetings();
-      setMeetings(allMeetings);
-      return allMeetings;
+      const data = await reloadMeetingsFromDb(true);
+      return data;
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch meetings"
+        description: "Failed to fetch meetings",
       });
       return undefined;
     } finally {
       setIsLoading(false);
     }
-  }, [setMeetings, toast]);
+  }, [reloadMeetingsFromDb, toast]);
 
   // Add back controlled one-time data loading
   useEffect(() => {
@@ -408,15 +412,7 @@ export default function AdminPage() {
     const loadInitialData = async () => {
         try {
           const allMeetings = await getMeetings();
-          const storedId = await getStoredActiveMeetingId();
           setMeetings(allMeetings);
-
-          if (allMeetings.length > 0 && !selectedMeetingId) {
-            const preferred = storedId
-              ? allMeetings.find((m) => String(m.id) === String(storedId))
-              : null;
-            setSelectedMeetingId((preferred ?? allMeetings[0]).id);
-          }
 
           // Mark initial load as complete so we don't fetch again
           initialLoadCompleteRef.current = true;
@@ -433,23 +429,23 @@ export default function AdminPage() {
     
     loadInitialData();
     }
-  }, [meetings.length, selectedMeetingId, toast, setMeetings]);
+  }, [meetings.length, toast, setMeetings]);
 
-  // Keep admin row highlight in sync with global context (do not clear context when local id is unset)
+  /**
+   * Admin row highlight follows MeetingContext — context loads `selectedMeeting` from `app_settings` on refresh.
+   * Do not push local state into context here (that previously overwrote the saved meeting with “first in list”).
+   */
   useEffect(() => {
-    if (!selectedMeetingId || meetings.length === 0) return;
-    const meeting = meetings.find((m) => String(m.id) === String(selectedMeetingId));
-    if (meeting) {
-      setSelectedMeeting(meeting);
+    if (!meetings.length) {
+      setSelectedMeetingId(null);
+      return;
     }
-  }, [selectedMeetingId, meetings, setSelectedMeeting]);
-
-  // When opening Admin after other pages, meetings may already be loaded — align local selection with context
-  useEffect(() => {
-    if (selectedMeetingId !== null) return;
-    if (!meetings.length) return;
-    setSelectedMeetingId(selectedMeeting?.id ?? meetings[0].id);
-  }, [meetings, selectedMeeting?.id, selectedMeetingId]);
+    if (selectedMeeting) {
+      setSelectedMeetingId(String(selectedMeeting.id));
+    } else {
+      setSelectedMeetingId(null);
+    }
+  }, [meetings, selectedMeeting]);
 
   /** Persist org-wide active meeting (Meetings tab + Shareholders filter); all users pick this up on refresh. */
   const persistSystemActiveMeeting = useCallback(
@@ -461,9 +457,12 @@ export default function AdminPage() {
           description: r.error ?? "Try again.",
           variant: "destructive",
         });
+        return;
       }
+      setSelectedMeeting(meeting);
+      await reloadMeetingsFromDb(true);
     },
-    [toast],
+    [toast, reloadMeetingsFromDb, setSelectedMeeting],
   );
 
   const clearPendingCsvImport = useCallback(() => {
@@ -1440,12 +1439,27 @@ export default function AdminPage() {
                 meetings.map((meeting) => (
                   <div
                     key={meeting.id}
+                    role="button"
+                    tabIndex={0}
                     className={cn(
-                      "flex w-full flex-wrap items-center gap-3 p-4 rounded-lg border transition-all",
+                      "flex w-full flex-wrap items-center gap-3 p-4 rounded-lg border transition-all text-left",
                       selectedMeetingId === meeting.id
                         ? "border-blue-500 bg-blue-50 shadow-sm"
                         : "hover:border-gray-300 hover:bg-gray-50",
+                      isUploading || wipingMeetingId !== null
+                        ? "cursor-not-allowed opacity-80"
+                        : "cursor-pointer",
                     )}
+                    onClick={() => {
+                      if (isUploading || wipingMeetingId !== null) return;
+                      void persistSystemActiveMeeting(meeting);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      e.preventDefault();
+                      if (isUploading || wipingMeetingId !== null) return;
+                      void persistSystemActiveMeeting(meeting);
+                    }}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex justify-between items-start gap-2">
@@ -1472,6 +1486,7 @@ export default function AdminPage() {
                       </div>
                     </div>
 
+                    <div className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -1557,6 +1572,7 @@ export default function AdminPage() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </div>
                 ))
               )}
