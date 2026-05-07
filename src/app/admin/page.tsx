@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo, type ChangeEvent } from "react";
-import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, ChevronDown, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink, Pencil } from "lucide-react";
+import { Upload, Check, Trash2, Settings, UserPlus, Calendar, ChevronRight, ChevronDown, FileSpreadsheet, Download, RefreshCw, Home, Search, Plus, ArrowRightLeft, Edit, X, FileText, ExternalLink, Pencil, Mail } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { useMeeting } from "@/contexts/MeetingContext";
 import { cn } from "@/lib/utils";
 import { UploadProgress } from "@/components/UploadProgress";
-import { PrintMailersButton } from "@/components/PrintMailersButton";
 import { DataChanges } from "@/components/DataChanges";
 import { getMeetings } from "@/actions/getMeetings";
 import {
@@ -61,6 +60,8 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatMeetingLabel } from "@/lib/meetingDisplay";
+import { Progress } from "@/components/ui/progress";
+import { generateMeetingMailerBatches } from "@/lib/generateMeetingMailersClient";
 import { triggerBenefitUnitOwnerCsvTemplateDownload } from "@/lib/benefitUnitOwnerCsvTemplate";
 import { validateBenefitUnitOwnerCsvFile } from "@/lib/benefitUnitOwnerCsvClientValidate";
 import { CheckinStatusDashboard } from '@/components/CheckinStatusDashboard';
@@ -155,7 +156,14 @@ export default function AdminPage() {
   const [pendingCsvRowCount, setPendingCsvRowCount] = useState<number | null>(null);
   const [isValidatingCsv, setIsValidatingCsv] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>("");
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [mailerDialogOpen, setMailerDialogOpen] = useState(false);
+  const [mailerGeneratingMeetingId, setMailerGeneratingMeetingId] = useState<string | null>(null);
+  const [mailerProgress, setMailerProgress] = useState(0);
+  const [mailerCurrentBatch, setMailerCurrentBatch] = useState(0);
+  const [mailerTotalBatches, setMailerTotalBatches] = useState(0);
+  const [mailerStatus, setMailerStatus] = useState("");
+  const [mailerBatchShareholderCount, setMailerBatchShareholderCount] = useState(0);
+  const [isMailerLocalMode, setIsMailerLocalMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [employeeRefreshTrigger, setEmployeeRefreshTrigger] = useState(0);
@@ -231,6 +239,10 @@ export default function AdminPage() {
     () => meetings.find((m) => String(m.id) === String(systemSelectedMeetingId)) ?? null,
     [meetings, systemSelectedMeetingId],
   );
+
+  useEffect(() => {
+    setIsMailerLocalMode(process.env.NODE_ENV === "development");
+  }, []);
 
   // Reset to page 1 when search or scoped meeting changes
   useEffect(() => {
@@ -832,87 +844,50 @@ export default function AdminPage() {
     }
   };
 
-  // Handle Print Mailers – will try to use the latest meeting if no meeting is selected
-  const handlePrintMailers = async () => {
-    setIsPrinting(true);
-    try {
-      if (!selectedMeeting) {
-        throw new Error("No meeting selected");
-      }
-      
-      const response = await fetch("/api/print-mailers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          meetingId: selectedMeeting.id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
-      }
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || "Failed to generate PDFs");
-      }
-
-      console.log(`Starting download of ${data.batches.length} PDF batches...`);
-
-      // Download each batch
-      for (const batch of data.batches) {
-        console.log(`Downloading ${batch.fileName}...`);
-        
-        // Fetch the PDF from the Vercel Blob URL
-        const pdfResponse = await fetch(batch.url);
-        if (!pdfResponse.ok) {
-          throw new Error(`Failed to download ${batch.fileName}`);
-        }
-
-        const blob = await pdfResponse.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = batch.fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        toast({
-          title: "Batch Downloaded",
-          description: `${batch.fileName} downloaded successfully`,
-          variant: "default",
+  const handleGenerateMeetingMailers = useCallback(
+    async (meeting: Meeting) => {
+      setMailerGeneratingMeetingId(meeting.id);
+      setMailerDialogOpen(true);
+      setMailerProgress(0);
+      setMailerCurrentBatch(0);
+      setMailerTotalBatches(0);
+      setMailerStatus("Starting…");
+      setMailerBatchShareholderCount(0);
+      try {
+        await generateMeetingMailerBatches(meeting.id, {
+          isLocalMode: isMailerLocalMode,
+          onProgress: (p) => {
+            if (p.mailerProgress !== undefined) setMailerProgress(p.mailerProgress);
+            if (p.currentBatchNumber !== undefined) setMailerCurrentBatch(p.currentBatchNumber);
+            if (p.totalBatches !== undefined) setMailerTotalBatches(p.totalBatches);
+            if (p.currentBatchStatus !== undefined) setMailerStatus(p.currentBatchStatus);
+            if (p.currentBatchShareholderCount !== undefined) {
+              setMailerBatchShareholderCount(p.currentBatchShareholderCount);
+            }
+          },
         });
+        toast({
+          title: "Success",
+          description: `Invitation PDFs generated for ${meeting.year} Annual Meeting.`,
+        });
+        await reloadMeetingsFromDb(true);
+        setMailerDialogOpen(false);
+      } catch (e) {
+        toast({
+          title: "Error",
+          description: e instanceof Error ? e.message : "Failed to generate mailers",
+          variant: "destructive",
+        });
+        setMailerDialogOpen(false);
+      } finally {
+        setMailerGeneratingMeetingId(null);
       }
-
-      toast({
-        title: "Success",
-        description: "All mailer batches generated and downloaded successfully",
-        variant: "default",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate mailers",
-        variant: "destructive",
-      });
-      console.error(error);
-    } finally {
-      setIsPrinting(false);
-    }
-  };
+    },
+    [isMailerLocalMode, toast, reloadMeetingsFromDb],
+  );
 
   /** Shareholders tab: always offer CSV when meeting uses Excel (re-import replaces meeting data). */
   const showShareholdersTabCsvUpload = Boolean(selectedMeeting && selectedMeeting.dataSource === "excel");
-
-  const showMailersButton =
-    selectedMeeting &&
-    selectedMeeting.hasInitialData &&
-    !selectedMeeting.mailersGenerated;
 
   const showDataChanges =
     selectedMeeting && selectedMeeting.mailersGenerated;
@@ -1486,7 +1461,11 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex shrink-0 flex-col items-end gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -1572,6 +1551,26 @@ export default function AdminPage() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="shrink-0 gap-1"
+                      disabled={
+                        isUploading ||
+                        wipingMeetingId !== null ||
+                        mailerGeneratingMeetingId === meeting.id
+                      }
+                      aria-label={`Generate invitation PDFs for ${meeting.year} annual meeting`}
+                      onClick={() => void handleGenerateMeetingMailers(meeting)}
+                    >
+                      {mailerGeneratingMeetingId === meeting.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                      ) : (
+                        <Mail className="h-4 w-4 shrink-0" aria-hidden />
+                      )}
+                      Generate invitation PDFs
+                    </Button>
                     </div>
                   </div>
                 ))
@@ -1755,6 +1754,41 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             )}
+            <Dialog
+              open={mailerDialogOpen}
+              onOpenChange={(open) => {
+                if (!open && mailerGeneratingMeetingId !== null) return;
+                setMailerDialogOpen(open);
+              }}
+            >
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Generating invitation PDFs</DialogTitle>
+                  <DialogDescription>
+                    {isMailerLocalMode
+                      ? "Writing PDFs locally (development)."
+                      : "Uploading batches to storage (production)."}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <Progress value={mailerProgress} className="h-2" />
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>
+                      Batch {mailerCurrentBatch}
+                      {mailerTotalBatches > 0 ? ` of ${mailerTotalBatches}` : ""}
+                    </span>
+                    <span>{mailerProgress}%</span>
+                  </div>
+                  <p className="text-sm text-foreground">{mailerStatus}</p>
+                  {mailerBatchShareholderCount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Current batch: {mailerBatchShareholderCount} benefit unit owner
+                      {mailerBatchShareholderCount === 1 ? "" : "s"}
+                    </p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
             <EditMeetingDialog
               meeting={meetingToEdit}
               onClose={() => setMeetingToEdit(null)}
