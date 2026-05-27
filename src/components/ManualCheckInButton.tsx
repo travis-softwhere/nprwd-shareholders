@@ -37,42 +37,45 @@ export default function ManualCheckInButton({
         setShowSignaturePad(true);
     }
 
-    const handleSignatureComplete = (signatureImage: string, signatureHash: string) => {
-        setShowSignaturePad(false);
-        startTransition(async () => {
-            try {
-                const response = await fetch("/api/properties/manual-checkin", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        shareholderId,
-                        meetingId,
-                        action: "checkin",
-                        signatureImage,
-                        signatureHash
-                    })
-                });
+    const handleSignatureComplete = async (signatureImage: string, signatureHash: string) => {
+        try {
+            const response = await fetch("/api/properties/manual-checkin", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    shareholderId,
+                    meetingId,
+                    action: "checkin",
+                    signatureImage,
+                    signatureHash
+                })
+            });
 
-                const data = await response.json();
+            const data = await response.json();
 
-                if (!response.ok && data.alreadyCheckedIn) {
-                    setShowAlreadyCheckedInDialog(true);
-                    return;
-                }
-                if (!response.ok) throw new Error(data.error || "Failed to check in");
-
-                toast({ title: "Success", description: data.message });
-                router.refresh();
-            } catch (error) {
-                toast({ 
-                    title: "Error", 
-                    description: error instanceof Error ? error.message : "Failed to check in", 
-                    variant: "destructive" 
-                });
+            if (!response.ok && data.alreadyCheckedIn) {
+                setShowSignaturePad(false);
+                setShowAlreadyCheckedInDialog(true);
+                return;
             }
-        })
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to check in");
+            }
+
+            setShowSignaturePad(false);
+            toast({ title: "Success", description: data.message });
+            router.refresh();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to check in";
+            toast({
+                title: "Error",
+                description: message,
+                variant: "destructive"
+            });
+            throw error instanceof Error ? error : new Error(message);
+        }
     }
 
     const handleProceedAnyway = () => {

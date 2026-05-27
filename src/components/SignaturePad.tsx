@@ -1,545 +1,351 @@
-import { useEffect, useRef, useState } from "react";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Copy, Check } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 interface SignaturePadProps {
-  onSignatureComplete: (signatureImage: string, signatureHash: string) => void;
+  onSignatureComplete: (signatureImage: string, signatureHash: string) => void | Promise<void>;
   onCancel: () => void;
   shareholderName?: string;
 }
 
-// Topaz type declarations
+type PadPhase =
+  | "initializing"
+  | "waiting"
+  | "capturing"
+  | "review"
+  | "submitting"
+  | "unavailable"
+  | "error";
+
+let topazWrapperLoaded = false;
+
+async function hashImageData(imageData: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(imageData);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function getTopazSignCapture(): TopazSignCapture | null {
+  const topaz = (window as unknown as { Topaz?: { SignatureCaptureWindow?: { Sign?: TopazSignCapture } } })
+    .Topaz;
+  return topaz?.SignatureCaptureWindow?.Sign ?? null;
+}
+
+function disconnectTopaz() {
+  const topaz = (window as unknown as { Topaz?: { Global?: TopazGlobal } }).Topaz;
+  topaz?.Global?.Disconnect().catch(() => undefined);
+}
+
 interface TopazGlobal {
   Connect(): Promise<number>;
   Disconnect(): Promise<number>;
-  GetSigPlusExtLiteVersion(): Promise<string>;
-  GetSigPlusExtLiteNMHVersion(): Promise<string>;
-  GetSigPlusActiveXVersion(): Promise<string>;
   GetDeviceStatus(): Promise<number>;
-  GetLastError(): Promise<string>;
 }
 
-interface TopazSignatureCaptureWindowSign {
-  SetImageDetails(format: number, width: number, height: number, transparency: boolean, scaling: boolean, maxUpScalePercent: number): Promise<number>;
+interface TopazSignCapture {
+  SetImageDetails(
+    format: number,
+    width: number,
+    height: number,
+    transparency: boolean,
+    scaling: boolean,
+    maxUpScalePercent: number,
+  ): Promise<number>;
   SetPenDetails(colorcode: string, thickness: number): Promise<number>;
   SetMinSigPoints(points: number): Promise<number>;
-  StartSign(showCustomWindow?: boolean, sigCompressionMode?: number, encryptionMode?: number, encryptionKey?: string): Promise<void>;
+  StartSign(
+    showCustomWindow?: boolean,
+    sigCompressionMode?: number,
+    encryptionMode?: number,
+    encryptionKey?: string,
+  ): Promise<void>;
   IsSigned(): Promise<boolean>;
   SignComplete(): Promise<void>;
-  LoadSignatureCaptureWindow(showCustomWindow?: boolean): Promise<void>;
   GetSignatureImage(): Promise<string>;
-  GetSigString(): Promise<string>;
 }
 
-interface TopazSignatureCaptureWindow {
-  Sign: TopazSignatureCaptureWindowSign;
-}
-
-interface Topaz {
-  Global: TopazGlobal;
-  SignatureCaptureWindow: TopazSignatureCaptureWindow;
-}
-
-// Use type assertion instead of global declaration
-
-// Module-level flag to prevent duplicate script loading
-let topazWrapperLoaded = false;
-
-export default function SignaturePad({ onSignatureComplete, onCancel, shareholderName }: SignaturePadProps) {
-  const [signatureImage, setSignatureImage] = useState<string | null>(null);
-  const [hash, setHash] = useState<string | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
+export default function SignaturePad({
+  onSignatureComplete,
+  onCancel,
+  shareholderName,
+}: SignaturePadProps) {
+  const [phase, setPhase] = useState<PadPhase>("initializing");
+  const [statusMessage, setStatusMessage] = useState("Connecting to signature pad…");
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawingContext, setDrawingContext] = useState<CanvasRenderingContext2D | null>(null);
-  const [topazAvailable, setTopazAvailable] = useState(false);
-  const [deviceStatus, setDeviceStatus] = useState<string>("Unknown");
-  const [debugCopied, setDebugCopied] = useState(false);
+  const [pendingSignature, setPendingSignature] = useState<{
+    image: string;
+    hash: string;
+  } | null>(null);
+  const cancelledRef = useRef(false);
 
-  // Add debug logging
-  const logDebug = (message: string) => {
-    console.log(`[SignaturePad] ${message}`);
-    setDebugInfo(prev => `${prev}\n${new Date().toLocaleTimeString()}: ${message}`);
-  };
+  const finishCapture = useCallback(async (signCapture: TopazSignCapture) => {
+    const raw = await signCapture.GetSignatureImage();
+    await signCapture.SignComplete().catch(() => undefined);
+    disconnectTopaz();
 
-  const handleCopyDebugInfo = async () => {
-    const lines = [
-      "SignaturePad debug export",
-      `Page: ${typeof window !== "undefined" ? window.location.href : ""}`,
-      `Time (ISO): ${new Date().toISOString()}`,
-      `SigPlusExtLiteWrapperURL: ${typeof document !== "undefined" ? document.documentElement.getAttribute("SigPlusExtLiteWrapperURL") : "n/a"}`,
-      `topazAvailable: ${topazAvailable}`,
-      `deviceStatus: ${deviceStatus}`,
-      `User-Agent: ${typeof navigator !== "undefined" ? navigator.userAgent : ""}`,
-      "---",
-      debugInfo.trim() || "No debug info yet",
-    ];
-    const text = lines.join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setDebugCopied(true);
-      window.setTimeout(() => setDebugCopied(false), 2000);
-    } catch {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        setDebugCopied(true);
-        window.setTimeout(() => setDebugCopied(false), 2000);
-      } catch {
-        logDebug("Could not copy debug info to clipboard (clipboard API and fallback both failed)");
-      }
-    }
-  };
-
-  useEffect(() => {
-    logDebug("SignaturePad component mounted");
-    
-    // Initialize canvas for drawing
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        setDrawingContext(ctx);
-        logDebug("Canvas initialized for drawing");
-      }
+    if (!raw) {
+      throw new Error("No signature received from the pad.");
     }
 
-    // Load the Topaz JavaScript wrapper
-    loadTopazWrapper();
+    const signatureImage = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
+    const signatureHash = await hashImageData(signatureImage);
+
+    setPendingSignature({ image: signatureImage, hash: signatureHash });
+    setError(null);
+    setStatusMessage("Review your signature below.");
+    setPhase("review");
   }, []);
 
-  const loadTopazWrapper = () => {
-    try {
-      logDebug("Loading Topaz JavaScript wrapper...");
-      
-      // Check module-level flag first
-      if (topazWrapperLoaded) {
-        logDebug("Topaz wrapper already loaded (module flag), checking availability");
-        checkTopazAvailability();
-        return;
-      }
-      
-      // Get the wrapper URL from the extension
-      const wrapperUrl = document.documentElement.getAttribute('SigPlusExtLiteWrapperURL');
-      logDebug(`Wrapper URL: ${wrapperUrl}`);
-      
-      // Debug: Check all Topaz-related attributes
-      const allAttributes = document.documentElement.attributes;
-      logDebug("All Topaz-related attributes on document.documentElement:");
-      for (let i = 0; i < allAttributes.length; i++) {
-        const attr = allAttributes[i];
-        if (attr.name.toLowerCase().includes('sigplus') || attr.name.toLowerCase().includes('topaz')) {
-          logDebug(`  ${attr.name}: ${attr.value}`);
-        }
-      }
-      
-      if (wrapperUrl) {
-        // Check if the script is already loaded to prevent duplicate injection
-        const existingScript = document.getElementById('topaz-wrapper-script');
-        if (existingScript) {
-          logDebug("Topaz wrapper script already exists, skipping injection");
-          topazWrapperLoaded = true;
-          // If script exists but Topaz object isn't available yet, wait a bit and check
-          if (typeof (window as any).Topaz === 'undefined') {
-            setTimeout(() => {
-              checkTopazAvailability();
-            }, 100);
-          } else {
-            checkTopazAvailability();
-          }
+  const waitForPadSignature = useCallback(
+    async (signCapture: TopazSignCapture) => {
+      setPhase("capturing");
+      setStatusMessage("Sign on the Topaz pad now.");
+
+      const deadline = Date.now() + 120_000;
+      while (Date.now() < deadline) {
+        if (cancelledRef.current) {
+          await signCapture.SignComplete().catch(() => undefined);
           return;
         }
-        
-        // Use script element approach (safer than document.write)
-        logDebug(`Loading Topaz wrapper script from: ${wrapperUrl}`);
-        
-        try {
-          const script = document.createElement('script');
-          script.id = 'topaz-wrapper-script'; // Add unique ID to prevent duplicates
+
+        const signed = await signCapture.IsSigned();
+        if (signed) {
+          await finishCapture(signCapture);
+          return;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 400));
+      }
+
+      await signCapture.SignComplete().catch(() => undefined);
+      throw new Error("Signature timed out. Try again.");
+    },
+    [finishCapture],
+  );
+
+  const runTopazCapture = useCallback(async () => {
+    const signCapture = getTopazSignCapture();
+    if (!signCapture) {
+      setPhase("unavailable");
+      setError(
+        "Topaz signature pad is not available. Install the SigPlus browser extension, connect the pad, and refresh.",
+      );
+      return;
+    }
+
+    setPhase("waiting");
+    setStatusMessage("Ready — sign on the Topaz pad.");
+
+    await signCapture.SetImageDetails(2, 500, 100, false, false, 25);
+    await signCapture.SetPenDetails("#000000", 2);
+    await signCapture.SetMinSigPoints(25);
+    await signCapture.StartSign(false, 1, 0, "");
+
+    await waitForPadSignature(signCapture);
+  }, [waitForPadSignature]);
+
+  const initializeTopaz = useCallback(async () => {
+    const wrapperUrl = document.documentElement.getAttribute("SigPlusExtLiteWrapperURL");
+    if (!wrapperUrl) {
+      setPhase("unavailable");
+      setError(
+        "SigPlus browser extension not detected. Install it and allow this site, then try check-in again.",
+      );
+      return;
+    }
+
+    if (!topazWrapperLoaded) {
+      const existing = document.getElementById("topaz-wrapper-script");
+      if (!existing) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.id = "topaz-wrapper-script";
           script.src = wrapperUrl;
           script.onload = () => {
-            logDebug("Topaz wrapper script loaded successfully");
             topazWrapperLoaded = true;
-            checkTopazAvailability();
+            resolve();
           };
-          script.onerror = (error) => {
-            logDebug(`Failed to load Topaz wrapper script: ${error}`);
-            setTopazAvailable(false);
-          };
-          
-          // Add the script to the head
+          script.onerror = () => reject(new Error("Failed to load SigPlus wrapper."));
           document.head.appendChild(script);
-        } catch (scriptError) {
-          logDebug(`Error creating/loading script: ${scriptError}`);
-          setTopazAvailable(false);
-        }
+        });
       } else {
-        logDebug("No SigPlusExtLiteWrapperURL attribute found - extension may not be installed");
-        setTopazAvailable(false);
+        topazWrapperLoaded = true;
       }
-    } catch (err) {
-      logDebug(`Error loading Topaz wrapper: ${err}`);
-      setTopazAvailable(false);
     }
+
+    const topaz = (window as unknown as { Topaz?: { Global?: TopazGlobal } }).Topaz;
+    if (!topaz?.Global) {
+      setPhase("unavailable");
+      setError("SigPlus wrapper loaded but Topaz API is unavailable.");
+      return;
+    }
+
+    const deviceStatus = await topaz.Global.GetDeviceStatus();
+    if (deviceStatus !== 1) {
+      setPhase("unavailable");
+      setError(
+        deviceStatus === 0
+          ? "No Topaz signature pad detected. Connect the pad via USB and try again."
+          : "Topaz pad or drivers are not ready. Check the device and SigPlus installation.",
+      );
+      return;
+    }
+
+    await topaz.Global.Connect();
+    setStatusMessage("Signature pad connected.");
+    await runTopazCapture();
+  }, [runTopazCapture]);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+
+    initializeTopaz().catch((err) => {
+      if (cancelledRef.current) return;
+      setPhase("error");
+      setError(err instanceof Error ? err.message : "Could not start signature capture.");
+    });
+
+    return () => {
+      cancelledRef.current = true;
+      disconnectTopaz();
+    };
+  }, [initializeTopaz]);
+
+  const handleCancel = () => {
+    cancelledRef.current = true;
+    const signCapture = getTopazSignCapture();
+    signCapture?.SignComplete().catch(() => undefined);
+    disconnectTopaz();
+    onCancel();
   };
 
-  const checkTopazAvailability = async () => {
-    try {
-      logDebug("Checking Topaz availability...");
-      
-      // Check if Topaz object is available
-      if (typeof (window as any).Topaz !== 'undefined') {
-        logDebug("Topaz object found");
-        setTopazAvailable(true);
-        
-        // Get version information
-        const version = await (window as any).Topaz.Global.GetSigPlusExtLiteVersion();
-        logDebug(`SigPlusExtLite version: ${version}`);
-        
-        // Get device status
-        const status = await (window as any).Topaz.Global.GetDeviceStatus();
-        logDebug(`Device status: ${status}`);
-        
-        // Interpret device status
-        let statusText = "Unknown";
-        switch (status) {
-          case 0:
-            statusText = "No device detected";
-            break;
-          case 1:
-            statusText = "Topaz signature pad detected";
-            break;
-          case 2:
-            statusText = "GemView Tablet Display detected";
-            break;
-          case -1:
-            statusText = "Error occurred while detecting device";
-            break;
-          case -2:
-            statusText = "SigPlusExtLite not installed";
-            break;
-          case -3:
-            statusText = "SigPlus drivers not installed";
-            break;
-          case -4:
-            statusText = "Older version of SigPlus installed";
-            break;
-        }
-        setDeviceStatus(statusText);
-        
-        // Connect to the device
-        const connectResult = await (window as any).Topaz.Global.Connect();
-        logDebug(`Connection result: ${connectResult}`);
-        
-      } else {
-        logDebug("Topaz object not found");
-        setTopazAvailable(false);
-      }
-
-    } catch (err) {
-      logDebug(`Error checking Topaz availability: ${err}`);
-      setTopazAvailable(false);
-    }
-  };
-
-  const computeHash = async (imageData: string) => {
-    try {
-      logDebug("Computing hash for signature image");
-      const encoder = new TextEncoder();
-      const data = encoder.encode(imageData);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      setHash(hashHex);
-      logDebug(`Hash computed: ${hashHex.substring(0, 16)}...`);
-    } catch (err) {
-      logDebug(`Failed to compute hash: ${err}`);
-      setError("Failed to compute signature hash");
-    }
-  };
-
-  const startCapture = async () => {
-    logDebug("Starting signature capture...");
-    setIsCapturing(true);
+  const handleSignAgain = () => {
+    cancelledRef.current = false;
+    setPendingSignature(null);
     setError(null);
-    
-    try {
-      if (topazAvailable && (window as any).Topaz) {
-        logDebug("Using Topaz JavaScript wrapper for signature capture");
-        
-        // Use the SignatureCaptureWindow.Sign object for signature capture
-        const signCapture = (window as any).Topaz.SignatureCaptureWindow.Sign;
-        
-        // Set image details
-        await signCapture.SetImageDetails(2, 500, 100, false, false, 25); // PNG, 500x100, no transparency, no scaling, 25% max upscale
-        
-        // Set pen details
-        await signCapture.SetPenDetails("#000000", 2); // Black pen, 2px thickness
-        
-        // Set minimum signature points
-        await signCapture.SetMinSigPoints(25);
-        
-        // Start the signature capture
-        await signCapture.StartSign(false, 1, 0, ""); // No custom window, lossless compression, no encryption, no key
-        
-        logDebug("Signature capture started - please sign on the Topaz device");
-        
-        // Check if signature was successful
-        const isSigned = await signCapture.IsSigned();
-        if (isSigned) {
-          logDebug("Signature captured successfully");
-          
-          // Get the signature image
-          const imageData = await signCapture.GetSignatureImage();
-          if (imageData) {
-            logDebug("Received signature image from Topaz");
-            setSignatureImage(`data:image/png;base64,${imageData}`);
-            computeHash(imageData);
-            setIsCapturing(false);
-            
-            // Complete the signature process
-            await signCapture.SignComplete();
-            return;
-          } else {
-            logDebug("No signature image received");
-            setError("No signature image received from device");
-            setIsCapturing(false);
-            await signCapture.SignComplete();
-            return;
-          }
-        } else {
-          logDebug("Signature capture was not successful");
-          setError("Signature capture was not successful");
-          setIsCapturing(false);
-          await signCapture.SignComplete();
-          return;
-        }
-        
-      } else {
-        logDebug("Topaz wrapper not available, using canvas fallback");
-        // Fallback to canvas drawing
-        setIsCapturing(false);
-        setError(null);
-      }
-    } catch (err) {
-      logDebug(`Signature capture failed: ${err}`);
-      setError(`Signature capture failed: ${err}`);
-      setIsCapturing(false);
-    }
+    setPhase("initializing");
+    setStatusMessage("Connecting to signature pad…");
+    initializeTopaz().catch((err) => {
+      setPhase("error");
+      setError(err instanceof Error ? err.message : "Could not start signature capture.");
+    });
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawingContext) return;
-    
-    setIsDrawing(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    drawingContext.beginPath();
-    drawingContext.moveTo(x, y);
-    logDebug(`Started drawing at (${x}, ${y})`);
-  };
+  const handleConfirm = async () => {
+    if (!pendingSignature) return;
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !drawingContext) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    drawingContext.lineTo(x, y);
-    drawingContext.stroke();
-  };
-
-  const handleMouseUp = () => {
-    if (!isDrawing) return;
-    
-    setIsDrawing(false);
-    logDebug("Finished drawing");
-    
-    // Convert canvas to image data
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const imageData = canvas.toDataURL('image/png');
-      setSignatureImage(imageData);
-      computeHash(imageData);
-      logDebug("Canvas converted to image data");
-    }
-  };
-
-  const handleConfirm = () => {
-    if (signatureImage && hash) {
-      logDebug("Confirming signature");
-      onSignatureComplete(signatureImage, hash);
-    } else {
-      logDebug("Cannot confirm - missing signature or hash");
-      setError("Please draw a signature first");
-    }
-  };
-
-  const handleClear = () => {
-    logDebug("Clearing signature");
-    setSignatureImage(null);
-    setHash(null);
+    setPhase("submitting");
+    setStatusMessage("Saving check-in…");
     setError(null);
-    
-    const canvas = canvasRef.current;
-    if (canvas && drawingContext) {
-      drawingContext.clearRect(0, 0, canvas.width, canvas.height);
+
+    try {
+      await onSignatureComplete(pendingSignature.image, pendingSignature.hash);
+    } catch (err) {
+      setPhase("review");
+      setStatusMessage("Review your signature below.");
+      setError(err instanceof Error ? err.message : "Could not save check-in.");
     }
   };
+
+  const showSpinner =
+    phase === "initializing" ||
+    phase === "waiting" ||
+    phase === "capturing" ||
+    phase === "submitting";
+
+  const canClose = phase !== "submitting";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Collect Signature</h2>
-          <Button variant="ghost" size="sm" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            {phase === "review" ? "Confirm signature" : "Sign to check in"}
+          </h2>
+          <Button variant="ghost" size="sm" onClick={handleCancel} disabled={!canClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
-        {shareholderName && (
-          <p className="text-sm text-muted-foreground mb-4">
-            Signing for: <span className="font-medium">{shareholderName}</span>
+
+        {shareholderName ? (
+          <p className="mb-4 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{shareholderName}</span>
           </p>
-        )}
+        ) : null}
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <Button 
-            onClick={startCapture} 
-            disabled={isCapturing}
-            className="w-full"
-          >
-            {isCapturing ? "Capturing Signature..." : "Start Signature Capture"}
-          </Button>
-          
-                     {signatureImage ? (
-             // Display the captured signature image
-             <div className="text-center">
-               <div className="text-sm text-gray-600 mb-2">
-                 Captured Signature:
-               </div>
-               <div className="border rounded shadow bg-white p-2">
-                 <img 
-                   src={signatureImage} 
-                   alt="Captured signature" 
-                   className="w-full h-40 object-contain"
-                   style={{ maxHeight: '160px' }}
-                 />
-               </div>
-             </div>
-           ) : (
-             // Show canvas for drawing (fallback)
-             <>
-               <div className="text-center text-sm text-gray-600 mb-2">
-                 Draw your signature below:
-               </div>
-               
-               <canvas 
-                 ref={canvasRef} 
-                 className="border rounded shadow w-full h-40 bg-white cursor-crosshair" 
-                 onMouseDown={handleMouseDown}
-                 onMouseMove={handleMouseMove}
-                 onMouseUp={handleMouseUp}
-                 onMouseLeave={handleMouseUp}
-                 width={400}
-                 height={160}
-               />
-             </>
-           )}
-          
-          {hash && (
-            <div className="text-sm text-muted-foreground">
-              Signature Hash: <span className="font-mono break-all text-xs">{hash}</span>
-            </div>
-          )}
-          
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleClear} 
-              variant="outline" 
-              disabled={!signatureImage}
-              className="flex-1"
-            >
-              Clear
-            </Button>
-            <Button 
-              onClick={handleConfirm} 
-              disabled={!signatureImage || !hash}
-              className="flex-1"
-            >
-              Confirm Signature
-            </Button>
-          </div>
-
-          {/* Topaz extension status */}
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
-            <h3 className="text-sm font-semibold text-blue-800 mb-2">📝 Topaz Extension Status</h3>
-            <p className="text-xs text-blue-700 mb-2">
-              {topazAvailable 
-                ? "✅ Topaz JavaScript wrapper loaded - signature pad should be available"
-                : "⚠️ Topaz JavaScript wrapper not available - using canvas drawing fallback"
-              }
+        {phase === "review" && pendingSignature ? (
+          <div className="mb-4 flex flex-col gap-3">
+            <p className="text-sm text-gray-700">
+              Signature recorded on the pad. Confirm it looks correct before checking in.
             </p>
-            {topazAvailable && (
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• <strong>Wrapper:</strong> Topaz JavaScript wrapper loaded</li>
-                <li>• <strong>Device:</strong> {deviceStatus}</li>
-                <li>• <strong>Domain:</strong> {window.location.hostname}</li>
-                <li>• <strong>Browser:</strong> {navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other'}</li>
-              </ul>
-            )}
-          </div>
-
-          {/* Debug information - remove in production */}
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm text-gray-500">Debug Info</summary>
-            <div className="flex justify-end mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={handleCopyDebugInfo}
-              >
-                {debugCopied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy debug info
-                  </>
-                )}
-              </Button>
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pendingSignature.image}
+                alt="Captured signature"
+                className="mx-auto max-h-28 w-full object-contain"
+              />
             </div>
-            <pre className="text-xs bg-gray-100 p-2 rounded mt-2 whitespace-pre-wrap max-h-32 overflow-y-auto">
-              {debugInfo || "No debug info yet"}
-            </pre>
-          </details>
-        </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            {showSpinner ? <Loader2 className="h-10 w-10 animate-spin text-blue-600" /> : null}
+            <p className="text-sm text-gray-700">{error ?? statusMessage}</p>
+            {phase === "capturing" ? (
+              <p className="text-xs text-muted-foreground">
+                Use the physical Topaz pad only — mouse signing is disabled.
+              </p>
+            ) : null}
+          </div>
+        )}
+
+        {error && phase === "review" ? (
+          <p className="mb-3 text-center text-sm text-red-600">{error}</p>
+        ) : null}
+
+        {phase === "review" ? (
+          <div className="flex flex-col gap-2">
+            <Button className="w-full" onClick={handleConfirm}>
+              Confirm & check in
+            </Button>
+            <Button variant="outline" className="w-full" onClick={handleSignAgain}>
+              Sign again
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={handleCancel}>
+              Cancel
+            </Button>
+          </div>
+        ) : phase === "error" || phase === "unavailable" ? (
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => {
+                setError(null);
+                setPendingSignature(null);
+                setPhase("initializing");
+                setStatusMessage("Connecting to signature pad…");
+                initializeTopaz().catch((err) => {
+                  setPhase("error");
+                  setError(err instanceof Error ? err.message : "Could not start signature capture.");
+                });
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : phase === "submitting" ? null : (
+          <Button variant="outline" className="w-full" onClick={handleCancel}>
+            Cancel
+          </Button>
+        )}
       </div>
     </div>
   );

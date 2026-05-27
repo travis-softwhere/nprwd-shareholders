@@ -115,19 +115,22 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
 
   const handleSignatureComplete = async (signatureImage: string, signatureHash: string) => {
     if (!pendingShareholderId) return;
-    
-    setShowSignaturePad(false);
+
+    const shareholderId = pendingShareholderId;
     setLoading(true);
     setError("");
 
     if (!selectedMeeting) {
+      const message = "The active meeting was cleared. Choose a meeting and try again.";
       toast({
         title: "Select a meeting",
-        description: "The active meeting was cleared. Choose a meeting and try again.",
+        description: message,
         variant: "destructive",
       });
-      return;
+      throw new Error(message);
     }
+
+    let closedPad = false;
 
     try {
       const response = await fetch("/api/properties/checkin", {
@@ -138,7 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
           "Pragma": "no-cache"
         },
         body: JSON.stringify({
-          shareholderId: pendingShareholderId,
+          shareholderId,
           signatureImage,
           signatureHash,
           meetingId: selectedMeeting.id,
@@ -149,42 +152,56 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       
       if (!response.ok) {
         if (data.alreadyCheckedIn) {
-          goToShareholderDetail(pendingShareholderId);
+          closedPad = true;
+          setShowSignaturePad(false);
+          goToShareholderDetail(shareholderId);
           return;
         }
-        setError(data.error || "Check-in failed.");
+        const message = data.error || "Could not check in this property.";
+        setError(message);
         toast({
           title: "Check-in Failed",
-          description: data.error || "Could not check in this property.",
+          description: message,
           variant: "destructive",
         });
-        return;
+        throw new Error(message);
       }
 
       if (data.alreadyCheckedIn) {
-        goToShareholderDetail(pendingShareholderId);
+        closedPad = true;
+        setShowSignaturePad(false);
+        goToShareholderDetail(shareholderId);
         return;
       }
+
+      closedPad = true;
+      setShowSignaturePad(false);
 
       toast({
         title: "Success",
         description: "Property checked in successfully",
       });
 
-      goToShareholderDetail(pendingShareholderId);
+      goToShareholderDetail(shareholderId);
 
     } catch (err) {
-      const errorMessage = "An error occurred during check-in.";
-      setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      if (!(err instanceof Error)) {
+        const errorMessage = "An error occurred during check-in.";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        throw new Error(errorMessage);
+      }
+      throw err;
     } finally {
       setLoading(false);
-      setPendingShareholderId(null);
-      setPendingShareholderName(null);
+      if (closedPad) {
+        setPendingShareholderId(null);
+        setPendingShareholderName(null);
+      }
     }
   };
 
