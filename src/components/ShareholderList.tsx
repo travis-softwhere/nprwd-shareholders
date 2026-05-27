@@ -54,6 +54,7 @@ import {
     shareholderMatchesMeetingFilter,
 } from "@/lib/meetingDisplay"
 import { displayShareholderId } from "@/lib/meetingScopedShareholderId"
+import { shareholderRecordMatchesSearch } from "@/lib/shareholderSearch"
 
 interface ShareholderListProps {
     initialShareholders?: Shareholder[]
@@ -270,34 +271,46 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     return true;
                 }
 
-                const searchLower = searchTerm.toLowerCase();
-                
-                // Check shareholder fields
                 const barcodeId = displayShareholderId(shareholder.shareholderId, shareholder.meetingId)
-                const matchesShareholder = 
-                    shareholder.name.toLowerCase().includes(searchLower) ||
-                    shareholder.shareholderId.toLowerCase().includes(searchLower) ||
-                    barcodeId.toLowerCase().includes(searchLower) ||
-                    (shareholder.sharedId?.toLowerCase().includes(searchLower) ?? false) ||
-                    (shareholder.ownerMailingAddress?.toLowerCase().includes(searchLower) ?? false) ||
-                    (shareholder.ownerCityStateZip?.toLowerCase().includes(searchLower) ?? false);
+                const propertyTexts =
+                    shareholder.properties?.flatMap((property: {
+                        account?: string
+                        serviceAddress?: string
+                        customerName?: string
+                        ownerName?: string
+                        customerMailingAddress?: string
+                        cityStateZip?: string
+                        ownerMailingAddress?: string
+                        ownerCityStateZip?: string
+                        residentName?: string
+                        residentMailingAddress?: string
+                        residentCityStateZip?: string
+                    }) => [
+                        property.account,
+                        property.serviceAddress,
+                        property.customerName,
+                        property.ownerName,
+                        property.customerMailingAddress,
+                        property.cityStateZip,
+                        property.ownerMailingAddress,
+                        property.ownerCityStateZip,
+                        property.residentName,
+                        property.residentMailingAddress,
+                        property.residentCityStateZip,
+                    ]) ?? []
 
-                // Check property fields
-                const matchesProperty = shareholder.properties?.some((property: any) => 
-                    property.account?.toLowerCase().includes(searchLower) ||
-                    property.serviceAddress?.toLowerCase().includes(searchLower) ||
-                    property.customerName?.toLowerCase().includes(searchLower) ||
-                    property.ownerName?.toLowerCase().includes(searchLower) ||
-                    property.customerMailingAddress?.toLowerCase().includes(searchLower) ||
-                    property.cityStateZip?.toLowerCase().includes(searchLower) ||
-                    property.ownerMailingAddress?.toLowerCase().includes(searchLower) ||
-                    property.ownerCityStateZip?.toLowerCase().includes(searchLower) ||
-                    property.residentName?.toLowerCase().includes(searchLower) ||
-                    property.residentMailingAddress?.toLowerCase().includes(searchLower) ||
-                    property.residentCityStateZip?.toLowerCase().includes(searchLower)
-                ) ?? false;
-
-                return matchesShareholder || matchesProperty;
+                return shareholderRecordMatchesSearch(
+                    {
+                        name: shareholder.name,
+                        shareholderId: shareholder.shareholderId,
+                        barcodeId,
+                        sharedId: shareholder.sharedId,
+                        ownerMailingAddress: shareholder.ownerMailingAddress,
+                        ownerCityStateZip: shareholder.ownerCityStateZip,
+                        propertyTexts,
+                    },
+                    searchTerm,
+                )
             })
             .filter((shareholder) => {
                 // Apply property count filter
@@ -472,7 +485,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <div className="relative w-full md:w-64">
                         <Input
                             type="text"
-                            placeholder="Search by name or ID"
+                            placeholder="Search name, ID, or address"
                             className="w-full pl-10 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
