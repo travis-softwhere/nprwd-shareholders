@@ -1,39 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useSession } from 'next-auth/react';
+import { toast } from "@/components/ui/use-toast";
 
 interface SetDesigneeFormProps {
   shareholderId: string;
 }
 
 export default function SetDesigneeForm({ shareholderId }: SetDesigneeFormProps) {
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.isAdmin === true;
+  const router = useRouter();
   const [designee, setDesignee] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentDesignee, setCurrentDesignee] = useState<string | null>(null);
 
-  // Fetch current designee on component mount
   const fetchCurrentDesignee = async () => {
     try {
-      const response = await fetch(`/api/designee?shareholderId=${shareholderId}`, {
+      const response = await fetch(`/api/designee?shareholderId=${encodeURIComponent(shareholderId)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-        }
+        },
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch designee");
+        throw new Error("Failed to fetch designated voter");
       }
 
       const data = await response.json();
-      setCurrentDesignee(data.designee);
+      setCurrentDesignee(data.designee?.trim() || null);
     } catch (error) {
-      console.error("Error fetching designee:", error);
+      console.error("Error fetching designated voter:", error);
     }
   };
 
@@ -53,18 +52,27 @@ export default function SetDesigneeForm({ shareholderId }: SetDesigneeFormProps)
         },
         body: JSON.stringify({
           shareholderId,
-          designee,
+          designee: designee.trim(),
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to set designee");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Failed to set designated voter",
+        );
       }
 
       setDesignee("");
       await fetchCurrentDesignee();
+      router.refresh();
+      toast({ title: "Saved", description: "Designated voter updated." });
     } catch (error) {
-      console.error("Error setting designee:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to set designated voter",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -80,47 +88,60 @@ export default function SetDesigneeForm({ shareholderId }: SetDesigneeFormProps)
         },
         body: JSON.stringify({
           shareholderId,
-          designee: null,
         }),
       });
       if (!response.ok) {
-        throw new Error("Failed to clear designee");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Failed to clear designated voter",
+        );
       }
       setDesignee("");
       await fetchCurrentDesignee();
+      router.refresh();
+      toast({ title: "Cleared", description: "Designated voter removed." });
     } catch (error) {
-      console.error("Error clearing designee:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to clear designated voter",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 mt-2">
-      <div className="text-sm text-muted-foreground flex items-center gap-2">
-        <span>Current Designee:</span>
-        {currentDesignee && (
-          <span className="font-medium">{currentDesignee}</span>
+    <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <span>Designated voter:</span>
+        {currentDesignee ? (
+          <span className="font-medium text-foreground">{currentDesignee}</span>
+        ) : (
+          <span className="italic">Not set</span>
         )}
       </div>
-      {isAdmin && (
-        <Button className="w-fit" type="button" onClick={handleClear} disabled={isSubmitting || !currentDesignee}>Clear Designee</Button>
-      )}
-      <div className="flex flex-row gap-2 items-center">
-        {isAdmin && (
-          <>
-            <Input
-              type="text"
-              value={designee}
-              onChange={(e) => setDesignee(e.target.value)}
-              placeholder="Enter designee name"
-              disabled={isSubmitting}
-            />
-            <Button type="submit" disabled={isSubmitting || !designee.trim()}>
-              Set Designee
-            </Button>
-          </>
-        )}
+      <Button
+        className="w-fit"
+        type="button"
+        variant="outline"
+        onClick={handleClear}
+        disabled={isSubmitting || !currentDesignee}
+      >
+        Clear designated voter
+      </Button>
+      <div className="flex flex-row flex-wrap items-center gap-2">
+        <Input
+          type="text"
+          value={designee}
+          onChange={(e) => setDesignee(e.target.value)}
+          placeholder="Enter designated voter name"
+          disabled={isSubmitting}
+          className="max-w-xs"
+        />
+        <Button type="submit" disabled={isSubmitting || !designee.trim()}>
+          Set designated voter
+        </Button>
       </div>
     </form>
   );

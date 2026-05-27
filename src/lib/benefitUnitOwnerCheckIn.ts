@@ -25,12 +25,14 @@ export function benefitUnitOwnerIsCheckedIn(
 }
 
 /**
- * Completed check-in: checked in (shareholder or all properties) and signature captured.
+ * Completed check-in: every property is checked in and a signature is on file.
  * Dashboard should skip the pad and go straight to the shareholder detail page.
  */
 export function benefitUnitOwnerHasCompletedCheckIn(
     shareholder: CheckInShareholderSnapshot,
     properties: CheckInPropertySnapshot[],
 ): boolean {
-    return benefitUnitOwnerIsCheckedIn(shareholder, properties) && benefitUnitOwnerHasSignature(shareholder)
+    if (!benefitUnitOwnerHasSignature(shareholder)) return false
+    if (properties.length === 0) return false
+    return properties.every((p) => Boolean(p.checkedIn))
 }

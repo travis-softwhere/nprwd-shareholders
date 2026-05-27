@@ -79,21 +79,7 @@ export async function POST(request: Request) {
             });
         }
 
-        const alreadyCheckedIn = propertiesToCheckIn.some((p) => p.checkedIn);
-        if (alreadyCheckedIn) {
-            await logToFile("properties", "Shareholder already checked in", LogLevel.INFO, {
-                shareholderId,
-            });
-            return NextResponse.json(
-                {
-                    error: "This benefit unit owner is already checked in and has a ballot!",
-                    alreadyCheckedIn: true,
-                },
-                { status: 400 },
-            );
-        }
-
-        // Use the checkInShareholders action to handle the check-in
+        // Use the checkInShareholders action to handle the check-in (all properties + signature)
         const result = await checkInShareholders(shareholderId, signatureImage, signatureHash, meetingId);
 
         if (!result.success) {

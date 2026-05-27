@@ -3,9 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { checkInShareholders } from "@/actions/checkInShareholders";
 import { undoCheckInShareholders } from "@/actions/undoCheckInShareholders";
+import { benefitUnitOwnerHasCompletedCheckIn } from "@/lib/benefitUnitOwnerCheckIn";
 import { logToFile, LogLevel } from "@/utils/logger";
 import { db } from "@/lib/db";
-import { properties } from "@/lib/db/schema";
+import { properties, shareholders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
@@ -35,9 +36,7 @@ export async function POST(request: Request) {
             );
         }
 
-        // If checking in, verify not already checked in and signature is provided
         if (action === "checkin") {
-            // Require signature for check-in
             if (!signatureImage || !signatureHash) {
                 return NextResponse.json(
                     { error: "Signature is required for check-in" },
@@ -57,16 +56,23 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: "No properties found for this shareholder" }, { status: 404 });
             }
 
-            // Check if any properties are already checked in
-            const alreadyCheckedIn = propertiesToCheckIn.some(p => p.checkedIn);
-            if (alreadyCheckedIn) {
-                await logToFile("properties", "Shareholder already checked in", LogLevel.INFO, {
-                    shareholderId
+            const [shareholderRow] = await db
+                .select()
+                .from(shareholders)
+                .where(eq(shareholders.shareholderId, shareholderId))
+                .limit(1);
+
+            if (
+                benefitUnitOwnerHasCompletedCheckIn(
+                    shareholderRow ?? {},
+                    propertiesToCheckIn,
+                )
+            ) {
+                return NextResponse.json({
+                    message: "Already checked in",
+                    success: true,
+                    alreadyCheckedIn: true,
                 });
-                return NextResponse.json({ 
-                    error: "This benefit unit owner is already checked in and has a ballot!",
-                    alreadyCheckedIn: true 
-                }, { status: 400 });
             }
         }
 

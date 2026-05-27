@@ -6,6 +6,8 @@ import { eq } from "drizzle-orm"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { logToFile, LogLevel } from "@/utils/logger"
+import { syncShareholderCheckedInFromProperties } from "@/lib/syncShareholderCheckIn"
+import { revalidatePath } from "next/cache"
 
 // Get a single property
 export async function GET(
@@ -166,6 +168,11 @@ export async function PUT(
             finalCheckedIn: updatedProperty.checkedIn,
             updatedProperty: JSON.stringify(updatedProperty)
         })
+
+        if (formattedUpdateData.checkedIn !== existingProperty.checkedIn) {
+            await syncShareholderCheckedInFromProperties(updatedProperty.shareholderId)
+            revalidatePath(`/shareholders/${updatedProperty.shareholderId}`)
+        }
 
         return NextResponse.json(updatedProperty)
     } catch (error) {

@@ -140,19 +140,10 @@ export default async function ShareholderPage({
 
             <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Properties</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              Click a property row to open it on the Properties page. Use the status badge to check
-              in or out that property individually.
+              Check in checks in every property for this benefit unit owner. Click a row to manage
+              a single property on the Properties page.
             </p>
-            <ShareholderPropertiesTable
-              properties={propertiesWithLabels}
-              shareholderId={shareholder.shareholderId}
-              shareholderName={shareholder.name}
-              shareholderSignatureImage={shareholder.signatureImage}
-              shareholderSignatureHash={shareholder.signatureHash}
-              designeeName={shareholder.designee}
-              mailingAddress={shareholder.ownerMailingAddress}
-              cityStateZip={shareholder.ownerCityStateZip}
-            />
+            <ShareholderPropertiesTable properties={propertiesWithLabels} />
 
           </CardContent>
         </Card>

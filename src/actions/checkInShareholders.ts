@@ -7,6 +7,7 @@ import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingS
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
+import { syncShareholderCheckedInFromProperties } from "@/lib/syncShareholderCheckIn"
 
 type CheckInResult = {
     success: boolean
@@ -57,24 +58,23 @@ export async function checkInShareholders(
             }
         }
 
-        // Check in all properties for this shareholder 
         await db.update(properties)
-        .set({ checkedIn: true })
-        .where(eq(properties.shareholderId, shareholderId))
+            .set({ checkedIn: true })
+            .where(eq(properties.shareholderId, shareholderId))
 
-        // Update shareholder record with signature and check-in info
         await db.update(shareholders)
-        .set({ 
-            checkedIn: true,
-            checkedInAt: new Date(),
-            ...(signatureImage && signatureHash ? {
-                signatureImage,
-                signatureHash
-            } : {})
-        })
-        .where(eq(shareholders.shareholderId, shareholderId))
+            .set({
+                checkedInAt: new Date(),
+                ...(signatureImage && signatureHash
+                    ? { signatureImage, signatureHash }
+                    : {}),
+            })
+            .where(eq(shareholders.shareholderId, shareholderId))
+
+        await syncShareholderCheckedInFromProperties(shareholderId)
 
         revalidatePath(`/shareholders/${shareholderId}`)
+        revalidatePath("/")
 
         return {
             success: true,

@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
+import { syncShareholderCheckedInFromProperties } from "@/lib/syncShareholderCheckIn"
 
 export async function saveShareholderSignature(
   shareholderId: string,
@@ -39,6 +40,8 @@ export async function saveShareholderSignature(
       checkedInAt: new Date(),
     })
     .where(eq(shareholders.shareholderId, shareholderId))
+
+  await syncShareholderCheckedInFromProperties(shareholderId)
 
   revalidatePath(`/shareholders/${shareholderId}`)
 
