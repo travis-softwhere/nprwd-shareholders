@@ -75,8 +75,8 @@ export function CheckinStatusDashboard() {
     if (!selectedMeeting) return;
     setLoadingStats(true);
     try {
-      const { totalShareholders, checkedInCount } = await getMeetingStats(selectedMeeting.id);
-      setStats({ total: totalShareholders, checkedIn: checkedInCount });
+      const { totalProperties, checkedInCount } = await getMeetingStats(selectedMeeting.id);
+      setStats({ total: totalProperties, checkedIn: checkedInCount });
     } catch {
       toast({ title: "Error", description: "Failed to load attendance stats", variant: "destructive" });
     } finally {

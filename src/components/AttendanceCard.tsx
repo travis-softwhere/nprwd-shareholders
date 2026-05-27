@@ -36,7 +36,12 @@ export function AttendanceCard({ checkedIn, total, loading, onRefresh }: Attenda
           </div>
         ) : total > 0 ? (
           <>
-            <p className="text-2xl font-bold">{checkedIn} / {total} benefit units checked in</p>
+            <p className="text-2xl font-bold">
+              {checkedIn} / {total} benefit units checked in
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Property-level check-in (votes), not benefit unit owner count
+            </p>
             <div className="w-full mt-4 bg-gray-200 rounded-full h-6 overflow-hidden">
               <div
                 className="bg-green-500 h-6 rounded-full transition-all duration-500 flex items-center justify-end pr-2"

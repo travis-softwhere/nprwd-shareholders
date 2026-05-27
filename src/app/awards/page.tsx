@@ -52,8 +52,8 @@ export default function AwardsPage() {
         setAttendance({ checkedIn: 0, total: 0 })
         return
       }
-      const { totalShareholders, checkedInCount } = await getMeetingStats(selectedMeeting.id)
-      setAttendance({ checkedIn: checkedInCount, total: totalShareholders })
+      const { totalProperties, checkedInCount } = await getMeetingStats(selectedMeeting.id)
+      setAttendance({ checkedIn: checkedInCount, total: totalProperties })
     } catch (err) {
       setAttendance({ checkedIn: 0, total: 0 })
       console.error("Error fetching attendance:", err)
