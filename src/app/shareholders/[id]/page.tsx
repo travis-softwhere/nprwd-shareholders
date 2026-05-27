@@ -51,10 +51,10 @@ export default async function ShareholderPage({
       <div className="container mx-auto p-2 sm:p-6 max-w-full sm:max-w-3xl">
         <h1 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-8">Benefit Unit Owner Details</h1>
         <Link
-          href="/shareholders"
+          href="/"
           className="text-primary hover:underline mb-2 sm:mb-4 inline-flex items-center"
         >
-          ← Back to List
+          ← Back to Shareholders
         </Link>
 
         <Card className="mt-2 sm:mt-4">

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { LogOut, Users, Home, Settings, Award, Building } from "lucide-react"
+import { LogOut, Home, Settings, Award, Building } from "lucide-react"
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
@@ -35,9 +35,8 @@ export default function Navigation() {
     }, [])
 
     const navigation = [
-        { name: "Home", href: "/", icon: Home },
-        { name: "Shareholders", href: "/shareholders", icon: Users },
-        { name: "Properties", href: "/properties", icon: Building },    
+        { name: "Shareholders", href: "/", icon: Home },
+        { name: "Properties", href: "/properties", icon: Building },
         { name: "Prizes", href: "/awards", icon: Award, adminOnly: true },
         { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
     ]
@@ -57,13 +56,18 @@ export default function Navigation() {
 
                     const shouldRender = !isAdminOnly || isAdmin
 
+                    const isActive =
+                        item.href === "/"
+                            ? pathname === "/" || pathname.startsWith("/shareholders/")
+                            : pathname === item.href
+
                     return (
                         shouldRender && (
                             <Link
                                 key={item.name}
                                 href={item.href}
                                 className={cn(
-                                    pathname === item.href
+                                    isActive
                                         ? "bg-blue-50 text-blue-600"
                                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
                                     "group flex items-center gap-x-3 rounded-md px-2 py-2 text-sm font-semibold leading-6 transition-colors",
@@ -103,15 +107,18 @@ export default function Navigation() {
 
                     if (!shouldRender) return null;
 
+                    const isActive =
+                        item.href === "/"
+                            ? pathname === "/" || pathname.startsWith("/shareholders/")
+                            : pathname === item.href
+
                     return (
                         <Link
                             key={item.name}
                             href={item.href}
                             className={cn(
                                 "flex flex-col items-center justify-center",
-                                pathname === item.href
-                                    ? "text-blue-600"
-                                    : "text-gray-500 hover:text-gray-900"
+                                isActive ? "text-blue-600" : "text-gray-500 hover:text-gray-900",
                             )}
                         >
                             <Icon className="h-5 w-5" />
