@@ -189,6 +189,10 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
         setCurrentPage(1)
     }, [adminMeetingToolbar?.value, listAllShareholders])
 
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm, propertyFilter, statusFilter])
+
     const fireMutation = () => {
         setRefetchTick((t) => t + 1)
         onAdminMutation?.()
@@ -272,36 +276,42 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 }
 
                 const barcodeId = displayShareholderId(shareholder.shareholderId, shareholder.meetingId)
-                const propertyTexts =
-                    shareholder.properties?.flatMap((property: {
-                        account?: string
-                        serviceAddress?: string
-                        customerName?: string
-                        ownerName?: string
-                        customerMailingAddress?: string
-                        cityStateZip?: string
-                        ownerMailingAddress?: string
-                        ownerCityStateZip?: string
-                        residentName?: string
-                        residentMailingAddress?: string
-                        residentCityStateZip?: string
-                    }) => [
-                        property.account,
-                        property.serviceAddress,
-                        property.customerName,
-                        property.ownerName,
-                        property.customerMailingAddress,
-                        property.cityStateZip,
-                        property.ownerMailingAddress,
-                        property.ownerCityStateZip,
-                        property.residentName,
-                        property.residentMailingAddress,
-                        property.residentCityStateZip,
-                    ]) ?? []
+                const propertyRows = shareholder.properties ?? []
+                const alternateNames = propertyRows.flatMap((property: {
+                    ownerName?: string
+                    customerName?: string
+                    residentName?: string
+                }) => [property.ownerName, property.customerName, property.residentName])
+                const propertyTexts = propertyRows.flatMap((property: {
+                    account?: string
+                    serviceAddress?: string
+                    customerName?: string
+                    ownerName?: string
+                    customerMailingAddress?: string
+                    cityStateZip?: string
+                    ownerMailingAddress?: string
+                    ownerCityStateZip?: string
+                    residentName?: string
+                    residentMailingAddress?: string
+                    residentCityStateZip?: string
+                }) => [
+                    property.account,
+                    property.serviceAddress,
+                    property.customerName,
+                    property.ownerName,
+                    property.customerMailingAddress,
+                    property.cityStateZip,
+                    property.ownerMailingAddress,
+                    property.ownerCityStateZip,
+                    property.residentName,
+                    property.residentMailingAddress,
+                    property.residentCityStateZip,
+                ])
 
                 return shareholderRecordMatchesSearch(
                     {
                         name: shareholder.name,
+                        alternateNames,
                         shareholderId: shareholder.shareholderId,
                         barcodeId,
                         sharedId: shareholder.sharedId,
