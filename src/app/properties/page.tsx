@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { PropertyManagement } from "@/components/PropertyManagement"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useMeeting } from "@/contexts/MeetingContext"
@@ -33,7 +34,9 @@ export default function PropertiesPage() {
                     Select an active annual meeting in Settings to load benefit units for that meeting.
                 </p>
             ) : null}
-            <PropertyManagement />
+            <Suspense fallback={<LoadingScreen message="Loading properties…" />}>
+                <PropertyManagement />
+            </Suspense>
         </div>
     )
 }

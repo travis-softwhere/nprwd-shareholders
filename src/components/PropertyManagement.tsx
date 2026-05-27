@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Property } from "@/types/Property"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -56,6 +56,7 @@ import {
     makeMeetingScopedShareholderId,
 } from "@/lib/meetingScopedShareholderId"
 import { propertyMatchesSearch } from "@/lib/propertySearch"
+import { formatPropertyForApi } from "@/lib/formatPropertyForApi"
 
 function PropertyTableCell({ value, className }: { value?: string | null; className?: string }) {
     const text = value?.trim()
@@ -105,8 +106,11 @@ interface NewShareholder {
 
 export function PropertyManagement() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { toast } = useToast()
     const { selectedMeeting } = useMeeting()
+    const [highlightedPropertyId, setHighlightedPropertyId] = useState<number | null>(null)
+    const focusedPropertyHandled = useRef(false)
     const meetingScope = selectedMeeting?.id
         ? `&meetingId=${encodeURIComponent(selectedMeeting.id)}`
         : ""
@@ -155,6 +159,42 @@ export function PropertyManagement() {
         fetchProperties()
         fetchShareholders()
     }, [selectedMeeting?.id])
+
+    const focusPropertyIdParam = searchParams.get("propertyId")
+
+    useEffect(() => {
+        focusedPropertyHandled.current = false
+    }, [focusPropertyIdParam])
+
+    useEffect(() => {
+        if (isLoading || properties.length === 0 || !focusPropertyIdParam) return
+        if (focusedPropertyHandled.current) return
+
+        const id = Number.parseInt(focusPropertyIdParam, 10)
+        if (!Number.isFinite(id)) return
+
+        const property = properties.find((p) => p.id === id)
+        if (!property) return
+
+        focusedPropertyHandled.current = true
+        setFilterStatus("all")
+        setHighlightedPropertyId(id)
+        setSelectedProperty({ ...property })
+        const searchSeed = property.account?.trim() || property.serviceAddress?.trim() || ""
+        if (searchSeed) {
+            setSearchQuery(searchSeed)
+        }
+
+        const scrollToRow = () => {
+            document.getElementById(`property-row-${id}`)?.scrollIntoView({
+                block: "center",
+                behavior: "smooth",
+            })
+        }
+        requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToRow)
+        })
+    }, [isLoading, properties, focusPropertyIdParam])
 
     const fetchShareholders = async () => {
         if (!selectedMeeting?.id) {
@@ -207,40 +247,12 @@ export function PropertyManagement() {
         setIsEditing(true)
     }
 
-    const formatPropertyData = (property: Partial<Property> & { shareholderId: string }) => {
-        // Format account properly
-        let formattedAccount = property.account || '';
-        if (formattedAccount && !formattedAccount.includes('-')) {
-            formattedAccount = formattedAccount.padStart(10, '0') + '-00';
-        }
-        
-        // Ensure all text fields are properly trimmed and formatted
-        return {
-            account: formattedAccount,
-            shareholderId: property.shareholderId,
-            numOf: property.numOf?.trim() || '',
-            customerName: property.customerName?.trim().toUpperCase() || '',
-            customerMailingAddress: property.customerMailingAddress?.trim() || '',
-            cityStateZip: property.cityStateZip?.trim() || '',
-            ownerName: property.ownerName?.trim().toUpperCase() || '',
-            ownerMailingAddress: property.ownerMailingAddress?.trim() || '',
-            ownerCityStateZip: property.ownerCityStateZip?.trim() || '',
-            residentName: property.residentName?.trim().toUpperCase() || '',
-            residentMailingAddress: property.residentMailingAddress?.trim() || '',
-            residentCityStateZip: property.residentCityStateZip?.trim() || '',
-            serviceAddress: property.serviceAddress?.trim() || '',
-            checkedIn: !!property.checkedIn,
-            // Include ID if it exists (for updates)
-            ...(property.id ? { id: property.id } : {})
-        };
-    };
-
     const handleSave = async () => {
         if (!editedProperty || !selectedProperty) return
 
         try {
             // Format all property data
-            const propertyData = formatPropertyData({
+            const propertyData = formatPropertyForApi({
                 ...selectedProperty,
                 ...editedProperty
             });
@@ -556,7 +568,7 @@ export function PropertyManagement() {
     const handleToggleCheckIn = async (property: Property) => {
         try {
             // Format all property data with toggled check-in status
-            const updatedProperty = formatPropertyData({
+            const updatedProperty = formatPropertyForApi({
                 ...property, 
                 checkedIn: !property.checkedIn
             });
@@ -1280,7 +1292,14 @@ export function PropertyManagement() {
                         </TableHeader>
                         <TableBody>
                             {filteredProperties.map((property) => (
-                                <TableRow key={property.id}>
+                                <TableRow
+                                    key={property.id}
+                                    id={`property-row-${property.id}`}
+                                    className={cn(
+                                        highlightedPropertyId === property.id &&
+                                            "bg-amber-50 ring-2 ring-amber-400 ring-inset",
+                                    )}
+                                >
                                     <TableCell className="font-mono text-sm">{property.account || "—"}</TableCell>
                                     <PropertyTableCell value={property.serviceAddress} />
                                     <PropertyTableCell value={property.cityStateZip} />

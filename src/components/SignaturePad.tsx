@@ -4,10 +4,87 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, X } from "lucide-react";
 
-interface SignaturePadProps {
+export type SignaturePadContext = {
+  shareholderName?: string;
+  shareholderId?: string;
+  designeeName?: string | null;
+  mailingAddress?: string | null;
+  cityStateZip?: string | null;
+  /** When checking in a single property, show its service address. */
+  propertyServiceAddress?: string | null;
+};
+
+interface SignaturePadProps extends SignaturePadContext {
   onSignatureComplete: (signatureImage: string, signatureHash: string) => void | Promise<void>;
   onCancel: () => void;
+}
+
+function formatMailingLines(mailingAddress?: string | null, cityStateZip?: string | null): string | null {
+  const line1 = mailingAddress?.trim();
+  const line2 = cityStateZip?.trim();
+  if (line1 && line2) return `${line1}\n${line2}`;
+  return line1 || line2 || null;
+}
+
+function ShareholderContextPanel({
+  shareholderName,
+  designeeName,
+  designeeLoading,
+  mailingLines,
+  propertyServiceAddress,
+}: {
   shareholderName?: string;
+  designeeName: string | null;
+  designeeLoading?: boolean;
+  mailingLines: string | null;
+  propertyServiceAddress?: string | null;
+}) {
+  return (
+    <div className="mb-4 space-y-3 rounded-md border border-blue-100 bg-blue-50/80 p-3 text-sm">
+      {shareholderName ? (
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Benefit unit owner
+          </p>
+          <p className="text-base font-semibold text-foreground">{shareholderName}</p>
+        </div>
+      ) : null}
+      {mailingLines ? (
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Mailing address
+          </p>
+          <p className="whitespace-pre-line text-foreground">{mailingLines}</p>
+        </div>
+      ) : null}
+      {propertyServiceAddress?.trim() ? (
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Property
+          </p>
+          <p className="text-foreground">{propertyServiceAddress.trim()}</p>
+        </div>
+      ) : null}
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Designee (ballot holder)
+        </p>
+        <p
+          className={
+            designeeLoading
+              ? "text-muted-foreground"
+              : designeeName
+                ? "font-medium text-foreground"
+                : "text-muted-foreground italic"
+          }
+        >
+          {designeeLoading
+            ? "Loading…"
+            : designeeName ?? "Not set — owner signs for themself"}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 type PadPhase =
@@ -73,15 +150,53 @@ export default function SignaturePad({
   onSignatureComplete,
   onCancel,
   shareholderName,
+  shareholderId,
+  designeeName: designeeNameProp,
+  mailingAddress,
+  cityStateZip,
+  propertyServiceAddress,
 }: SignaturePadProps) {
   const [phase, setPhase] = useState<PadPhase>("initializing");
   const [statusMessage, setStatusMessage] = useState("Connecting to signature pad…");
   const [error, setError] = useState<string | null>(null);
+  const [fetchedDesignee, setFetchedDesignee] = useState<string | null | undefined>(undefined);
   const [pendingSignature, setPendingSignature] = useState<{
     image: string;
     hash: string;
   } | null>(null);
   const cancelledRef = useRef(false);
+
+  const mailingLines = formatMailingLines(mailingAddress, cityStateZip);
+
+  useEffect(() => {
+    if (!shareholderId || designeeNameProp !== undefined) return;
+
+    let cancelled = false;
+    fetch(`/api/designee?shareholderId=${encodeURIComponent(shareholderId)}`)
+      .then((res) => (res.ok ? res.json() : { designee: null }))
+      .then((data: { designee?: string | null }) => {
+        if (!cancelled) {
+          setFetchedDesignee(data.designee?.trim() || null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedDesignee(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shareholderId, designeeNameProp]);
+
+  const designeeLoading =
+    shareholderId != null && designeeNameProp === undefined && fetchedDesignee === undefined;
+
+  const designeeName =
+    designeeNameProp !== undefined
+      ? designeeNameProp?.trim() || null
+      : fetchedDesignee === undefined
+        ? null
+        : fetchedDesignee;
 
   const finishCapture = useCallback(async (signCapture: TopazSignCapture) => {
     const raw = await signCapture.GetSignatureImage();
@@ -261,10 +376,15 @@ export default function SignaturePad({
   const canClose = phase !== "submitting";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
+    <div
+      className="fixed inset-0 z-50 flex items-stretch justify-end pointer-events-none"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="signature-pad-title"
+    >
+      <div className="pointer-events-auto flex h-full w-full max-w-md flex-col border-l border-gray-200 bg-white shadow-2xl sm:max-w-lg">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 sm:px-6">
+          <h2 id="signature-pad-title" className="text-lg font-semibold">
             {phase === "review" ? "Confirm signature" : "Sign to check in"}
           </h2>
           <Button variant="ghost" size="sm" onClick={handleCancel} disabled={!canClose}>
@@ -272,11 +392,14 @@ export default function SignaturePad({
           </Button>
         </div>
 
-        {shareholderName ? (
-          <p className="mb-4 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{shareholderName}</span>
-          </p>
-        ) : null}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          <ShareholderContextPanel
+            shareholderName={shareholderName}
+            designeeName={designeeName}
+            designeeLoading={designeeLoading}
+            mailingLines={mailingLines}
+            propertyServiceAddress={propertyServiceAddress}
+          />
 
         {phase === "review" && pendingSignature ? (
           <div className="mb-4 flex flex-col gap-3">
@@ -346,6 +469,7 @@ export default function SignaturePad({
             Cancel
           </Button>
         )}
+        </div>
       </div>
     </div>
   );

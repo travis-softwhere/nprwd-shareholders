@@ -27,6 +27,7 @@ export const shareholders = pgTable("shareholders", {
     signatureHash: text("signature_hash"),
     checkedIn: boolean("checked_in").default(false),
     checkedInAt: timestamp("checked_in_at"),
+    designee: text("designee"),
     createdAt: timestamp("created_at").defaultNow(),
 })
 

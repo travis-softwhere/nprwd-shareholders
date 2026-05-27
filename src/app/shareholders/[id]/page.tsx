@@ -6,16 +6,9 @@ import { authOptions } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import ManualCheckInButton from "@/components/ManualCheckInButton"
+import ShareholderPropertiesTable from "@/components/ShareholderPropertiesTable"
 import SetDesigneeForm from "@/components/SetDesigneeForm"
 import EditableName from "@/components/EditableName"
 import React from 'react';
@@ -41,11 +34,10 @@ export default async function ShareholderPage({
 
     const checkedInCount = properties.filter((p) => p.checkedIn).length
 
-    const benefitUnitOwnerLabelForProperty = (property: (typeof properties)[number]) => {
-      const fromRow = property.ownerName?.trim()
-      if (fromRow) return fromRow
-      return shareholder.name
-    }
+    const propertiesWithLabels = properties.map((property) => ({
+      ...property,
+      benefitUnitOwnerLabel: property.ownerName?.trim() || shareholder.name,
+    }))
 
     return (
       <div className="container mx-auto p-2 sm:p-6 max-w-full sm:max-w-3xl">
@@ -63,6 +55,16 @@ export default async function ShareholderPage({
               initialName={shareholder.name}
               shareholderId={shareholder.shareholderId}
             />
+            {(shareholder.ownerMailingAddress?.trim() || shareholder.ownerCityStateZip?.trim()) ? (
+              <div className="mt-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Mailing address: </span>
+                {shareholder.ownerMailingAddress?.trim()}
+                {shareholder.ownerMailingAddress?.trim() && shareholder.ownerCityStateZip?.trim()
+                  ? ", "
+                  : null}
+                {shareholder.ownerCityStateZip?.trim()}
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <ShareholderBarcodeId
@@ -100,6 +102,9 @@ export default async function ShareholderPage({
                   meetingId={shareholder.meetingId}
                   isFullyCheckedIn={checkedInCount === properties.length}
                   shareholderName={shareholder.name}
+                  designeeName={shareholder.designee}
+                  mailingAddress={shareholder.ownerMailingAddress}
+                  cityStateZip={shareholder.ownerCityStateZip}
                   />
 
                   <SetDesigneeForm shareholderId={shareholder.shareholderId} />
@@ -134,38 +139,20 @@ export default async function ShareholderPage({
             </div>
 
             <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Properties</h2>
-            <div className="rounded-md border overflow-x-auto">
-              <Table className="min-w-[400px]">
-                <TableHeader>
-                  <TableRow>
-                    {/* <TableHead>Account</TableHead> */}
-                    <TableHead>Service Address</TableHead>
-                    <TableHead>Benefit Unit Owner</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {properties.map((property) => (
-                    <TableRow key={property.id}>
-                      {/* <TableCell className="font-mono">
-                        {property.account}
-                      </TableCell> */}
-                      <TableCell>{property.serviceAddress}</TableCell>
-                      <TableCell>{benefitUnitOwnerLabelForProperty(property)}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            property.checkedIn ? "success" : "secondary"
-                          }
-                        >
-                          {property.checkedIn ? "Checked In" : "Not Checked In"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Click a property row to open it on the Properties page. Use the status badge to check
+              in or out that property individually.
+            </p>
+            <ShareholderPropertiesTable
+              properties={propertiesWithLabels}
+              shareholderId={shareholder.shareholderId}
+              shareholderName={shareholder.name}
+              shareholderSignatureImage={shareholder.signatureImage}
+              shareholderSignatureHash={shareholder.signatureHash}
+              designeeName={shareholder.designee}
+              mailingAddress={shareholder.ownerMailingAddress}
+              cityStateZip={shareholder.ownerCityStateZip}
+            />
 
           </CardContent>
         </Card>

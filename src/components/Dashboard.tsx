@@ -49,6 +49,9 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [pendingShareholderId, setPendingShareholderId] = useState<string | null>(null);
   const [pendingShareholderName, setPendingShareholderName] = useState<string | null>(null);
+  const [pendingDesignee, setPendingDesignee] = useState<string | null>(null);
+  const [pendingMailingAddress, setPendingMailingAddress] = useState<string | null>(null);
+  const [pendingCityStateZip, setPendingCityStateZip] = useState<string | null>(null);
 
   const goToShareholderDetail = (shareholderId: string) => {
     localStorage.setItem(DASHBOARD_RETURN_KEY, "true");
@@ -99,6 +102,9 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
 
       setPendingShareholderId(storedShareholderId);
       setPendingShareholderName(shareholder.name);
+      setPendingDesignee(shareholder.designee?.trim() || null);
+      setPendingMailingAddress(shareholder.ownerMailingAddress?.trim() || null);
+      setPendingCityStateZip(shareholder.ownerCityStateZip?.trim() || null);
       setShowSignaturePad(true);
       setBarcodeInput("");
 
@@ -201,6 +207,9 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       if (closedPad) {
         setPendingShareholderId(null);
         setPendingShareholderName(null);
+        setPendingDesignee(null);
+        setPendingMailingAddress(null);
+        setPendingCityStateZip(null);
       }
     }
   };
@@ -277,8 +286,15 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
             setShowSignaturePad(false);
             setPendingShareholderId(null);
             setPendingShareholderName(null);
+            setPendingDesignee(null);
+            setPendingMailingAddress(null);
+            setPendingCityStateZip(null);
           }}
+          shareholderId={pendingShareholderId || undefined}
           shareholderName={pendingShareholderName || undefined}
+          designeeName={pendingDesignee}
+          mailingAddress={pendingMailingAddress}
+          cityStateZip={pendingCityStateZip}
         />
       )}
     </div>

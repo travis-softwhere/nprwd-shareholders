@@ -452,7 +452,7 @@ export default function AdminPage() {
         try {
           const allMeetings = await getMeetings();
           setMeetings(allMeetings);
-
+          
           // Mark initial load as complete so we don't fetch again
           initialLoadCompleteRef.current = true;
         } catch (error) {
@@ -833,9 +833,9 @@ export default function AdminPage() {
     try {
       const formData = new FormData();
       formData.append("id", meetingId);
-
+      
       const result = await deleteMeeting(formData);
-
+      
       if (result.success) {
         const allMeetings = await refreshMeetings();
         const deleted = String(meetingId);
@@ -861,11 +861,11 @@ export default function AdminPage() {
         });
         return true;
       }
-      toast({
-        title: "Error",
-        description: result.error || "Failed to delete meeting",
-        variant: "destructive",
-      });
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete meeting",
+          variant: "destructive",
+        });
       return false;
     } catch (error) {
       toast({
@@ -1073,11 +1073,11 @@ export default function AdminPage() {
       const a = document.createElement("a");
       a.href = objectUrl;
       a.download = "mailer-layout-test.pdf";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       URL.revokeObjectURL(objectUrl);
-      toast({
+        toast({
         title: "Test mailer downloaded",
         description:
           "Sample address (centered) and barcode (left edge on panel centerline) — same as generated invitation PDFs.",
@@ -1407,7 +1407,7 @@ export default function AdminPage() {
               {isLoading ? 'Loading...' : 'Refresh'}
             </Button>
         </div>
-
+        
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-muted-foreground sm:grid-cols-3 lg:grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -1575,16 +1575,16 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
-
+              
         {/* Shareholder Meetings Card */}
             <Card>
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white pb-2">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1 space-y-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                  Meetings
-                </CardTitle>
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Meetings
+            </CardTitle>
                 <CardDescription>
                   Use <span className="font-medium text-foreground">Actions</span> on each row to set the active meeting,
                   edit details, export or import benefit unit owners as CSV (Excel meetings only for import), or run
@@ -1645,14 +1645,14 @@ export default function AdminPage() {
                     tabIndex={0}
                     className={cn(
                       "flex w-full flex-col rounded-lg border transition-all text-left",
-                      selectedMeetingId === meeting.id
-                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                      selectedMeetingId === meeting.id 
+                        ? "border-blue-500 bg-blue-50 shadow-sm" 
                         : "hover:border-gray-300 hover:bg-gray-50",
                       isUploading || wipingMeetingId !== null
                         ? "cursor-not-allowed opacity-80"
                         : "cursor-pointer",
                     )}
-                    onClick={() => {
+                      onClick={() => {
                       if (isUploading || wipingMeetingId !== null) return;
                       void persistSystemActiveMeeting(meeting);
                     }}
@@ -1700,9 +1700,9 @@ export default function AdminPage() {
                                 Invitation PDFs not generated yet
                               </span>
                             )}
-                          </div>
                         </div>
-                        {selectedMeetingId === meeting.id && (
+                        </div>
+                          {selectedMeetingId === meeting.id && (
                           <Badge
                             className="shrink-0 border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100"
                             variant="secondary"
@@ -1710,9 +1710,9 @@ export default function AdminPage() {
                             <Check className="mr-1 h-3 w-3" aria-hidden />
                             Active
                           </Badge>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
 
                     <div
                       className="flex shrink-0 flex-wrap items-center justify-end gap-2"
@@ -1976,8 +1976,8 @@ export default function AdminPage() {
                   if (!open) setUncheckMeetingDialog(null);
                 }}
               >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
                     <AlertDialogTitle>Uncheck-in all for this meeting?</AlertDialogTitle>
                     <AlertDialogDescription className="space-y-2">
                       <span className="block">
@@ -2029,10 +2029,10 @@ export default function AdminPage() {
                         <strong>all of their properties</strong>, and{" "}
                         <strong>saved change snapshots</strong> for this meeting. This cannot be undone.
                       </span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <Button
                       type="button"
                       className="bg-red-600 text-white hover:bg-red-700"
@@ -2046,9 +2046,9 @@ export default function AdminPage() {
                     >
                       Delete meeting and data
                     </Button>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
             </div>
           </CardContent>
         </Card>
@@ -2433,18 +2433,18 @@ export default function AdminPage() {
                                 "Save"
                               )}
                             </Button>
-                          </div>
+                    </div>
                         </div>
                       )}
 
-                      <UploadProgress
-                        isUploading={isUploading}
-                        progress={uploadProgress}
-                        currentStep={currentStep}
-                        error={uploadError}
-                        onComplete={handleUploadComplete}
-                      />
-                    </div>
+                    <UploadProgress
+                      isUploading={isUploading}
+                      progress={uploadProgress}
+                      currentStep={currentStep}
+                      error={uploadError}
+                      onComplete={handleUploadComplete}
+                    />
+                  </div>
                     <Button
                       type="button"
                       variant="outline"
@@ -2584,10 +2584,10 @@ export default function AdminPage() {
                   Show shareholders from <span className="font-medium">all</span> meetings (full database). When off, the list uses the{" "}
                   <span className="font-medium">active meeting</span> chosen on the Meetings tab (saved for everyone).
                 </Label>
-              </div>
-            </div>
-            <Card className="border-0 shadow-none">
-              <CardContent className="p-0">
+          </div>
+        </div>
+      <Card className="border-0 shadow-none">
+        <CardContent className="p-0">
                 <ShareholdersList
                   listAllShareholders={shareholdersShowAllMeetings}
                   meetingIdForQuery={undefined}
@@ -2596,10 +2596,10 @@ export default function AdminPage() {
                   refreshTrigger={shareholderAdminRefresh}
                   onAdminMutation={() => setShareholderAdminRefresh((k) => k + 1)}
                 />
-              </CardContent>
-            </Card>
+        </CardContent>
+      </Card>
           </TabsContent>
-
+        
           <TabsContent value="properties" className="mt-4 space-y-6">
           {/* Property Management Section */}
           <div className="space-y-6">
@@ -2738,48 +2738,48 @@ export default function AdminPage() {
 
           <TabsContent value="system" className="mt-4">
             <div className="rounded-md border bg-muted/30 p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900">
-                Dependency Install Links
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Topaz pad capture needs the Chrome extension, SigPlusExtLite on Windows, and SigPlus where applicable.
-              </p>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a
-                    href="https://chromewebstore.google.com/detail/topaz-sigplusextlite-exte/dhcpobccjkdnmibckgpejmbpmpembgco?pli=1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                    Topaz SigPlusExtLite Extension (Chrome Web Store)
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.topazsystems.com/software/SigPlusExtLite_V3.exe"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                    Topaz SigPlusExtLite (SigPlusExtLite_V3.exe)
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.topazsystems.com/software/sigplus.exe"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                    Topaz SigPlus (sigplus.exe)
-                  </a>
-                </li>
-              </ul>
-            </div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Dependency Install Links
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Topaz pad capture needs the Chrome extension, SigPlusExtLite on Windows, and SigPlus where applicable.
+                </p>
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <a
+                      href="https://chromewebstore.google.com/detail/topaz-sigplusextlite-exte/dhcpobccjkdnmibckgpejmbpmpembgco?pli=1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      Topaz SigPlusExtLite Extension (Chrome Web Store)
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.topazsystems.com/software/SigPlusExtLite_V3.exe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      Topaz SigPlusExtLite (SigPlusExtLite_V3.exe)
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.topazsystems.com/software/sigplus.exe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      Topaz SigPlus (sigplus.exe)
+                    </a>
+                  </li>
+                </ul>
+              </div>
           </TabsContent>
         </Tabs>
         </div>

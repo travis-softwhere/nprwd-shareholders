@@ -22,11 +22,17 @@ export default function ManualCheckInButton({
     meetingId,
     isFullyCheckedIn,
     shareholderName,
+    designeeName,
+    mailingAddress,
+    cityStateZip,
 }: {
     shareholderId: string
     meetingId: string
     isFullyCheckedIn: boolean
     shareholderName?: string
+    designeeName?: string | null
+    mailingAddress?: string | null
+    cityStateZip?: string | null
 }) {
     const [isPending, startTransition] = useTransition()
     const [showAlreadyCheckedInDialog, setShowAlreadyCheckedInDialog] = useState(false)
@@ -163,7 +169,11 @@ export default function ManualCheckInButton({
                 <SignaturePad
                     onSignatureComplete={handleSignatureComplete}
                     onCancel={() => setShowSignaturePad(false)}
+                    shareholderId={shareholderId}
                     shareholderName={shareholderName}
+                    designeeName={designeeName}
+                    mailingAddress={mailingAddress}
+                    cityStateZip={cityStateZip}
                 />
             )}
         </>
