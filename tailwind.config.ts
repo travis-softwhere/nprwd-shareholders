@@ -59,6 +59,15 @@ export default {
 			fontSize: {
 				'xxs': '0.625rem', // 10px
 			},
+			keyframes: {
+				"mailer-indeterminate": {
+					"0%": { transform: "translateX(-100%)" },
+					"100%": { transform: "translateX(350%)" },
+				},
+			},
+			animation: {
+				"mailer-indeterminate": "mailer-indeterminate 1.4s ease-in-out infinite",
+			},
 		}
 	},
 	plugins: [require("tailwindcss-animate")],

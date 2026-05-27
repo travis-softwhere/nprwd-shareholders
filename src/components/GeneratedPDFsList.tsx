@@ -6,6 +6,10 @@ import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { FileText, Download, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import {
+  downloadBlobPdfToDisk,
+  downloadAllMeetingMailerPdfs,
+} from "@/lib/meetingMailerBlobDownloads"
 
 interface GeneratedPDF {
   url: string
@@ -20,6 +24,7 @@ export function GeneratedPDFsList() {
   const [pdfs, setPdfs] = useState<GeneratedPDF[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<{ [url: string]: number }>({})
+  const [downloadAllBusy, setDownloadAllBusy] = useState(false)
 
   useEffect(() => {
     const fetchPDFs = async () => {
@@ -48,41 +53,8 @@ export function GeneratedPDFsList() {
 
   const handleDownload = async (pdf: GeneratedPDF) => {
     try {
-      setDownloadProgress((prev) => ({ ...prev, [pdf.url]: 0 }))
-
-      const response = await fetch(pdf.url)
-      if (!response.ok) throw new Error('Failed to download PDF')
-      
-      const contentLength = response.headers.get('content-length')
-      const total = contentLength ? parseInt(contentLength, 10) : 0
-      const reader = response.body?.getReader()
-      let received = 0
-      const chunks = []
-
-      while (true) {
-        const { done, value } = await reader!.read()
-        if (done) break
-        chunks.push(value)
-        received += value.length
-        if (total) {
-          setDownloadProgress((prev) => ({
-            ...prev,
-            [pdf.url]: Math.round((received / total) * 100),
-          }))
-        }
-      }
-
-      // Combine chunks into a blob
-      const blob = new Blob(chunks, { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = pdf.fileName
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
+      setDownloadProgress((prev) => ({ ...prev, [pdf.url]: 10 }))
+      await downloadBlobPdfToDisk({ url: pdf.url, fileName: pdf.fileName })
       setDownloadProgress((prev) => ({ ...prev, [pdf.url]: 100 }))
     } catch (error) {
       toast({
@@ -94,10 +66,34 @@ export function GeneratedPDFsList() {
     }
   }
 
-  // Download all PDFs (sequentially)
   const handleDownloadAll = async () => {
-    for (const pdf of pdfs) {
-      await handleDownload(pdf)
+    if (!selectedMeeting || pdfs.length === 0) return
+    setDownloadAllBusy(true)
+    try {
+      const n = await downloadAllMeetingMailerPdfs(selectedMeeting.id, false)
+      if (n === 0) {
+        toast({
+          title: "No PDF files found",
+          description: "Nothing to download for this meeting.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Download started",
+          description:
+            n === 1
+              ? "1 PDF — check your browser downloads."
+              : `ZIP with ${n} PDFs — check your browser downloads.`,
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Could not download PDFs",
+        variant: "destructive",
+      })
+    } finally {
+      setDownloadAllBusy(false)
     }
   }
 
@@ -114,13 +110,15 @@ export function GeneratedPDFsList() {
               size="sm"
               onClick={handleDownloadAll}
               className="text-blue-600 hover:text-blue-700"
-              disabled={isLoading}
+              disabled={isLoading || downloadAllBusy}
             >
               <Download className="h-4 w-4 mr-1" />
               Download All
             </Button>
           )}
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {(isLoading || downloadAllBusy) && (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
         </div>
       </div>
       

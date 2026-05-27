@@ -1,6 +1,8 @@
 // [id]/page.tsx
 
 import { getShareholderDetails } from "@/actions/getShareholderDetails"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,6 +20,7 @@ import SetDesigneeForm from "@/components/SetDesigneeForm"
 import EditableName from "@/components/EditableName"
 import React from 'react';
 import ShareholderCommentBox from '@/components/ShareholderCommentBox';
+import { ShareholderBarcodeId } from "@/components/ShareholderBarcodeId"
 
 // Update to use Promise type for params, matching Next.js expectations
 export default async function ShareholderPage({
@@ -30,6 +33,7 @@ export default async function ShareholderPage({
   const { id: shareholderId } = resolvedParams;
 
   try {
+    const session = await getServerSession(authOptions)
     const { shareholder, properties } = await getShareholderDetails(shareholderId)
     if (!shareholder) {
       notFound()
@@ -61,12 +65,11 @@ export default async function ShareholderPage({
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                  Benefit Unit Owner ID:
-                  </span>{" "}
-                  {shareholder.shareholderId}
-                </div>
+                <ShareholderBarcodeId
+                  storedShareholderId={shareholder.shareholderId}
+                  meetingId={String(shareholder.meetingId)}
+                  showFixAction={session?.user?.isAdmin === true}
+                />
                 <div className="text-sm text-muted-foreground">
                   <span className="bg-yellow-200 font-medium text-foreground">
                     Was new since mailers:

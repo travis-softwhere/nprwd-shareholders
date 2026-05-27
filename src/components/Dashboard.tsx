@@ -17,6 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import ShareholderList from "@/components/ShareholderList";
 import SignaturePad from "./SignaturePad";
 import { useMeeting } from "@/contexts/MeetingContext";
+import { benefitUnitOwnerHasCompletedCheckIn } from "@/lib/benefitUnitOwnerCheckIn";
 
 interface DashboardProps {
   // Add any props needed specifically for check-in if required
@@ -49,6 +50,11 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
   const [pendingShareholderId, setPendingShareholderId] = useState<string | null>(null);
   const [pendingShareholderName, setPendingShareholderName] = useState<string | null>(null);
 
+  const goToShareholderDetail = (shareholderId: string) => {
+    localStorage.setItem(DASHBOARD_RETURN_KEY, "true");
+    router.push(`/shareholders/${encodeURIComponent(shareholderId)}`);
+  };
+
   // Handle barcode submission (Check-in logic)
   const handleBarcodeSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,9 +86,19 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
         return;
       }
 
-      // Store pending check-in info and show signature pad
-      setPendingShareholderId(barcodeInput.trim());
-      setPendingShareholderName(data.shareholder.name);
+      const shareholder = data.shareholder;
+      const shareholderProperties = Array.isArray(shareholder.properties) ? shareholder.properties : [];
+      const storedShareholderId = String(shareholder.shareholderId ?? barcodeInput.trim());
+
+      if (benefitUnitOwnerHasCompletedCheckIn(shareholder, shareholderProperties)) {
+        setBarcodeInput("");
+        setError("");
+        goToShareholderDetail(storedShareholderId);
+        return;
+      }
+
+      setPendingShareholderId(storedShareholderId);
+      setPendingShareholderName(shareholder.name);
       setShowSignaturePad(true);
       setBarcodeInput("");
 
@@ -132,25 +148,30 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       const data = await response.json();
       
       if (!response.ok) {
+        if (data.alreadyCheckedIn) {
+          goToShareholderDetail(pendingShareholderId);
+          return;
+        }
         setError(data.error || "Check-in failed.");
         toast({
-          title: data.alreadyCheckedIn ? "Already Checked In" : "Check-in Failed",
+          title: "Check-in Failed",
           description: data.error || "Could not check in this property.",
           variant: "destructive",
         });
         return;
       }
 
-      // Set the flag for when we return to this page
-      localStorage.setItem(DASHBOARD_RETURN_KEY, "true");
-      
+      if (data.alreadyCheckedIn) {
+        goToShareholderDetail(pendingShareholderId);
+        return;
+      }
+
       toast({
         title: "Success",
         description: "Property checked in successfully",
       });
-      
-      // Redirect to shareholder details page
-      router.push(`/shareholders/${pendingShareholderId}`);
+
+      goToShareholderDetail(pendingShareholderId);
 
     } catch (err) {
       const errorMessage = "An error occurred during check-in.";

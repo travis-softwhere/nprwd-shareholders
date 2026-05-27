@@ -53,6 +53,7 @@ import {
     resolveMeetingFromShareholderMeetingId,
     shareholderMatchesMeetingFilter,
 } from "@/lib/meetingDisplay"
+import { displayShareholderId } from "@/lib/meetingScopedShareholderId"
 
 interface ShareholderListProps {
     initialShareholders?: Shareholder[]
@@ -272,9 +273,11 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 const searchLower = searchTerm.toLowerCase();
                 
                 // Check shareholder fields
+                const barcodeId = displayShareholderId(shareholder.shareholderId, shareholder.meetingId)
                 const matchesShareholder = 
                     shareholder.name.toLowerCase().includes(searchLower) ||
                     shareholder.shareholderId.toLowerCase().includes(searchLower) ||
+                    barcodeId.toLowerCase().includes(searchLower) ||
                     (shareholder.sharedId?.toLowerCase().includes(searchLower) ?? false) ||
                     (shareholder.ownerMailingAddress?.toLowerCase().includes(searchLower) ?? false) ||
                     (shareholder.ownerCityStateZip?.toLowerCase().includes(searchLower) ?? false);
@@ -677,7 +680,9 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                                     <div className="text-xs font-mono mt-0.5">{canonicalMeetingIdLine(shareholder.meetingId)}</div>
                                                 </td>
                                             )}
-                                            <td className="px-3 py-4 text-sm align-top whitespace-nowrap">{shareholder.shareholderId}</td>
+                                            <td className="px-3 py-4 text-sm align-top whitespace-nowrap font-mono">
+                                                {displayShareholderId(shareholder.shareholderId, shareholder.meetingId)}
+                                            </td>
                                             <td className="px-3 py-4 text-sm font-medium align-top break-words whitespace-normal">
                                                 {shareholder.name}
                                             </td>
@@ -789,7 +794,10 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="w-5/6">
                                                 <h3 className="font-semibold text-gray-900 text-base truncate">{shareholder.name}</h3>
-                                                <p className="text-sm text-gray-500 mt-0.5">Barcode ID: {shareholder.shareholderId}</p>
+                                                <p className="text-sm text-gray-500 mt-0.5 font-mono">
+                                                    Barcode ID:{" "}
+                                                    {displayShareholderId(shareholder.shareholderId, shareholder.meetingId)}
+                                                </p>
                                                 {showMeetingCol && (
                                                     <p className="text-xs text-muted-foreground mt-1">
                                                         {meetingLabel(shareholder.meetingId)}
@@ -872,7 +880,17 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                     <div className="grid gap-3 py-2">
                         <div className="space-y-2">
                             <Label htmlFor="edit-barcode">Barcode ID</Label>
-                            <Input id="edit-barcode" value={editTarget?.shareholderId ?? ""} disabled readOnly />
+                            <Input
+                                id="edit-barcode"
+                                value={
+                                    editTarget
+                                        ? displayShareholderId(editTarget.shareholderId, editTarget.meetingId)
+                                        : ""
+                                }
+                                disabled
+                                readOnly
+                                className="font-mono"
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="edit-name">Name</Label>

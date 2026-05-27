@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useMeeting } from "@/contexts/MeetingContext";
+import { getLatestMeeting } from "@/lib/meetingSelection";
 import { useToast } from "@/components/ui/use-toast";
 import { getMeetingStats } from "@/actions/getMeetingStats";
 import { Calendar } from "lucide-react";
@@ -23,7 +24,8 @@ export function CheckinStatusDashboard() {
 
   useEffect(() => {
     if (meetings.length > 0 && !selectedMeeting) {
-      setSelectedMeeting(meetings[0]);
+      const latest = getLatestMeeting(meetings);
+      if (latest) setSelectedMeeting(latest);
     }
   }, [meetings, selectedMeeting, setSelectedMeeting]);
 

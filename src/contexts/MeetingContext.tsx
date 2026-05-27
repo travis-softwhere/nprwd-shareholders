@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { getMeetings } from "@/actions/getMeetings";
 import { getStoredActiveMeetingId } from "@/actions/activeMeetingSettings";
+import { resolveActiveMeeting } from "@/lib/meetingSelection";
 import type { Meeting } from "@/types/meeting";
 
 // Re-export the Meeting type so it can be imported from this module
@@ -51,10 +52,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       lastRefreshTimeRef.current = now;
 
       if (data.length > 0) {
-        const preferred = storedId
-          ? data.find((m) => String(m.id) === String(storedId))
-          : null;
-        setSelectedMeeting(preferred ?? data[0]);
+        setSelectedMeeting(resolveActiveMeeting(data, storedId));
       } else {
         setSelectedMeeting(null);
       }

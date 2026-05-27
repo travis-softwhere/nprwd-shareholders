@@ -6,6 +6,8 @@ import { ACTIVE_MEETING_SETTING_KEY } from "@/lib/appSettingsKeys"
 import { and, eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 // Update the createMeeting function to ensure dataSource is correctly typed
 export async function createMeeting(formData: FormData) {
@@ -163,6 +165,37 @@ export async function deleteMeeting(formData: FormData) {
         return {
             success: false,
             error: error instanceof Error ? error.message : "Failed to delete meeting",
+        }
+    }
+}
+
+/** Sets flags after invitation PDF batches were stored (Blob or local pipeline completed on the client). */
+export async function markMeetingMailersGenerated(meetingId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user?.isAdmin) {
+            return { success: false, error: "Unauthorized" }
+        }
+
+        const pk = Number.parseInt(meetingId, 10)
+        if (Number.isNaN(pk)) {
+            return { success: false, error: "Invalid meeting id" }
+        }
+
+        await db
+            .update(meetings)
+            .set({
+                mailersGenerated: true,
+                mailerGenerationDate: new Date(),
+            })
+            .where(eq(meetings.id, pk))
+
+        revalidatePath("/admin")
+        return { success: true }
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to update meeting",
         }
     }
 }

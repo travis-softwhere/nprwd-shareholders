@@ -1,7 +1,8 @@
 // Check-in for all properties owned by a shareholder.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { properties } from "@/lib/db/schema";
+import { properties, shareholders } from "@/lib/db/schema";
+import { benefitUnitOwnerHasCompletedCheckIn } from "@/lib/benefitUnitOwnerCheckIn";
 import { eq } from "drizzle-orm";
 import { logToFile, LogLevel } from "@/utils/logger";
 import { getServerSession } from "next-auth";
@@ -56,16 +57,40 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No properties found for this shareholder" }, { status: 404 });
         }
 
-        // Check if any properties are already checked in
-        const alreadyCheckedIn = propertiesToCheckIn.some(p => p.checkedIn);
+        const [shareholderRow] = await db
+            .select()
+            .from(shareholders)
+            .where(eq(shareholders.shareholderId, shareholderId))
+            .limit(1);
+
+        if (
+            benefitUnitOwnerHasCompletedCheckIn(
+                shareholderRow ?? {},
+                propertiesToCheckIn,
+            )
+        ) {
+            await logToFile("properties", "Shareholder already checked in with signature", LogLevel.INFO, {
+                shareholderId,
+            });
+            return NextResponse.json({
+                message: "Already checked in",
+                success: true,
+                alreadyCheckedIn: true,
+            });
+        }
+
+        const alreadyCheckedIn = propertiesToCheckIn.some((p) => p.checkedIn);
         if (alreadyCheckedIn) {
             await logToFile("properties", "Shareholder already checked in", LogLevel.INFO, {
-                shareholderId
+                shareholderId,
             });
-            return NextResponse.json({ 
-                error: "This benefit unit owner is already checked in and has a ballot!",
-                alreadyCheckedIn: true 
-            }, { status: 400 });
+            return NextResponse.json(
+                {
+                    error: "This benefit unit owner is already checked in and has a ballot!",
+                    alreadyCheckedIn: true,
+                },
+                { status: 400 },
+            );
         }
 
         // Use the checkInShareholders action to handle the check-in

@@ -45,10 +45,26 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import { getShareholdersList } from "@/actions/getShareholdersList"
 import { useToast } from "@/components/ui/use-toast"
 import EditablePropertyName from "@/components/EditablePropertyName"
 import { useMeeting } from "@/contexts/MeetingContext"
+import {
+    canonicalShareholderId,
+    displayShareholderId,
+    makeMeetingScopedShareholderId,
+} from "@/lib/meetingScopedShareholderId"
+import { propertyMatchesSearch } from "@/lib/propertySearch"
+
+function PropertyTableCell({ value, className }: { value?: string | null; className?: string }) {
+    const text = value?.trim()
+    return (
+        <TableCell className={cn("min-w-[8rem] max-w-[16rem] whitespace-normal text-sm", className)}>
+            {text || "—"}
+        </TableCell>
+    )
+}
 
 interface TransferHistory {
     id: number;
@@ -170,7 +186,7 @@ export function PropertyManagement() {
         }
         try {
             setIsLoading(true);
-            const response = await fetch(`/api/properties?limit=100${meetingScope}`) // Fetch more properties at once
+            const response = await fetch(`/api/properties?limit=all${meetingScope}`)
             if (!response.ok) {
                 setError("Failed to fetch properties");
                 return;
@@ -352,11 +368,6 @@ export function PropertyManagement() {
         return Object.keys(errors).length === 0;
     }
 
-    const generateRandomId = (): string => {
-        // Generate a 6-digit random ID between 100000 and 999999
-        return Math.floor(Math.random() * (999999 - 100000 + 1) + 100000).toString();
-    };
-
     const handleAddShareholder = async () => {
         // Validate form before submission
         if (!validateNewShareholderForm()) {
@@ -367,13 +378,24 @@ export function PropertyManagement() {
             });
             return;
         }
-        
+
+        if (!selectedMeeting?.id) {
+            toast({
+                title: "No meeting selected",
+                description: "Choose an annual meeting (toolbar) before adding benefit unit owners.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         try {
-            // Create shareholder with generated ID if not provided
-            const shareholderId = newShareholder.id || generateRandomId();
-            
-            // Format all data for API submission
-            const propertyData = formatPropertyDataForSubmission();
+            const meetingKey = String(selectedMeeting.id);
+            const shareholderId =
+                newShareholder.id && newShareholder.id.trim()
+                    ? canonicalShareholderId(newShareholder.id.trim(), meetingKey)
+                    : makeMeetingScopedShareholderId(meetingKey);
+
+            const propertyData = formatPropertyDataForSubmission(shareholderId);
             
             console.log("Sending property data to API:", propertyData);
             
@@ -386,6 +408,9 @@ export function PropertyManagement() {
                 body: JSON.stringify({
                     name: newShareholder.name.trim(),
                     shareholderId,
+                    ownerMailingAddress: newShareholder.property.ownerMailingAddress,
+                    ownerCityStateZip: newShareholder.property.ownerCityStateZip,
+                    meetingId: meetingKey,
                 }),
             });
 
@@ -568,30 +593,18 @@ export function PropertyManagement() {
         }
     };
 
-    const filteredProperties = properties.filter(property => {
-        const matchesSearch = 
-            property.account.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            property.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            property.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
-        
-        const matchesFilter = 
+    const filteredProperties = properties.filter((property) => {
+        const matchesSearch = propertyMatchesSearch(property, searchQuery)
+        const matchesFilter =
             filterStatus === "all" ||
             (filterStatus === "checked" && property.checkedIn) ||
             (filterStatus === "unchecked" && !property.checkedIn)
-        
         return matchesSearch && matchesFilter
     })
 
-    // Filter properties for the dropdown
-    const filteredPropertiesForDropdown = properties.filter(property => {
-        const searchLower = propertySearchQuery.toLowerCase()
-        return (
-            property.account.toLowerCase().includes(searchLower) ||
-            property.serviceAddress.toLowerCase().includes(searchLower) ||
-            property.ownerName.toLowerCase().includes(searchLower) ||
-            property.customerName.toLowerCase().includes(searchLower)
-        )
-    })
+    const filteredPropertiesForDropdown = properties.filter((property) =>
+        propertyMatchesSearch(property, propertySearchQuery),
+    )
 
     // Function to format city/state/zip consistently (CITY STATE ZIP)
     const formatCityStateZip = (value: string): string => {
@@ -837,7 +850,7 @@ export function PropertyManagement() {
     };
 
     // Format property data right before sending to API
-    const formatPropertyDataForSubmission = () => {
+    const formatPropertyDataForSubmission = (shareholderId: string) => {
         // Format the account number
         let formattedAccount = newShareholder.property.account;
         if (!formattedAccount.includes('-')) {
@@ -847,7 +860,7 @@ export function PropertyManagement() {
         // Format all fields and apply final formatting to city/state/zip fields
         return {
             // Required fields
-            shareholderId: newShareholder.id || generateRandomId(),
+            shareholderId,
             account: formattedAccount,
             
             // Customer information
@@ -1216,7 +1229,7 @@ export function PropertyManagement() {
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
-                            placeholder="Search properties..."
+                            placeholder="Search account, addresses, names, shareholder ID…"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-10"
@@ -1242,23 +1255,54 @@ export function PropertyManagement() {
                     <CardTitle>Properties ({filteredProperties.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
+                    <Table className="min-w-[115rem]">
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Account</TableHead>
-                                <TableHead>Service Address</TableHead>
-                                <TableHead>Owner Name</TableHead>
-                                <TableHead>Customer Name</TableHead>
-                                <TableHead>Check-in Status</TableHead>
-                                <TableHead>Actions</TableHead>
+                                <TableHead className="min-w-[6rem]">Account</TableHead>
+                                <TableHead className="min-w-[12rem]">Service Address</TableHead>
+                                <TableHead className="min-w-[9rem]">City, State, Zip</TableHead>
+                                <TableHead className="min-w-[7rem]">Shareholder ID</TableHead>
+                                <TableHead className="min-w-[10rem]">Owner Name</TableHead>
+                                <TableHead className="min-w-[12rem]">Owner Mailing Address</TableHead>
+                                <TableHead className="min-w-[9rem]">Owner City, State, Zip</TableHead>
+                                <TableHead className="min-w-[10rem]">Customer Name</TableHead>
+                                <TableHead className="min-w-[12rem]">Customer Mailing Address</TableHead>
+                                <TableHead className="min-w-[10rem]">Resident Name</TableHead>
+                                <TableHead className="min-w-[12rem]">Resident Mailing Address</TableHead>
+                                <TableHead className="min-w-[9rem]">Resident City, State, Zip</TableHead>
+                                <TableHead className="min-w-[8rem] sticky right-[7.5rem] z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
+                                    Check-in
+                                </TableHead>
+                                <TableHead className="min-w-[7.5rem] sticky right-0 z-10 bg-background">
+                                    Actions
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredProperties.map((property) => (
                                 <TableRow key={property.id}>
-                                    <TableCell className="font-mono">{property.account}</TableCell>
-                                    <TableCell>{property.serviceAddress}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="font-mono text-sm">{property.account || "—"}</TableCell>
+                                    <PropertyTableCell value={property.serviceAddress} />
+                                    <PropertyTableCell value={property.cityStateZip} />
+                                    <TableCell
+                                        className="font-mono text-sm whitespace-nowrap"
+                                        title={
+                                            property.shareholderId &&
+                                            property.shareholderId !==
+                                                displayShareholderId(
+                                                    property.shareholderId,
+                                                    selectedMeeting?.id,
+                                                )
+                                                ? `Stored in database as ${property.shareholderId}`
+                                                : undefined
+                                        }
+                                    >
+                                        {displayShareholderId(
+                                            property.shareholderId,
+                                            selectedMeeting?.id,
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="min-w-[10rem] max-w-[16rem]">
                                         <EditablePropertyName
                                             initialName={property.ownerName}
                                             propertyId={property.id}
@@ -1269,8 +1313,14 @@ export function PropertyManagement() {
                                             }}
                                         />
                                     </TableCell>
-                                    <TableCell>{property.customerName}</TableCell>
-                                    <TableCell>
+                                    <PropertyTableCell value={property.ownerMailingAddress} />
+                                    <PropertyTableCell value={property.ownerCityStateZip} />
+                                    <PropertyTableCell value={property.customerName} />
+                                    <PropertyTableCell value={property.customerMailingAddress} />
+                                    <PropertyTableCell value={property.residentName} />
+                                    <PropertyTableCell value={property.residentMailingAddress} />
+                                    <PropertyTableCell value={property.residentCityStateZip} />
+                                    <TableCell className="sticky right-[7.5rem] z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
                                         <div className="flex items-center gap-2">
                                             <Checkbox
                                                 checked={property.checkedIn}
@@ -1281,8 +1331,8 @@ export function PropertyManagement() {
                                             </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-2">
+                                    <TableCell className="sticky right-0 z-10 bg-background">
+                                        <div className="flex flex-wrap gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -1496,7 +1546,12 @@ export function PropertyManagement() {
                             <SelectContent>
                                 {shareholders.map((shareholder) => (
                                     <SelectItem key={shareholder.shareholderId} value={shareholder.shareholderId}>
-                                        {shareholder.name} ({shareholder.shareholderId})
+                                        {shareholder.name} (
+                                        {displayShareholderId(
+                                            shareholder.shareholderId,
+                                            selectedMeeting?.id,
+                                        )}
+                                        )
                                     </SelectItem>
                                 ))}
                             </SelectContent>

@@ -30,7 +30,10 @@ export interface Property {
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url)
-        const limit = url.searchParams.get("limit") || "100" // Default to 100 properties
+        const limitRaw = url.searchParams.get("limit")
+        /** `all` or `0` = no cap; otherwise numeric limit (default 5000 for list UIs). */
+        const unlimited = limitRaw === "all" || limitRaw === "0"
+        const limit = unlimited ? null : parseInt(limitRaw || "5000", 10)
         const searchTerm = url.searchParams.get("search") || ""
         const checkedInFilter = url.searchParams.get("checkedIn")
         const meetingIdRaw = url.searchParams.get("meetingId")
@@ -62,13 +65,23 @@ export async function GET(request: Request) {
 
         // Add search condition
         if (searchTerm) {
+            const pattern = `%${searchTerm}%`
             conditions.push(
                 sql`(
-                    ${properties.serviceAddress} ILIKE ${`%${searchTerm}%`} OR
-                    ${properties.ownerName} ILIKE ${`%${searchTerm}%`} OR
-                    ${properties.customerName} ILIKE ${`%${searchTerm}%`} OR
-                    ${properties.account} ILIKE ${`%${searchTerm}%`}
-                )`
+                    ${properties.account} ILIKE ${pattern} OR
+                    ${properties.numOf} ILIKE ${pattern} OR
+                    ${properties.shareholderId} ILIKE ${pattern} OR
+                    ${properties.serviceAddress} ILIKE ${pattern} OR
+                    ${properties.cityStateZip} ILIKE ${pattern} OR
+                    ${properties.customerName} ILIKE ${pattern} OR
+                    ${properties.customerMailingAddress} ILIKE ${pattern} OR
+                    ${properties.ownerName} ILIKE ${pattern} OR
+                    ${properties.ownerMailingAddress} ILIKE ${pattern} OR
+                    ${properties.ownerCityStateZip} ILIKE ${pattern} OR
+                    ${properties.residentName} ILIKE ${pattern} OR
+                    ${properties.residentMailingAddress} ILIKE ${pattern} OR
+                    ${properties.residentCityStateZip} ILIKE ${pattern}
+                )`,
             )
         }
         
@@ -103,25 +116,23 @@ export async function GET(request: Request) {
             createdAt: properties.createdAt,
         }
 
-        // Execute the query (join shareholders when scoping to a meeting)
-        const propertyList = meetingId
-            ? await db
+        const baseQuery = meetingId
+            ? db
                 .select(propertySelect)
                 .from(properties)
                 .innerJoin(shareholders, eq(properties.shareholderId, shareholders.shareholderId))
                 .where(whereConditions)
-                .limit(parseInt(limit))
                 .orderBy(desc(properties.id))
-            : await db
+            : db
                 .select(propertySelect)
                 .from(properties)
                 .where(whereConditions)
-                .limit(parseInt(limit))
-                .orderBy(desc(properties.id));
+                .orderBy(desc(properties.id))
 
-        // Log the first few properties to check checkedIn values
-        console.log("First few properties from DB:", propertyList.slice(0, 3));
-        console.log("Checked-in properties count:", propertyList.filter(p => p.checkedIn).length);
+        const propertyList =
+            limit !== null && Number.isFinite(limit) && limit > 0
+                ? await baseQuery.limit(limit)
+                : await baseQuery
 
         await logToFile("properties", "Properties fetched successfully", LogLevel.INFO, {
             propertiesCount: propertyList.length,

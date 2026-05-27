@@ -12,6 +12,10 @@ import { desc } from "drizzle-orm"
 import { properties } from "@/lib/db/schema"
 import { eq, inArray } from "drizzle-orm"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
+import {
+    canonicalShareholderId,
+    shareholderIdLookupCandidates,
+} from "@/lib/meetingScopedShareholderId"
 import { ensureShareholdersSharedIdColumn } from "@/lib/db/ensure-shareholders-shared-id"
 
 const DEBUG_SH_QUERY = process.env.DEBUG_SHAREHOLDERS_QUERY === "1"
@@ -128,11 +132,20 @@ export async function GET(request: Request) {
         console.log("Query params:", { shareholderId, meetingId: meetingIdParam, listAll });
         
         if (shareholderId) {
-            // Get the specific shareholder from the database
-            const result = await db
-                .select()
-                .from(shareholders)
-                .where(eq(shareholders.shareholderId, shareholderId));
+            const lookupIds = shareholderIdLookupCandidates(shareholderId, meetingIdParam)
+            let result: (typeof shareholders.$inferSelect)[] = []
+            let resolvedId = shareholderId.trim()
+            for (const candidate of lookupIds) {
+                const rows = await db
+                    .select()
+                    .from(shareholders)
+                    .where(eq(shareholders.shareholderId, candidate))
+                if (rows.length > 0) {
+                    result = rows
+                    resolvedId = candidate
+                    break
+                }
+            }
             if (result.length === 0) {
                 return NextResponse.json({ error: "Shareholder not found" }, { status: 404 });
             }
@@ -146,8 +159,10 @@ export async function GET(request: Request) {
                     )
                 }
             }
-            // Also fetch properties for this shareholder
-            const props = await db.select().from(properties).where(eq(properties.shareholderId, shareholderId));
+            const props = await db
+                .select()
+                .from(properties)
+                .where(eq(properties.shareholderId, resolvedId));
             return NextResponse.json({ shareholder: { ...result[0], properties: props } });
         }
         // Get all shareholders from the database; optional meeting scope or admin list-all
@@ -254,7 +269,7 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json()
-        const { name, shareholderId, ownerMailingAddress, ownerCityStateZip } = body
+        const { name, shareholderId, ownerMailingAddress, ownerCityStateZip, meetingId: meetingIdFromBody } = body
 
         if (!name || !shareholderId) {
             return NextResponse.json(
@@ -266,29 +281,44 @@ export async function POST(request: Request) {
         // Format name in uppercase to maintain consistency
         const formattedName = name.trim().toUpperCase()
 
-        // Get the latest active meeting
-        const latestMeetings = await db
-            .select()
-            .from(meetings)
-            .orderBy(desc(meetings.year))
-            .limit(1)
+        let meetingId: string
 
-        if (!latestMeetings || latestMeetings.length === 0) {
-            return NextResponse.json(
-                { error: "No active meeting found to associate shareholder with" },
-                { status: 400 }
-            )
+        const rawMeetingId =
+            meetingIdFromBody !== undefined && meetingIdFromBody !== null
+                ? String(meetingIdFromBody).trim()
+                : ""
+
+        if (rawMeetingId.length > 0) {
+            const idNum = Number(rawMeetingId)
+            if (!Number.isFinite(idNum)) {
+                return NextResponse.json({ error: "Invalid meeting id" }, { status: 400 })
+            }
+            const rows = await db.select().from(meetings).where(eq(meetings.id, idNum)).limit(1)
+            if (!rows.length) {
+                return NextResponse.json({ error: "Meeting not found" }, { status: 400 })
+            }
+            meetingId = String(rows[0].id)
+        } else {
+            const latestMeetings = await db.select().from(meetings).orderBy(desc(meetings.year)).limit(1)
+
+            if (!latestMeetings || latestMeetings.length === 0) {
+                return NextResponse.json(
+                    { error: "No active meeting found to associate shareholder with" },
+                    { status: 400 }
+                )
+            }
+
+            meetingId = latestMeetings[0].id.toString()
         }
 
-        const meetingId = latestMeetings[0].id.toString()
+        const scopedShareholderId = canonicalShareholderId(String(shareholderId).trim(), meetingId)
 
-        // Create new shareholder
         console.log('New address for new shareholder: ', ownerMailingAddress, ownerCityStateZip)
         const newShareholder = await db
             .insert(shareholders)
             .values({
                 name: formattedName,
-                shareholderId,
+                shareholderId: scopedShareholderId,
                 meetingId,
                 isNew: true,
                 ownerMailingAddress,
@@ -297,7 +327,7 @@ export async function POST(request: Request) {
             .returning()
 
         await logToFile("shareholders", "New shareholder created", LogLevel.INFO, {
-            shareholderId
+            shareholderId: scopedShareholderId,
         })
 
         return NextResponse.json(newShareholder[0])

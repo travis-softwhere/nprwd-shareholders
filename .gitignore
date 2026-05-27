@@ -14,6 +14,7 @@
 /coverage
 
 /source
+/mailers
 # next.js
 /.next/
 /out/

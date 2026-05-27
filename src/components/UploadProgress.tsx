@@ -24,7 +24,15 @@ export function UploadProgress({
     const showDialog = isUploading || isComplete
 
     return (
-        <Dialog open={showDialog} onOpenChange={() => isComplete && onComplete()}>
+        <Dialog
+            open={showDialog}
+            onOpenChange={(open) => {
+                /* Always reset upload state when the dialog closes so body scroll-lock / in-flight flags cannot strand the page. */
+                if (!open) {
+                    onComplete()
+                }
+            }}
+        >
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>

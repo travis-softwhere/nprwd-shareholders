@@ -2,12 +2,15 @@
 
 import { db } from "@/lib/db"
 import { meetings } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import type { Meeting } from "@/types/meeting"
 
 export async function getMeetings(): Promise<Meeting[]> {
     try {
-        const result = await db.select().from(meetings)
+        const result = await db
+            .select()
+            .from(meetings)
+            .orderBy(asc(meetings.date), asc(meetings.id))
         return result.map((meeting) => ({
             id: meeting.id.toString(),
             year: meeting.year,
