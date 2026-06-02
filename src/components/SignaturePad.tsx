@@ -259,6 +259,8 @@ export default function SignaturePad({
     hash: string;
   } | null>(null);
   const cancelledRef = useRef(false);
+  /** Ignores stale async work when the drawer remounts (e.g. React Strict Mode). */
+  const initSessionRef = useRef(0);
 
   const mailingLines = formatMailingLines(mailingAddress, cityStateZip);
 
@@ -368,83 +370,101 @@ export default function SignaturePad({
     await waitForPadSignature(signCapture);
   }, [waitForPadSignature]);
 
-  const initializeTopaz = useCallback(async () => {
-    if (cancelledRef.current) return;
+  const initializeTopaz = useCallback(
+    async (session: number, options?: { resetConnection?: boolean }) => {
+      const isActive = () =>
+        !cancelledRef.current && initSessionRef.current === session;
 
-    const wrapperUrl = document.documentElement.getAttribute("SigPlusExtLiteWrapperURL");
-    if (!wrapperUrl) {
-      setPhase("unavailable");
-      setError(
-        "SigPlus browser extension not detected. Install it and allow this site, then try check-in again.",
+      if (!isActive()) return;
+
+      const wrapperUrl = document.documentElement.getAttribute("SigPlusExtLiteWrapperURL");
+      if (!wrapperUrl) {
+        setPhase("unavailable");
+        setError(
+          "SigPlus browser extension not detected. Install it and allow this site, then try check-in again.",
+        );
+        return;
+      }
+
+      setPhase("initializing");
+      setError(null);
+      setStatusMessage("Loading SigPlus…");
+
+      await loadTopazWrapper(wrapperUrl);
+      if (!isActive()) return;
+
+      if (options?.resetConnection) {
+        setStatusMessage("Preparing signature pad…");
+        try {
+          await disconnectTopazSafely();
+        } catch {
+          // Continue — retry/sign-again only.
+        }
+        if (!isActive()) return;
+      }
+
+      const global = getTopazGlobal();
+      if (!global) {
+        setPhase("unavailable");
+        setError(
+          "SigPlus wrapper loaded but Topaz API is unavailable. Wait a few seconds and tap Retry.",
+        );
+        return;
+      }
+
+      setStatusMessage("Checking signature pad…");
+      const deviceStatus = await withTimeout(
+        global.GetDeviceStatus(),
+        12_000,
+        "Timed out checking the signature pad. Confirm it is plugged in and tap Retry.",
       );
-      return;
-    }
+      if (!isActive()) return;
 
-    setPhase("initializing");
-    setError(null);
-    setStatusMessage("Loading SigPlus…");
+      if (deviceStatus !== 1) {
+        setPhase("unavailable");
+        setError(
+          deviceStatus === 0
+            ? "No Topaz signature pad detected. Connect the pad via USB and try again."
+            : "Topaz pad or drivers are not ready. Check the device and SigPlus installation.",
+        );
+        return;
+      }
 
-    await loadTopazWrapper(wrapperUrl);
-    if (cancelledRef.current) return;
-
-    setStatusMessage("Preparing signature pad…");
-    try {
-      await disconnectTopazSafely();
-    } catch {
-      // Non-fatal — continue to connect.
-    }
-    if (cancelledRef.current) return;
-
-    const global = getTopazGlobal();
-    if (!global) {
-      setPhase("unavailable");
-      setError(
-        "SigPlus wrapper loaded but Topaz API is unavailable. Wait a few seconds and tap Retry.",
+      setStatusMessage("Connecting to signature pad…");
+      await withTimeout(
+        global.Connect(),
+        15_000,
+        "Timed out connecting to the signature pad. Close any other SigPlus window, then tap Retry.",
       );
-      return;
-    }
+      if (!isActive()) return;
 
-    setStatusMessage("Checking signature pad…");
-    const deviceStatus = await withTimeout(
-      global.GetDeviceStatus(),
-      8_000,
-      "Timed out checking the signature pad. Confirm it is plugged in and tap Retry.",
-    );
-    if (cancelledRef.current) return;
+      setStatusMessage("Signature pad connected.");
+      await runTopazCapture();
+    },
+    [runTopazCapture],
+  );
 
-    if (deviceStatus !== 1) {
-      setPhase("unavailable");
-      setError(
-        deviceStatus === 0
-          ? "No Topaz signature pad detected. Connect the pad via USB and try again."
-          : "Topaz pad or drivers are not ready. Check the device and SigPlus installation.",
-      );
-      return;
-    }
+  const startInitialization = useCallback(
+    (options?: { resetConnection?: boolean }) => {
+      const session = initSessionRef.current + 1;
+      initSessionRef.current = session;
+      cancelledRef.current = false;
 
-    setStatusMessage("Connecting to signature pad…");
-    await withTimeout(
-      global.Connect(),
-      12_000,
-      "Timed out connecting to the signature pad. Close any other SigPlus window, then tap Retry.",
-    );
-    if (cancelledRef.current) return;
-
-    setStatusMessage("Signature pad connected.");
-    await runTopazCapture();
-  }, [runTopazCapture]);
+      initializeTopaz(session, options).catch((err) => {
+        if (cancelledRef.current || initSessionRef.current !== session) return;
+        setPhase("error");
+        setError(err instanceof Error ? err.message : "Could not start signature capture.");
+      });
+    },
+    [initializeTopaz],
+  );
 
   useEffect(() => {
-    cancelledRef.current = false;
-
-    initializeTopaz().catch((err) => {
-      if (cancelledRef.current) return;
-      setPhase("error");
-      setError(err instanceof Error ? err.message : "Could not start signature capture.");
-    });
+    startInitialization();
 
     return () => {
       cancelledRef.current = true;
+      initSessionRef.current += 1;
       void disconnectTopazSafely();
     };
     // Run once per mount; parent remounts via key when opening check-in again.
@@ -456,22 +476,10 @@ export default function SignaturePad({
     void disconnectTopazSafely().finally(() => onCancel());
   };
 
-  const handleSignAgain = async () => {
-    cancelledRef.current = false;
+  const handleSignAgain = () => {
     setPendingSignature(null);
     setError(null);
-    setPhase("initializing");
-    setStatusMessage("Preparing signature pad…");
-    try {
-      await disconnectTopazSafely();
-    } catch {
-      // Continue.
-    }
-    initializeTopaz().catch((err) => {
-      if (cancelledRef.current) return;
-      setPhase("error");
-      setError(err instanceof Error ? err.message : "Could not start signature capture.");
-    });
+    startInitialization({ resetConnection: true });
   };
 
   const handleConfirm = async () => {
@@ -578,12 +586,7 @@ export default function SignaturePad({
               onClick={() => {
                 setError(null);
                 setPendingSignature(null);
-                setPhase("initializing");
-                setStatusMessage("Connecting to signature pad…");
-                initializeTopaz().catch((err) => {
-                  setPhase("error");
-                  setError(err instanceof Error ? err.message : "Could not start signature capture.");
-                });
+                startInitialization({ resetConnection: true });
               }}
             >
               Retry
