@@ -113,6 +113,15 @@ type PadPhase =
   | "unavailable"
   | "error";
 
+/** Time allowed to complete a signature on the physical Topaz pad (polling IsSigned). */
+const SIGN_ON_PAD_TIMEOUT_MS = 180_000;
+/** StartSign can block until the owner finishes on the pad — do not use a short cap here. */
+const TOPAZ_START_SIGN_TIMEOUT_MS = SIGN_ON_PAD_TIMEOUT_MS;
+const TOPAZ_DEVICE_CHECK_TIMEOUT_MS = 30_000;
+const TOPAZ_CONNECT_TIMEOUT_MS = 30_000;
+const TOPAZ_SETUP_STEP_TIMEOUT_MS = 15_000;
+const TOPAZ_POLL_IS_SIGNED_TIMEOUT_MS = 5_000;
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -325,24 +334,36 @@ export default function SignaturePad({
       setPhase("capturing");
       setStatusMessage("Sign on the Topaz pad now.");
 
-      const deadline = Date.now() + 120_000;
+      const deadline = Date.now() + SIGN_ON_PAD_TIMEOUT_MS;
       while (Date.now() < deadline) {
         if (cancelledRef.current) {
           await signCapture.SignComplete().catch(() => undefined);
           return;
         }
 
-        const signed = await signCapture.IsSigned();
+        let signed = false;
+        try {
+          signed = await withTimeout(
+            signCapture.IsSigned(),
+            TOPAZ_POLL_IS_SIGNED_TIMEOUT_MS,
+            "Timed out reading signature pad status.",
+          );
+        } catch {
+          // Keep polling until the overall signing deadline.
+        }
+
         if (signed) {
           await finishCapture(signCapture);
           return;
         }
 
-        await new Promise((resolve) => window.setTimeout(resolve, 400));
+        await delay(400);
       }
 
       await signCapture.SignComplete().catch(() => undefined);
-      throw new Error("Signature timed out. Try again.");
+      throw new Error(
+        "Signature timed out. You have up to 3 minutes to sign on the pad — try again.",
+      );
     },
     [finishCapture],
   );
@@ -415,7 +436,7 @@ export default function SignaturePad({
       setStatusMessage("Checking signature pad…");
       const deviceStatus = await withTimeout(
         global.GetDeviceStatus(),
-        12_000,
+        TOPAZ_DEVICE_CHECK_TIMEOUT_MS,
         "Timed out checking the signature pad. Confirm it is plugged in and tap Retry.",
       );
       if (!isActive()) return;
@@ -433,7 +454,7 @@ export default function SignaturePad({
       setStatusMessage("Connecting to signature pad…");
       await withTimeout(
         global.Connect(),
-        15_000,
+        TOPAZ_CONNECT_TIMEOUT_MS,
         "Timed out connecting to the signature pad. Close any other SigPlus window, then tap Retry.",
       );
       if (!isActive()) return;
@@ -554,7 +575,8 @@ export default function SignaturePad({
             <p className="text-sm text-gray-700">{error ?? statusMessage}</p>
             {phase === "capturing" ? (
               <p className="text-xs text-muted-foreground">
-                Use the physical Topaz pad only — mouse signing is disabled.
+                Use the physical Topaz pad only — mouse signing is disabled. You have up to 3
+                minutes to complete your signature.
               </p>
             ) : null}
           </div>
