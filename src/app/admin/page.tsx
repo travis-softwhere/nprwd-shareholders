@@ -154,6 +154,9 @@ export default function AdminPage() {
   const [uncheckInProgress, setUncheckInProgress] = useState(false);
   const [deleteMeetingDialog, setDeleteMeetingDialog] = useState<Meeting | null>(null);
   const [exportingMeetingId, setExportingMeetingId] = useState<string | null>(null);
+  const [exportingSignatureListMeetingId, setExportingSignatureListMeetingId] = useState<
+    string | null
+  >(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -748,6 +751,49 @@ export default function AdminPage() {
       setExportingMeetingId(null);
     }
   }, [toast]);
+
+  const handleExportSignatureList = useCallback(
+    async (meeting: Meeting) => {
+      setExportingSignatureListMeetingId(meeting.id);
+      try {
+        const res = await fetch(
+          `/api/admin/meetings/${encodeURIComponent(meeting.id)}/export-signature-list`,
+        );
+        const disposition = res.headers.get("Content-Disposition");
+        let filename = `signature-list-meeting-${meeting.year}-${meeting.id}.pdf`;
+        const match = disposition?.match(/filename="([^"]+)"/);
+        if (match?.[1]) filename = match[1];
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(typeof err.error === "string" ? err.error : "Export failed");
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({
+          title: "Signature list ready",
+          description: `Downloaded signature list PDF — ${meeting.year} Annual Meeting (ID ${meeting.id}).`,
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Export failed",
+          description:
+            error instanceof Error ? error.message : "Could not export signature list",
+        });
+      } finally {
+        setExportingSignatureListMeetingId(null);
+      }
+    },
+    [toast],
+  );
 
   const runBulkUncheckInForMeeting = useCallback(async () => {
     if (!uncheckMeetingDialog) return;
@@ -1413,7 +1459,7 @@ export default function AdminPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="meetings">Meetings</TabsTrigger>
             <TabsTrigger value="employees">Employees</TabsTrigger>
-            <TabsTrigger value="shareholders">Shareholders</TabsTrigger>
+            <TabsTrigger value="shareholders">Benefit Unit Owners</TabsTrigger>
             <TabsTrigger value="properties">Properties</TabsTrigger>
             <TabsTrigger value="system">System</TabsTrigger>
           </TabsList>
@@ -1781,6 +1827,23 @@ export default function AdminPage() {
                             <Download className="mr-2 h-4 w-4" aria-hidden />
                           )}
                           Export benefit unit owners (CSV)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={
+                            isUploading ||
+                            wipingMeetingId !== null ||
+                            exportingSignatureListMeetingId === meeting.id
+                          }
+                          onSelect={() => {
+                            setTimeout(() => void handleExportSignatureList(meeting), 0);
+                          }}
+                        >
+                          {exportingSignatureListMeetingId === meeting.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                          ) : (
+                            <FileText className="mr-2 h-4 w-4" aria-hidden />
+                          )}
+                          Export Signature List
                         </DropdownMenuItem>
                         {isDevEnvironment ? (
                           <DropdownMenuItem

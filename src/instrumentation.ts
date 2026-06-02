@@ -9,7 +9,9 @@ export async function register() {
     if (process.env.NEXT_RUNTIME === "edge") return
     try {
         const { ensureShareholdersSharedIdColumn } = await import("@/lib/db/ensure-shareholders-shared-id")
+        const { ensurePropertySignatureColumns } = await import("@/lib/db/ensure-property-signature-columns")
         await ensureShareholdersSharedIdColumn()
+        await ensurePropertySignatureColumns()
     } catch (e) {
         console.warn(
             "[instrumentation] ensure shareholders.shared_id skipped (will retry on first API use):",

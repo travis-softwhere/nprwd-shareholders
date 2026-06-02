@@ -2,12 +2,13 @@
 
 import { db } from "@/lib/db"
 import { properties, shareholders } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { syncShareholderCheckedInFromProperties } from "@/lib/syncShareholderCheckIn"
+import { ensurePropertySignatureColumns } from "@/lib/db/ensure-property-signature-columns"
 
 type CheckInResult = {
     success: boolean
@@ -18,7 +19,8 @@ export async function checkInShareholders(
     shareholderId: string,
     signatureImage?: string,
     signatureHash?: string,
-    meetingId?: string
+    meetingId?: string,
+    propertyIds?: number[],
 ): Promise<CheckInResult> {
     try {
         // Verify user is authenticated
@@ -58,27 +60,87 @@ export async function checkInShareholders(
             }
         }
 
-        await db.update(properties)
-            .set({ checkedIn: true })
-            .where(eq(properties.shareholderId, shareholderId))
+        await ensurePropertySignatureColumns()
 
-        await db.update(shareholders)
-            .set({
-                checkedInAt: new Date(),
-                ...(signatureImage && signatureHash
-                    ? { signatureImage, signatureHash }
-                    : {}),
-            })
-            .where(eq(shareholders.shareholderId, shareholderId))
+        const checkedInAt = new Date()
+        const propertyCheckInUpdate: {
+            checkedIn: boolean
+            checkedInAt: Date
+            signatureImage?: string
+            signatureHash?: string
+        } = { checkedIn: true, checkedInAt }
+
+        if (signatureImage && signatureHash) {
+            propertyCheckInUpdate.signatureImage = signatureImage
+            propertyCheckInUpdate.signatureHash = signatureHash
+        }
+
+        const propertyConditions = [
+            eq(properties.shareholderId, shareholderId),
+            eq(properties.checkedIn, false),
+        ]
+        if (propertyIds?.length) {
+            propertyConditions.push(inArray(properties.id, propertyIds))
+        }
+
+        const updated = await db
+            .update(properties)
+            .set(propertyCheckInUpdate)
+            .where(and(...propertyConditions))
+            .returning({ id: properties.id })
+
+        if (updated.length === 0) {
+            return {
+                success: false,
+                message: propertyIds?.length
+                    ? "No matching properties to check in (they may already be checked in)."
+                    : "All properties are already checked in.",
+            }
+        }
 
         await syncShareholderCheckedInFromProperties(shareholderId)
+
+        const allProperties = await db
+            .select({
+                checkedIn: properties.checkedIn,
+                signatureHash: properties.signatureHash,
+            })
+            .from(properties)
+            .where(eq(properties.shareholderId, shareholderId))
+
+        const allCheckedIn =
+            allProperties.length > 0 && allProperties.every((p) => Boolean(p.checkedIn))
+        const uniqueHashes = new Set(
+            allProperties.map((p) => p.signatureHash?.trim()).filter(Boolean),
+        )
+        const singleSignatureForAll = allCheckedIn && uniqueHashes.size === 1
+
+        if (singleSignatureForAll && signatureImage && signatureHash) {
+            await db
+                .update(shareholders)
+                .set({
+                    checkedInAt,
+                    signatureImage,
+                    signatureHash,
+                })
+                .where(eq(shareholders.shareholderId, shareholderId))
+        } else {
+            await db
+                .update(shareholders)
+                .set({ checkedInAt: allCheckedIn ? checkedInAt : null })
+                .where(eq(shareholders.shareholderId, shareholderId))
+        }
 
         revalidatePath(`/shareholders/${shareholderId}`)
         revalidatePath("/")
 
+        const count = updated.length
         return {
             success: true,
-            message: "Shareholders checked in successfully"
+            message:
+                count === 1
+                    ? "Property checked in successfully"
+                    : `${count} properties checked in successfully`,
         }
     }
     catch (error) {

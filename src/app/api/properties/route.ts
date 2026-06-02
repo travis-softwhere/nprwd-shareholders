@@ -6,6 +6,7 @@ import { properties, shareholders } from "@/lib/db/schema"
 import { desc, sql, and, eq, inArray } from "drizzle-orm"
 import { shareholderMeetingIdVariantsForFilter } from "@/lib/shareholderMeetingScope"
 import { logToFile, LogLevel } from "@/utils/logger"
+import { ensurePropertySignatureColumns } from "@/lib/db/ensure-property-signature-columns"
 
 // Define interface for properties to make TypeScript happy
 export interface Property {
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
 
         // Authentication check
         const session = await getServerSession(authOptions)
+        await ensurePropertySignatureColumns()
         if (!session?.user) {
             await logToFile("properties", "Unauthorized access attempt", LogLevel.ERROR)
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

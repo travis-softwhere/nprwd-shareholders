@@ -6,15 +6,14 @@ import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import SignaturePad from "./SignaturePad"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
 export default function ManualCheckInButton({
@@ -25,6 +24,8 @@ export default function ManualCheckInButton({
     designeeName,
     mailingAddress,
     cityStateZip,
+    totalProperties = 0,
+    checkedInProperties = 0,
 }: {
     shareholderId: string
     meetingId: string
@@ -33,14 +34,22 @@ export default function ManualCheckInButton({
     designeeName?: string | null
     mailingAddress?: string | null
     cityStateZip?: string | null
+    totalProperties?: number
+    checkedInProperties?: number
 }) {
     const [isPending, startTransition] = useTransition()
     const [showAlreadyCheckedInDialog, setShowAlreadyCheckedInDialog] = useState(false)
     const [showSignaturePad, setShowSignaturePad] = useState(false)
+    const [signaturePadKey, setSignaturePadKey] = useState(0)
     const router = useRouter()
 
+    const remainingCount = Math.max(0, totalProperties - checkedInProperties)
+    const hasCheckedIn = checkedInProperties > 0
+    const canCheckInMore = remainingCount > 0
+
     const handleCheckIn = () => {
-        setShowSignaturePad(true);
+        setSignaturePadKey((k) => k + 1)
+        setShowSignaturePad(true)
     }
 
     const handleSignatureComplete = async (signatureImage: string, signatureHash: string) => {
@@ -86,11 +95,9 @@ export default function ManualCheckInButton({
 
     const handleProceedAnyway = () => {
         setShowAlreadyCheckedInDialog(false);
-        // Actually force the check-in here, e.g. by calling the API with a "force" flag if you want
-        // Or just call checkInShareholders directly if you want to override
     }
 
-    const handleUndoCheckIn = () => {
+    const handleUndoAllCheckIn = () => {
         startTransition(async () => {
             try {
                 const response = await fetch("/api/properties/manual-checkin", {
@@ -101,7 +108,7 @@ export default function ManualCheckInButton({
                     body: JSON.stringify({
                         shareholderId,
                         meetingId,
-                        action: "undo"
+                        action: "undo",
                     })
                 });
 
@@ -114,10 +121,10 @@ export default function ManualCheckInButton({
                 toast({ title: "Success", description: data.message });
                 router.refresh();
             } catch (error) {
-                toast({ 
-                    title: "Error", 
-                    description: error instanceof Error ? error.message : "Failed to undo check in", 
-                    variant: "destructive" 
+                toast({
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to undo check in",
+                    variant: "destructive"
                 });
             }
         })
@@ -125,48 +132,58 @@ export default function ManualCheckInButton({
 
     return (
         <>
-            {!isFullyCheckedIn ? (
-                <>
+            <div className="mt-2 ml-4 flex flex-wrap items-center gap-2">
+                {canCheckInMore ? (
                     <Button
                         onClick={handleCheckIn}
                         disabled={isPending}
                         size="sm"
                         variant="default"
-                        className="mt-2 ml-4"
                     >
-                        {isPending ? "Checking in..." : "Check In"}
+                        {isPending
+                            ? "Working…"
+                            : remainingCount < totalProperties
+                              ? `Check In All Remaining (${remainingCount})`
+                              : "Check In All"}
                     </Button>
-                    <AlertDialog open={showAlreadyCheckedInDialog} onOpenChange={setShowAlreadyCheckedInDialog}>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Already Checked In</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This Benefit Unit Owner is already checked in and has a ballot! Please verify before proceeding.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleProceedAnyway}>
-                                    Proceed Anyway
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </>
-            ) : (
-                <Button
-                    onClick={handleUndoCheckIn}
-                    disabled={isPending}
-                    size="sm"
-                    variant="default"
-                    className="mt-2 ml-4"
-                >
-                    {isPending ? "Undoing..." : "Undo Check In"}
-                </Button>
-            )}
-            
+                ) : null}
+
+                {hasCheckedIn ? (
+                    <Button
+                        onClick={handleUndoAllCheckIn}
+                        disabled={isPending}
+                        size="sm"
+                        variant="outline"
+                    >
+                        {isPending
+                            ? "Undoing…"
+                            : isFullyCheckedIn
+                              ? "Undo Check In All"
+                              : `Undo Check In All (${checkedInProperties})`}
+                    </Button>
+                ) : null}
+            </div>
+
+            <AlertDialog open={showAlreadyCheckedInDialog} onOpenChange={setShowAlreadyCheckedInDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Already Checked In</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This Benefit Unit Owner is already checked in and has a ballot! Please verify before proceeding.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleProceedAnyway}>
+                            Proceed Anyway
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {showSignaturePad && (
                 <SignaturePad
+                    key={signaturePadKey}
                     onSignatureComplete={handleSignatureComplete}
                     onCancel={() => setShowSignaturePad(false)}
                     shareholderId={shareholderId}
@@ -174,6 +191,8 @@ export default function ManualCheckInButton({
                     designeeName={designeeName}
                     mailingAddress={mailingAddress}
                     cityStateZip={cityStateZip}
+                    totalProperties={totalProperties}
+                    checkedInProperties={checkedInProperties}
                 />
             )}
         </>

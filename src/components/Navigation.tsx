@@ -35,10 +35,10 @@ export default function Navigation() {
     }, [])
 
     const navigation = [
-        { name: "Shareholders", href: "/", icon: Home },
+        { name: "Benefit Unit Owners", href: "/", icon: Home },
         { name: "Properties", href: "/properties", icon: Building },
         { name: "Prizes", href: "/awards", icon: Award, adminOnly: true },
-        { name: "Settings", href: "/admin", icon: Settings, adminOnly: true },
+        { name: "Admin", href: "/admin", icon: Settings, adminOnly: true },
     ]
 
     // Desktop sidebar navigation

@@ -16,8 +16,26 @@ const TEXT_FIELDS: (keyof Property)[] = [
     "residentCityStateZip",
 ]
 
-/** Case-insensitive match across all searchable property text columns (and check-in status keywords). */
-export function propertyMatchesSearch(property: Property, query: string): boolean {
+export type PropertySearchContext = {
+    /** When set, a query that matches any service address only returns those properties (not owner/customer mailing matches). */
+    properties?: Property[]
+}
+
+function serviceAddressMatchesQuery(property: Property, q: string): boolean {
+    const addr = property.serviceAddress?.trim().toLowerCase()
+    return !!addr && addr.includes(q)
+}
+
+function anyServiceAddressMatches(properties: Property[], q: string): boolean {
+    return properties.some((p) => serviceAddressMatchesQuery(p, q))
+}
+
+/** Case-insensitive match across searchable property text columns (and check-in status keywords). */
+export function propertyMatchesSearch(
+    property: Property,
+    query: string,
+    context?: PropertySearchContext,
+): boolean {
     const q = query.trim().toLowerCase()
     if (!q) return true
 
@@ -35,6 +53,11 @@ export function propertyMatchesSearch(property: Property, query: string): boolea
         !property.checkedIn
     ) {
         return true
+    }
+
+    const pool = context?.properties
+    if (pool?.length && anyServiceAddressMatches(pool, q)) {
+        return serviceAddressMatchesQuery(property, q)
     }
 
     return TEXT_FIELDS.some((key) => {

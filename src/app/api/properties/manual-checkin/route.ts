@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
         // Get request body
         const body = await request.json();
-        const { shareholderId, action, signatureImage, signatureHash, meetingId } = body;
+        const { shareholderId, action, signatureImage, signatureHash, meetingId, propertyIds } = body;
 
         if (!shareholderId || !action) {
             return NextResponse.json(
@@ -78,9 +78,31 @@ export async function POST(request: Request) {
 
         let result;
         if (action === "checkin") {
-            result = await checkInShareholders(shareholderId, signatureImage, signatureHash, meetingId);
+            const ids = Array.isArray(propertyIds)
+                ? propertyIds
+                      .map((id: unknown) => Number(id))
+                      .filter((id) => Number.isFinite(id))
+                : undefined
+
+            result = await checkInShareholders(
+                shareholderId,
+                signatureImage,
+                signatureHash,
+                meetingId,
+                ids?.length ? ids : undefined,
+            );
         } else if (action === "undo") {
-            result = await undoCheckInShareholders(shareholderId, meetingId);
+            const undoIds = Array.isArray(propertyIds)
+                ? propertyIds
+                      .map((id: unknown) => Number(id))
+                      .filter((id) => Number.isFinite(id))
+                : undefined;
+
+            result = await undoCheckInShareholders(
+                shareholderId,
+                meetingId,
+                undoIds?.length ? undoIds : undefined,
+            );
         } else {
             return NextResponse.json(
                 { error: "Invalid action. Must be 'checkin' or 'undo'" },

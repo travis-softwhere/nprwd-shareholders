@@ -12,6 +12,8 @@ export type SignaturePadContext = {
   cityStateZip?: string | null;
   /** When checking in a single property, show its service address. */
   propertyServiceAddress?: string | null;
+  totalProperties?: number;
+  checkedInProperties?: number;
 };
 
 interface SignaturePadProps extends SignaturePadContext {
@@ -32,12 +34,16 @@ function ShareholderContextPanel({
   designeeLoading,
   mailingLines,
   propertyServiceAddress,
+  totalProperties,
+  checkedInProperties,
 }: {
   shareholderName?: string;
   designeeName: string | null;
   designeeLoading?: boolean;
   mailingLines: string | null;
   propertyServiceAddress?: string | null;
+  totalProperties?: number;
+  checkedInProperties?: number;
 }) {
   return (
     <div className="mb-4 space-y-3 rounded-md border border-blue-100 bg-blue-50/80 p-3 text-sm">
@@ -47,6 +53,15 @@ function ShareholderContextPanel({
             Benefit unit owner
           </p>
           <p className="text-base font-semibold text-foreground">{shareholderName}</p>
+          {typeof totalProperties === "number" && totalProperties > 0 ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{totalProperties}</span>{" "}
+              {totalProperties === 1 ? "property" : "properties"}
+              {typeof checkedInProperties === "number" && checkedInProperties > 0
+                ? ` · ${checkedInProperties} already checked in`
+                : null}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {mailingLines ? (
@@ -96,7 +111,27 @@ type PadPhase =
   | "unavailable"
   | "error";
 
-let topazWrapperLoaded = false;
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutMessage: string,
+): Promise<T> {
+  let timeoutId: number | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+}
 
 async function hashImageData(imageData: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -113,9 +148,63 @@ function getTopazSignCapture(): TopazSignCapture | null {
   return topaz?.SignatureCaptureWindow?.Sign ?? null;
 }
 
-function disconnectTopaz() {
-  const topaz = (window as unknown as { Topaz?: { Global?: TopazGlobal } }).Topaz;
-  topaz?.Global?.Disconnect().catch(() => undefined);
+function getTopazGlobal(): TopazGlobal | null {
+  return (window as unknown as { Topaz?: { Global?: TopazGlobal } }).Topaz?.Global ?? null;
+}
+
+async function waitForTopazGlobal(maxMs = 10_000): Promise<TopazGlobal> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const global = getTopazGlobal();
+    if (global) return global;
+    await delay(150);
+  }
+  throw new Error(
+    "Topaz API did not become available. Wait a few seconds, then tap Retry.",
+  );
+}
+
+async function loadTopazWrapper(wrapperUrl: string): Promise<void> {
+  let script = document.getElementById("topaz-wrapper-script") as HTMLScriptElement | null;
+  if (!script) {
+    await new Promise<void>((resolve, reject) => {
+      script = document.createElement("script");
+      script.id = "topaz-wrapper-script";
+      script.src = wrapperUrl;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load SigPlus wrapper."));
+      document.head.appendChild(script);
+    });
+  }
+  await waitForTopazGlobal(15_000);
+}
+
+/** Best-effort release; never blocks longer than a few seconds. */
+async function disconnectTopazSafely() {
+  const signCapture = getTopazSignCapture();
+  if (signCapture) {
+    try {
+      await withTimeout(
+        signCapture.SignComplete().catch(() => undefined),
+        2_500,
+        "SignComplete timed out",
+      );
+    } catch {
+      // Continue — extension may be idle.
+    }
+  }
+
+  const global = getTopazGlobal();
+  if (global) {
+    try {
+      await withTimeout(global.Disconnect(), 2_500, "Disconnect timed out");
+    } catch {
+      // Pad may already be disconnected.
+    }
+  }
+
+  await delay(150);
 }
 
 interface TopazGlobal {
@@ -155,6 +244,8 @@ export default function SignaturePad({
   mailingAddress,
   cityStateZip,
   propertyServiceAddress,
+  totalProperties,
+  checkedInProperties,
 }: SignaturePadProps) {
   const [phase, setPhase] = useState<PadPhase>("initializing");
   const [statusMessage, setStatusMessage] = useState("Connecting to signature pad…");
@@ -201,7 +292,7 @@ export default function SignaturePad({
   const finishCapture = useCallback(async (signCapture: TopazSignCapture) => {
     const raw = await signCapture.GetSignatureImage();
     await signCapture.SignComplete().catch(() => undefined);
-    disconnectTopaz();
+    await disconnectTopazSafely();
 
     if (!raw) {
       throw new Error("No signature received from the pad.");
@@ -244,6 +335,8 @@ export default function SignaturePad({
   );
 
   const runTopazCapture = useCallback(async () => {
+    if (cancelledRef.current) return;
+
     const signCapture = getTopazSignCapture();
     if (!signCapture) {
       setPhase("unavailable");
@@ -256,15 +349,17 @@ export default function SignaturePad({
     setPhase("waiting");
     setStatusMessage("Ready — sign on the Topaz pad.");
 
-    await signCapture.SetImageDetails(2, 500, 100, false, false, 25);
-    await signCapture.SetPenDetails("#000000", 2);
-    await signCapture.SetMinSigPoints(25);
-    await signCapture.StartSign(false, 1, 0, "");
+    await withTimeout(signCapture.SetImageDetails(2, 500, 100, false, false, 25), 8_000, "Timed out starting signature capture.");
+    await withTimeout(signCapture.SetPenDetails("#000000", 2), 5_000, "Timed out configuring pen.");
+    await withTimeout(signCapture.SetMinSigPoints(25), 5_000, "Timed out configuring signature pad.");
+    await withTimeout(signCapture.StartSign(false, 1, 0, ""), 10_000, "Timed out opening the signature window. Close other SigPlus windows and tap Retry.");
 
     await waitForPadSignature(signCapture);
   }, [waitForPadSignature]);
 
   const initializeTopaz = useCallback(async () => {
+    if (cancelledRef.current) return;
+
     const wrapperUrl = document.documentElement.getAttribute("SigPlusExtLiteWrapperURL");
     if (!wrapperUrl) {
       setPhase("unavailable");
@@ -274,33 +369,38 @@ export default function SignaturePad({
       return;
     }
 
-    if (!topazWrapperLoaded) {
-      const existing = document.getElementById("topaz-wrapper-script");
-      if (!existing) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.id = "topaz-wrapper-script";
-          script.src = wrapperUrl;
-          script.onload = () => {
-            topazWrapperLoaded = true;
-            resolve();
-          };
-          script.onerror = () => reject(new Error("Failed to load SigPlus wrapper."));
-          document.head.appendChild(script);
-        });
-      } else {
-        topazWrapperLoaded = true;
-      }
-    }
+    setPhase("initializing");
+    setError(null);
+    setStatusMessage("Loading SigPlus…");
 
-    const topaz = (window as unknown as { Topaz?: { Global?: TopazGlobal } }).Topaz;
-    if (!topaz?.Global) {
+    await loadTopazWrapper(wrapperUrl);
+    if (cancelledRef.current) return;
+
+    setStatusMessage("Preparing signature pad…");
+    try {
+      await disconnectTopazSafely();
+    } catch {
+      // Non-fatal — continue to connect.
+    }
+    if (cancelledRef.current) return;
+
+    const global = getTopazGlobal();
+    if (!global) {
       setPhase("unavailable");
-      setError("SigPlus wrapper loaded but Topaz API is unavailable.");
+      setError(
+        "SigPlus wrapper loaded but Topaz API is unavailable. Wait a few seconds and tap Retry.",
+      );
       return;
     }
 
-    const deviceStatus = await topaz.Global.GetDeviceStatus();
+    setStatusMessage("Checking signature pad…");
+    const deviceStatus = await withTimeout(
+      global.GetDeviceStatus(),
+      8_000,
+      "Timed out checking the signature pad. Confirm it is plugged in and tap Retry.",
+    );
+    if (cancelledRef.current) return;
+
     if (deviceStatus !== 1) {
       setPhase("unavailable");
       setError(
@@ -311,7 +411,14 @@ export default function SignaturePad({
       return;
     }
 
-    await topaz.Global.Connect();
+    setStatusMessage("Connecting to signature pad…");
+    await withTimeout(
+      global.Connect(),
+      12_000,
+      "Timed out connecting to the signature pad. Close any other SigPlus window, then tap Retry.",
+    );
+    if (cancelledRef.current) return;
+
     setStatusMessage("Signature pad connected.");
     await runTopazCapture();
   }, [runTopazCapture]);
@@ -327,25 +434,30 @@ export default function SignaturePad({
 
     return () => {
       cancelledRef.current = true;
-      disconnectTopaz();
+      void disconnectTopazSafely();
     };
-  }, [initializeTopaz]);
+    // Run once per mount; parent remounts via key when opening check-in again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCancel = () => {
     cancelledRef.current = true;
-    const signCapture = getTopazSignCapture();
-    signCapture?.SignComplete().catch(() => undefined);
-    disconnectTopaz();
-    onCancel();
+    void disconnectTopazSafely().finally(() => onCancel());
   };
 
-  const handleSignAgain = () => {
+  const handleSignAgain = async () => {
     cancelledRef.current = false;
     setPendingSignature(null);
     setError(null);
     setPhase("initializing");
-    setStatusMessage("Connecting to signature pad…");
+    setStatusMessage("Preparing signature pad…");
+    try {
+      await disconnectTopazSafely();
+    } catch {
+      // Continue.
+    }
     initializeTopaz().catch((err) => {
+      if (cancelledRef.current) return;
       setPhase("error");
       setError(err instanceof Error ? err.message : "Could not start signature capture.");
     });
@@ -399,6 +511,8 @@ export default function SignaturePad({
             designeeLoading={designeeLoading}
             mailingLines={mailingLines}
             propertyServiceAddress={propertyServiceAddress}
+            totalProperties={totalProperties}
+            checkedInProperties={checkedInProperties}
           />
 
         {phase === "review" && pendingSignature ? (

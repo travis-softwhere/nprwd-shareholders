@@ -9,15 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
-import { Loader2, Search, Building2, Plus, Filter, Home, UserPlus, ArrowRightLeft, History, FileQuestion } from "lucide-react"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+import { Loader2, Search, Building2, Plus, Filter, Home, UserPlus, ArrowRightLeft, FileQuestion } from "lucide-react"
+import { PropertyListCards } from "@/components/PropertyListCards"
 import {
     Dialog,
     DialogContent,
@@ -58,30 +51,18 @@ import {
 import { propertyMatchesSearch } from "@/lib/propertySearch"
 import { formatPropertyForApi } from "@/lib/formatPropertyForApi"
 
-function PropertyTableCell({ value, className }: { value?: string | null; className?: string }) {
-    const text = value?.trim()
-    return (
-        <TableCell className={cn("min-w-[8rem] max-w-[16rem] whitespace-normal text-sm", className)}>
-            {text || "—"}
-        </TableCell>
-    )
-}
-
 interface TransferHistory {
     id: number;
     fromShareholder: {
-        id: number;
+        id: string;
         name: string;
     };
     toShareholder: {
-        id: number;
+        id: string;
         name: string;
     };
     transferredAt: string;
-    transferredBy: {
-        id: number;
-        name: string;
-    };
+    meetingId?: string | null;
 }
 
 interface NewShareholder {
@@ -161,40 +142,67 @@ export function PropertyManagement() {
     }, [selectedMeeting?.id])
 
     const focusPropertyIdParam = searchParams.get("propertyId")
+    const focusSearchParam = searchParams.get("search")?.trim() ?? ""
 
     useEffect(() => {
         focusedPropertyHandled.current = false
-    }, [focusPropertyIdParam])
+    }, [focusPropertyIdParam, focusSearchParam])
 
     useEffect(() => {
-        if (isLoading || properties.length === 0 || !focusPropertyIdParam) return
+        if (!focusSearchParam) return
+        setFilterStatus("all")
+        setSearchQuery(focusSearchParam)
+    }, [focusSearchParam])
+
+    useEffect(() => {
+        if (isLoading || properties.length === 0) return
         if (focusedPropertyHandled.current) return
+        if (!focusPropertyIdParam && !focusSearchParam) return
 
-        const id = Number.parseInt(focusPropertyIdParam, 10)
-        if (!Number.isFinite(id)) return
+        let property: Property | undefined
 
-        const property = properties.find((p) => p.id === id)
+        if (focusPropertyIdParam) {
+            const id = Number.parseInt(focusPropertyIdParam, 10)
+            if (Number.isFinite(id)) {
+                property = properties.find((p) => p.id === id)
+            }
+        }
+
+        if (!property && focusSearchParam) {
+            const q = focusSearchParam.toLowerCase()
+            property =
+                properties.find(
+                    (p) => p.serviceAddress?.trim().toLowerCase() === q,
+                ) ??
+                properties.find((p) =>
+                    propertyMatchesSearch(p, focusSearchParam, { properties }),
+                )
+        }
+
         if (!property) return
 
         focusedPropertyHandled.current = true
         setFilterStatus("all")
-        setHighlightedPropertyId(id)
+        setHighlightedPropertyId(property.id)
         setSelectedProperty({ ...property })
-        const searchSeed = property.account?.trim() || property.serviceAddress?.trim() || ""
-        if (searchSeed) {
-            setSearchQuery(searchSeed)
+        if (focusSearchParam) {
+            setSearchQuery(focusSearchParam)
+        } else {
+            const searchSeed =
+                property.serviceAddress?.trim() || property.account?.trim() || ""
+            if (searchSeed) setSearchQuery(searchSeed)
         }
 
-        const scrollToRow = () => {
-            document.getElementById(`property-row-${id}`)?.scrollIntoView({
+        const scrollToCard = () => {
+            document.getElementById(`property-card-${property!.id}`)?.scrollIntoView({
                 block: "center",
                 behavior: "smooth",
             })
         }
         requestAnimationFrame(() => {
-            requestAnimationFrame(scrollToRow)
+            requestAnimationFrame(scrollToCard)
         })
-    }, [isLoading, properties, focusPropertyIdParam])
+    }, [isLoading, properties, focusPropertyIdParam, focusSearchParam])
 
     const fetchShareholders = async () => {
         if (!selectedMeeting?.id) {
@@ -606,7 +614,7 @@ export function PropertyManagement() {
     };
 
     const filteredProperties = properties.filter((property) => {
-        const matchesSearch = propertyMatchesSearch(property, searchQuery)
+        const matchesSearch = propertyMatchesSearch(property, searchQuery, { properties })
         const matchesFilter =
             filterStatus === "all" ||
             (filterStatus === "checked" && property.checkedIn) ||
@@ -615,7 +623,7 @@ export function PropertyManagement() {
     })
 
     const filteredPropertiesForDropdown = properties.filter((property) =>
-        propertyMatchesSearch(property, propertySearchQuery),
+        propertyMatchesSearch(property, propertySearchQuery, { properties }),
     )
 
     // Function to format city/state/zip consistently (CITY STATE ZIP)
@@ -918,14 +926,7 @@ export function PropertyManagement() {
 
     return (
         <div className="space-y-6">
-            {/* Header with Add Shareholder Button */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold">Properties</h2>
-                    <p className="text-muted-foreground">
-                        Manage properties and shareholders
-                    </p>
-                </div>
+            <div className="flex justify-end">
                 <Dialog open={isAddingShareholder} onOpenChange={setIsAddingShareholder}>
                     <DialogTrigger asChild>
                         <Button>
@@ -1261,138 +1262,28 @@ export function PropertyManagement() {
                 </Select>
             </div>
 
-            {/* Properties Table */}
+            {/* Properties list */}
             <Card>
                 <CardHeader>
                     <CardTitle>Properties ({filteredProperties.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table className="min-w-[115rem]">
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="min-w-[6rem]">Account</TableHead>
-                                <TableHead className="min-w-[12rem]">Service Address</TableHead>
-                                <TableHead className="min-w-[9rem]">City, State, Zip</TableHead>
-                                <TableHead className="min-w-[7rem]">Shareholder ID</TableHead>
-                                <TableHead className="min-w-[10rem]">Owner Name</TableHead>
-                                <TableHead className="min-w-[12rem]">Owner Mailing Address</TableHead>
-                                <TableHead className="min-w-[9rem]">Owner City, State, Zip</TableHead>
-                                <TableHead className="min-w-[10rem]">Customer Name</TableHead>
-                                <TableHead className="min-w-[12rem]">Customer Mailing Address</TableHead>
-                                <TableHead className="min-w-[10rem]">Resident Name</TableHead>
-                                <TableHead className="min-w-[12rem]">Resident Mailing Address</TableHead>
-                                <TableHead className="min-w-[9rem]">Resident City, State, Zip</TableHead>
-                                <TableHead className="min-w-[8rem] sticky right-[7.5rem] z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
-                                    Check-in
-                                </TableHead>
-                                <TableHead className="min-w-[7.5rem] sticky right-0 z-10 bg-background">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredProperties.map((property) => (
-                                <TableRow
-                                    key={property.id}
-                                    id={`property-row-${property.id}`}
-                                    className={cn(
-                                        highlightedPropertyId === property.id &&
-                                            "bg-amber-50 ring-2 ring-amber-400 ring-inset",
-                                    )}
-                                >
-                                    <TableCell className="font-mono text-sm">{property.account || "—"}</TableCell>
-                                    <PropertyTableCell value={property.serviceAddress} />
-                                    <PropertyTableCell value={property.cityStateZip} />
-                                    <TableCell
-                                        className="font-mono text-sm whitespace-nowrap"
-                                        title={
-                                            property.shareholderId &&
-                                            property.shareholderId !==
-                                                displayShareholderId(
-                                                    property.shareholderId,
-                                                    selectedMeeting?.id,
-                                                )
-                                                ? `Stored in database as ${property.shareholderId}`
-                                                : undefined
-                                        }
-                                    >
-                                        {displayShareholderId(
-                                            property.shareholderId,
-                                            selectedMeeting?.id,
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="min-w-[10rem] max-w-[16rem]">
-                                        <EditablePropertyName
-                                            initialName={property.ownerName}
-                                            propertyId={property.id}
-                                            onUpdate={(newName) => {
-                                                setProperties(properties.map(p => 
-                                                    p.id === property.id ? { ...p, ownerName: newName } : p
-                                                ))
-                                            }}
-                                        />
-                                    </TableCell>
-                                    <PropertyTableCell value={property.ownerMailingAddress} />
-                                    <PropertyTableCell value={property.ownerCityStateZip} />
-                                    <PropertyTableCell value={property.customerName} />
-                                    <PropertyTableCell value={property.customerMailingAddress} />
-                                    <PropertyTableCell value={property.residentName} />
-                                    <PropertyTableCell value={property.residentMailingAddress} />
-                                    <PropertyTableCell value={property.residentCityStateZip} />
-                                    <TableCell className="sticky right-[7.5rem] z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
-                                        <div className="flex items-center gap-2">
-                                            <Checkbox
-                                                checked={property.checkedIn}
-                                                onCheckedChange={() => handleToggleCheckIn(property)}
-                                            />
-                                            <span className={property.checkedIn ? "text-green-600" : "text-gray-500"}>
-                                                {property.checkedIn ? "Checked In" : "Not Checked In"}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="sticky right-0 z-10 bg-background">
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleEdit(property)}
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleViewHistory(property.id)}
-                                            >
-                                                <History className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="outline" size="sm">
-                                                        Delete
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete Property</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Are you sure you want to delete this property? This action cannot be undone.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(property.id)}>
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <PropertyListCards
+                        properties={filteredProperties}
+                        meetingId={selectedMeeting?.id}
+                        highlightedPropertyId={highlightedPropertyId}
+                        onToggleCheckIn={handleToggleCheckIn}
+                        onEdit={handleEdit}
+                        onViewHistory={handleViewHistory}
+                        onDelete={handleDelete}
+                        onOwnerNameUpdate={(propertyId, newName) => {
+                            setProperties(
+                                properties.map((p) =>
+                                    p.id === propertyId ? { ...p, ownerName: newName } : p,
+                                ),
+                            )
+                        }}
+                    />
                 </CardContent>
             </Card>
 
@@ -1600,9 +1491,11 @@ export function PropertyManagement() {
                                                 <p className="font-medium">
                                                     To: {transfer.toShareholder.name}
                                                 </p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Transferred by: {transfer.transferredBy.name}
-                                                </p>
+                                                {transfer.meetingId ? (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Meeting ID: {transfer.meetingId}
+                                                    </p>
+                                                ) : null}
                                             </div>
                                             <p className="text-sm text-muted-foreground">
                                                 {new Date(transfer.transferredAt).toLocaleDateString()}

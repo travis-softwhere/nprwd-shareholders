@@ -47,6 +47,9 @@ export const properties = pgTable("properties", {
     residentCityStateZip: text("resident_city_state_zip"),
     serviceAddress: text("service_address"),
     checkedIn: boolean("checked_in").default(false),
+    signatureImage: text("signature_image"),
+    signatureHash: text("signature_hash"),
+    checkedInAt: timestamp("checked_in_at"),
     createdAt: timestamp("created_at").defaultNow(),
 })
 
@@ -55,10 +58,9 @@ export const propertyTransfers = pgTable("property_transfers", {
     propertyId: integer("property_id").notNull().references(() => properties.id),
     fromShareholderId: text("from_shareholder_id").notNull(),
     toShareholderId: text("to_shareholder_id").notNull(),
-    transferredAt: timestamp("transferred_at").notNull().defaultNow(),
-    transferredBy: text("transferred_by").notNull(),
+    transferDate: timestamp("transfer_date").notNull(),
+    meetingId: text("meeting_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow()
 })
 
 /** Key/value app configuration (e.g. org-wide active meeting id). */

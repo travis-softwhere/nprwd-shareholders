@@ -12,14 +12,14 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "AquaShare",
-  description: "NPRWD shareholder meeting management portal",
+  description: "NPRWD benefit unit owner meeting management portal",
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
   },
   manifest: "/manifest.json",
   applicationName: "AquaShare",
-  keywords: ["NPRWD", "shareholders", "meetings", "water district", "utility"],
+  keywords: ["NPRWD", "benefit unit owners", "meetings", "water district", "utility"],
   authors: [{ name: "NPRWD", url: "https://nprwd.com" }],
   creator: "NPRWD",
   publisher: "NPRWD",

@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { logToFile, LogLevel } from "@/utils/logger"
 import { syncShareholderCheckedInFromProperties } from "@/lib/syncShareholderCheckIn"
+import { ensurePropertySignatureColumns } from "@/lib/db/ensure-property-signature-columns"
 import { revalidatePath } from "next/cache"
 
 // Get a single property
@@ -156,10 +157,31 @@ export async function PUT(
             formattedUpdateData: JSON.stringify(formattedUpdateData)
         })
 
-        // Update property with explicit checkedIn handling
+        await ensurePropertySignatureColumns()
+
+        const checkedInChanged = formattedUpdateData.checkedIn !== existingProperty.checkedIn
+        const propertyPatch: Record<string, unknown> = { ...formattedUpdateData }
+
+        if (checkedInChanged && !formattedUpdateData.checkedIn) {
+            propertyPatch.signatureImage = null
+            propertyPatch.signatureHash = null
+            propertyPatch.checkedInAt = null
+        } else if (
+            checkedInChanged &&
+            formattedUpdateData.checkedIn &&
+            typeof body.signatureImage === "string" &&
+            typeof body.signatureHash === "string" &&
+            body.signatureImage.trim() &&
+            body.signatureHash.trim()
+        ) {
+            propertyPatch.signatureImage = body.signatureImage
+            propertyPatch.signatureHash = body.signatureHash
+            propertyPatch.checkedInAt = new Date()
+        }
+
         const [updatedProperty] = await db
             .update(properties)
-            .set(formattedUpdateData)
+            .set(propertyPatch)
             .where(eq(properties.id, parseInt(propertyId)))
             .returning()
 

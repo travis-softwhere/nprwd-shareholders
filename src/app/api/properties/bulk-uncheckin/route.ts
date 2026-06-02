@@ -44,7 +44,12 @@ export async function POST(request: Request) {
         if (ids.length > 0) {
             const updated = await db
                 .update(properties)
-                .set({ checkedIn: false })
+                .set({
+                    checkedIn: false,
+                    signatureImage: null,
+                    signatureHash: null,
+                    checkedInAt: null,
+                })
                 .where(inArray(properties.shareholderId, ids))
                 .returning({ id: properties.id })
             propertyCount = updated.length

@@ -175,7 +175,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             } catch (error) {
                 toast({
                     title: "Error",
-                    description: "Failed to fetch shareholders data. Please try again.",
+                    description: "Failed to fetch benefit unit owner data. Please try again.",
                     variant: "destructive",
                 })
             } finally {
@@ -223,7 +223,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 const err = await res.json().catch(() => ({}))
                 throw new Error(err.error || "Update failed")
             }
-            toast({ title: "Saved", description: "Shareholder updated." })
+            toast({ title: "Saved", description: "Benefit unit owner updated." })
             setEditTarget(null)
             fireMutation()
         } catch (err) {
@@ -248,7 +248,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
                 const err = await res.json().catch(() => ({}))
                 throw new Error(err.error || "Delete failed")
             }
-            toast({ title: "Deleted", description: "Shareholder and their properties were removed." })
+            toast({ title: "Deleted", description: "Benefit unit owner and their properties were removed." })
             setDeleteTargetId(null)
             fireMutation()
         } catch (err) {
@@ -427,7 +427,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             <div className="flex items-center justify-center h-full py-12">
                 <div className="text-center">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-                    <p className="text-lg text-gray-600">Loading shareholders...</p>
+                    <p className="text-lg text-gray-600">Loading benefit unit owners...</p>
                 </div>
             </div>
         )
@@ -596,7 +596,7 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
             {paginatedShareholders.length === 0 && !isLoading ? (
                 <div className="text-center py-12 px-4 bg-gray-50 rounded-lg border border-gray-200">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900">No shareholders found</h3>
+                    <h3 className="text-lg font-medium text-gray-900">No benefit unit owners found</h3>
                     <p className="mt-1 text-sm text-gray-500">
                         Try adjusting your search or filter criteria
                     </p>

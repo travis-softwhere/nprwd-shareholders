@@ -129,7 +129,7 @@ export async function POST(
                 sql`INSERT INTO property_transfers 
                 (property_id, from_shareholder_id, to_shareholder_id, transfer_date, meeting_id) 
                 VALUES 
-                (${parseInt(propertyId)}, ${oldShareholderId || "unknown"}, ${newShareholderId}, ${currentDate}, ${meetingId})`
+                (${parseInt(propertyId)}, ${oldShareholderId || "unknown"}, ${targetShareholderId}, ${currentDate}, ${meetingId})`
             );
             
             await logToFile("properties", "Property transfer record created", LogLevel.INFO, {

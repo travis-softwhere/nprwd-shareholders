@@ -72,7 +72,7 @@ export function DataChanges({ meetingId }: DataChangesProps) {
                     <History className="h-5 w-5" />
                     Data Changes
                 </CardTitle>
-                <CardDescription>Track changes in shareholder data since mailer generation</CardDescription>
+                <CardDescription>Track changes in benefit unit owner data since mailer generation</CardDescription>
             </CardHeader>
             <CardContent>
                 {loading ? (

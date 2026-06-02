@@ -4,9 +4,11 @@ import { db } from "@/lib/db"
 import { shareholders, properties } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
+import { ensurePropertySignatureColumns } from "@/lib/db/ensure-property-signature-columns"
 
 export async function getShareholderDetails(shareholderId: string) {
     try {
+        await ensurePropertySignatureColumns()
         const [shareholder, shareholderProperties] = await Promise.all([
             db
                 .select()

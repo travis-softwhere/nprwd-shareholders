@@ -57,7 +57,7 @@ function ShareholderCommentBox({ shareholderId }: { shareholderId: string }) {
                         value={comment}
                         onChange={e => setComment(e.target.value)}
                         disabled={saving}
-                        placeholder="Enter notes or comments about this shareholder..."
+                        placeholder="Enter notes or comments about this benefit unit owner..."
                         style={{ resize: 'vertical' }}
                     />
                     <div className="flex items-center justify-end gap-4 mt-2">

@@ -17,6 +17,7 @@ import {
     shareholderIdLookupCandidates,
 } from "@/lib/meetingScopedShareholderId"
 import { ensureShareholdersSharedIdColumn } from "@/lib/db/ensure-shareholders-shared-id"
+import { ensurePropertySignatureColumns } from "@/lib/db/ensure-property-signature-columns"
 
 const DEBUG_SH_QUERY = process.env.DEBUG_SHAREHOLDERS_QUERY === "1"
 
@@ -122,6 +123,7 @@ export async function GET(request: Request) {
         }
 
         await ensureShareholdersSharedIdColumn()
+        await ensurePropertySignatureColumns()
 
         // Parse shareholderId and meetingId from query params
         const url = new URL(request.url);

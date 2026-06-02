@@ -46,7 +46,7 @@ export default async function ShareholderPage({
           href="/"
           className="text-primary hover:underline mb-2 sm:mb-4 inline-flex items-center"
         >
-          ← Back to Shareholders
+          ← Back to benefit unit owners
         </Link>
 
         <Card className="mt-2 sm:mt-4">
@@ -105,33 +105,11 @@ export default async function ShareholderPage({
                   designeeName={shareholder.designee}
                   mailingAddress={shareholder.ownerMailingAddress}
                   cityStateZip={shareholder.ownerCityStateZip}
+                  totalProperties={properties.length}
+                  checkedInProperties={checkedInCount}
                   />
 
                   <SetDesigneeForm shareholderId={shareholder.shareholderId} />
-                  
-                  {/* Signature Display */}
-                  {shareholder.signatureImage && (
-                    <div className="mt-4">
-                      <h3 className="text-sm font-medium text-foreground mb-2">Signature</h3>
-                      <div className="border rounded p-2 bg-gray-50">
-                        <img 
-                          src={shareholder.signatureImage} 
-                          alt="Shareholder signature" 
-                          className="max-w-full h-32 object-contain"
-                        />
-                        {shareholder.signatureHash && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Hash: <span className="font-mono break-all">{shareholder.signatureHash}</span>
-                          </div>
-                        )}
-                        {shareholder.checkedInAt && (
-                          <div className="text-xs text-muted-foreground">
-                            Checked in: {new Date(shareholder.checkedInAt).toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
               {/* Comment Box Below Properties */}
@@ -140,10 +118,20 @@ export default async function ShareholderPage({
 
             <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Properties</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              Check in checks in every property for this benefit unit owner. Click a row to manage
-              a single property on the Properties page.
+              Signatures are stored on each property. Use Check In on a row to sign for one property,
+              or Check In Remaining to sign for all unchecked properties at once. Click a row to open
+              that property on the Properties page.
             </p>
-            <ShareholderPropertiesTable properties={propertiesWithLabels} />
+            <ShareholderPropertiesTable
+              properties={propertiesWithLabels}
+              shareholderId={shareholder.shareholderId}
+              meetingId={String(shareholder.meetingId)}
+              shareholderName={shareholder.name}
+              designeeName={shareholder.designee}
+              mailingAddress={shareholder.ownerMailingAddress}
+              cityStateZip={shareholder.ownerCityStateZip}
+              checkedInProperties={checkedInCount}
+            />
 
           </CardContent>
         </Card>

@@ -13,6 +13,7 @@
 # testing
 /coverage
 
+/logs
 /source
 /mailers
 # next.js

@@ -47,11 +47,14 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
   }, []);
 
   const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [signaturePadKey, setSignaturePadKey] = useState(0);
   const [pendingShareholderId, setPendingShareholderId] = useState<string | null>(null);
   const [pendingShareholderName, setPendingShareholderName] = useState<string | null>(null);
   const [pendingDesignee, setPendingDesignee] = useState<string | null>(null);
   const [pendingMailingAddress, setPendingMailingAddress] = useState<string | null>(null);
   const [pendingCityStateZip, setPendingCityStateZip] = useState<string | null>(null);
+  const [pendingTotalProperties, setPendingTotalProperties] = useState(0);
+  const [pendingCheckedInProperties, setPendingCheckedInProperties] = useState(0);
 
   const goToShareholderDetail = (shareholderId: string) => {
     localStorage.setItem(DASHBOARD_RETURN_KEY, "true");
@@ -80,10 +83,10 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       const data = await response.json();
       
       if (!response.ok) {
-        setError(data.error || "Shareholder not found.");
+        setError(data.error || "Benefit unit owner not found.");
         toast({
           title: "Error",
-          description: data.error || "Could not find this shareholder.",
+          description: data.error || "Could not find this benefit unit owner.",
           variant: "destructive",
         });
         return;
@@ -105,6 +108,11 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       setPendingDesignee(shareholder.designee?.trim() || null);
       setPendingMailingAddress(shareholder.ownerMailingAddress?.trim() || null);
       setPendingCityStateZip(shareholder.ownerCityStateZip?.trim() || null);
+      setPendingTotalProperties(shareholderProperties.length);
+      setPendingCheckedInProperties(
+        shareholderProperties.filter((p: { checkedIn?: boolean }) => Boolean(p.checkedIn)).length,
+      );
+      setSignaturePadKey((k) => k + 1);
       setShowSignaturePad(true);
       setBarcodeInput("");
 
@@ -185,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
 
       toast({
         title: "Success",
-        description: "Property checked in successfully",
+        description: "All properties checked in successfully",
       });
 
       goToShareholderDetail(shareholderId);
@@ -210,6 +218,8 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
         setPendingDesignee(null);
         setPendingMailingAddress(null);
         setPendingCityStateZip(null);
+        setPendingTotalProperties(0);
+        setPendingCheckedInProperties(0);
       }
     }
   };
@@ -247,7 +257,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
                     onChange={(e) => setBarcodeInput(e.target.value)}
                     className="w-full pl-10 pr-4 text-center h-12 text-lg rounded-md"
                     autoFocus
-                    aria-label="Shareholder ID Input"
+                    aria-label="Benefit unit owner ID input"
                   />
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                 </div>
@@ -281,6 +291,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
       
       {showSignaturePad && (
         <SignaturePad
+          key={signaturePadKey}
           onSignatureComplete={handleSignatureComplete}
           onCancel={() => {
             setShowSignaturePad(false);
@@ -289,12 +300,16 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
             setPendingDesignee(null);
             setPendingMailingAddress(null);
             setPendingCityStateZip(null);
+            setPendingTotalProperties(0);
+            setPendingCheckedInProperties(0);
           }}
           shareholderId={pendingShareholderId || undefined}
           shareholderName={pendingShareholderName || undefined}
           designeeName={pendingDesignee}
           mailingAddress={pendingMailingAddress}
           cityStateZip={pendingCityStateZip}
+          totalProperties={pendingTotalProperties}
+          checkedInProperties={pendingCheckedInProperties}
         />
       )}
     </div>
