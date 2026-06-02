@@ -115,15 +115,34 @@ type PadPhase =
 
 /** Time allowed to complete a signature on the physical Topaz pad (polling IsSigned). */
 const SIGN_ON_PAD_TIMEOUT_MS = 180_000;
-/** StartSign can block until the owner finishes on the pad — do not use a short cap here. */
-const TOPAZ_START_SIGN_TIMEOUT_MS = SIGN_ON_PAD_TIMEOUT_MS;
-const TOPAZ_DEVICE_CHECK_TIMEOUT_MS = 30_000;
-const TOPAZ_CONNECT_TIMEOUT_MS = 30_000;
-const TOPAZ_SETUP_STEP_TIMEOUT_MS = 15_000;
-const TOPAZ_POLL_IS_SIGNED_TIMEOUT_MS = 5_000;
+/** Brief wait for the capture window after StartSign is invoked (StartSign itself is not capped). */
+const TOPAZ_START_SIGN_WINDOW_MS = 3_000;
+const TOPAZ_DEVICE_CHECK_TIMEOUT_MS = 45_000;
+const TOPAZ_CONNECT_TIMEOUT_MS = 45_000;
+const TOPAZ_SETUP_STEP_TIMEOUT_MS = 30_000;
+const TOPAZ_CONNECT_RETRIES = 3;
+const TOPAZ_CONNECT_RETRY_DELAY_MS = 800;
+const TOPAZ_UNMOUNT_DISCONNECT_DELAY_MS = 400;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function retryAsync<T>(
+  fn: () => Promise<T>,
+  attempts: number,
+  pauseMs: number,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) await delay(pauseMs);
+    }
+  }
+  throw lastError;
 }
 
 async function withTimeout<T>(
@@ -330,7 +349,7 @@ export default function SignaturePad({
   }, []);
 
   const waitForPadSignature = useCallback(
-    async (signCapture: TopazSignCapture) => {
+    async (signCapture: TopazSignCapture, getStartSignError?: () => Error | null) => {
       setPhase("capturing");
       setStatusMessage("Sign on the Topaz pad now.");
 
@@ -341,13 +360,14 @@ export default function SignaturePad({
           return;
         }
 
+        const startSignErr = getStartSignError?.();
+        if (startSignErr) {
+          throw startSignErr;
+        }
+
         let signed = false;
         try {
-          signed = await withTimeout(
-            signCapture.IsSigned(),
-            TOPAZ_POLL_IS_SIGNED_TIMEOUT_MS,
-            "Timed out reading signature pad status.",
-          );
+          signed = await signCapture.IsSigned();
         } catch {
           // Keep polling until the overall signing deadline.
         }
@@ -381,14 +401,37 @@ export default function SignaturePad({
     }
 
     setPhase("waiting");
-    setStatusMessage("Ready — sign on the Topaz pad.");
+    setStatusMessage("Preparing signature capture…");
 
-    await withTimeout(signCapture.SetImageDetails(2, 500, 100, false, false, 25), 8_000, "Timed out starting signature capture.");
-    await withTimeout(signCapture.SetPenDetails("#000000", 2), 5_000, "Timed out configuring pen.");
-    await withTimeout(signCapture.SetMinSigPoints(25), 5_000, "Timed out configuring signature pad.");
-    await withTimeout(signCapture.StartSign(false, 1, 0, ""), 10_000, "Timed out opening the signature window. Close other SigPlus windows and tap Retry.");
+    await withTimeout(
+      signCapture.SetImageDetails(2, 500, 100, false, false, 25),
+      TOPAZ_SETUP_STEP_TIMEOUT_MS,
+      "Timed out starting signature capture. Close other SigPlus windows and tap Retry.",
+    );
+    await withTimeout(
+      signCapture.SetPenDetails("#000000", 2),
+      TOPAZ_SETUP_STEP_TIMEOUT_MS,
+      "Timed out configuring pen.",
+    );
+    await withTimeout(
+      signCapture.SetMinSigPoints(25),
+      TOPAZ_SETUP_STEP_TIMEOUT_MS,
+      "Timed out configuring signature pad.",
+    );
 
-    await waitForPadSignature(signCapture);
+    // StartSign often blocks until the owner finishes signing — never cap it with a short timeout.
+    const startSignState = { error: null as Error | null };
+    const startSignPromise = signCapture.StartSign(false, 1, 0, "").catch((err: unknown) => {
+      startSignState.error = err instanceof Error ? err : new Error(String(err));
+    });
+
+    await Promise.race([startSignPromise.then(() => undefined), delay(TOPAZ_START_SIGN_WINDOW_MS)]);
+
+    if (startSignState.error) {
+      throw startSignState.error;
+    }
+
+    await waitForPadSignature(signCapture, () => startSignState.error);
   }, [waitForPadSignature]);
 
   const initializeTopaz = useCallback(
@@ -434,10 +477,15 @@ export default function SignaturePad({
       }
 
       setStatusMessage("Checking signature pad…");
-      const deviceStatus = await withTimeout(
-        global.GetDeviceStatus(),
-        TOPAZ_DEVICE_CHECK_TIMEOUT_MS,
-        "Timed out checking the signature pad. Confirm it is plugged in and tap Retry.",
+      const deviceStatus = await retryAsync(
+        () =>
+          withTimeout(
+            global.GetDeviceStatus(),
+            TOPAZ_DEVICE_CHECK_TIMEOUT_MS,
+            "Timed out checking the signature pad. Confirm it is plugged in and tap Retry.",
+          ),
+        TOPAZ_CONNECT_RETRIES,
+        TOPAZ_CONNECT_RETRY_DELAY_MS,
       );
       if (!isActive()) return;
 
@@ -452,10 +500,15 @@ export default function SignaturePad({
       }
 
       setStatusMessage("Connecting to signature pad…");
-      await withTimeout(
-        global.Connect(),
-        TOPAZ_CONNECT_TIMEOUT_MS,
-        "Timed out connecting to the signature pad. Close any other SigPlus window, then tap Retry.",
+      await retryAsync(
+        () =>
+          withTimeout(
+            global.Connect(),
+            TOPAZ_CONNECT_TIMEOUT_MS,
+            "Timed out connecting to the signature pad. Close any other SigPlus window, then tap Retry.",
+          ),
+        TOPAZ_CONNECT_RETRIES,
+        TOPAZ_CONNECT_RETRY_DELAY_MS,
       );
       if (!isActive()) return;
 
@@ -486,7 +539,9 @@ export default function SignaturePad({
     return () => {
       cancelledRef.current = true;
       initSessionRef.current += 1;
-      void disconnectTopazSafely();
+      window.setTimeout(() => {
+        void disconnectTopazSafely();
+      }, TOPAZ_UNMOUNT_DISCONNECT_DELAY_MS);
     };
     // Run once per mount; parent remounts via key when opening check-in again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
