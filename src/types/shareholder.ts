@@ -15,6 +15,7 @@ export interface Shareholder {
         id: number;
         account: string;
         serviceAddress?: string;
+        customerName?: string;
         customerMailingAddress?: string;
         cityStateZip?: string;
         ownerName?: string;

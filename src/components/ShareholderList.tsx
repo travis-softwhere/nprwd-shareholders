@@ -54,7 +54,11 @@ import {
     shareholderMatchesMeetingFilter,
 } from "@/lib/meetingDisplay"
 import { displayShareholderId } from "@/lib/meetingScopedShareholderId"
-import { shareholderRecordMatchesSearch } from "@/lib/shareholderSearch"
+import {
+    collectPropertyNames,
+    filterShareholdersBySearchTerm,
+    type ShareholderSearchFields,
+} from "@/lib/shareholderSearch"
 
 interface ShareholderListProps {
     initialShareholders?: Shareholder[]
@@ -266,63 +270,52 @@ const ShareholderList: React.FC<ShareholderListProps> = ({
     const filteredShareholders = useMemo(() => {
         if (!allShareholders.length) return [];
 
-        return allShareholders
-            .filter((shareholder) => {
-                if (!shareholder) return false
+        const buildSearchFields = (shareholder: (typeof allShareholders)[number]): ShareholderSearchFields => {
+            const barcodeId = displayShareholderId(shareholder.shareholderId, shareholder.meetingId)
+            const propertyRows = shareholder.properties ?? []
+            const alternateNames = collectPropertyNames(propertyRows)
+            const propertyTexts = propertyRows.flatMap((property: {
+                account?: string
+                serviceAddress?: string
+                customerMailingAddress?: string
+                cityStateZip?: string
+                ownerMailingAddress?: string
+                ownerCityStateZip?: string
+                residentMailingAddress?: string
+                residentCityStateZip?: string
+            }) => [
+                property.account,
+                property.serviceAddress,
+                property.customerMailingAddress,
+                property.cityStateZip,
+                property.ownerMailingAddress,
+                property.ownerCityStateZip,
+                property.residentMailingAddress,
+                property.residentCityStateZip,
+            ])
 
-                // If no search term, only apply property and status filters
-                if (!searchTerm) {
-                    return true;
-                }
+            return {
+                name: shareholder.name,
+                alternateNames,
+                shareholderId: shareholder.shareholderId,
+                barcodeId,
+                sharedId: shareholder.sharedId,
+                meetingId: shareholder.meetingId,
+                ownerMailingAddress: shareholder.ownerMailingAddress,
+                ownerCityStateZip: shareholder.ownerCityStateZip,
+                propertyTexts,
+            }
+        }
 
-                const barcodeId = displayShareholderId(shareholder.shareholderId, shareholder.meetingId)
-                const propertyRows = shareholder.properties ?? []
-                const alternateNames = propertyRows.flatMap((property: {
-                    ownerName?: string
-                    customerName?: string
-                    residentName?: string
-                }) => [property.ownerName, property.customerName, property.residentName])
-                const propertyTexts = propertyRows.flatMap((property: {
-                    account?: string
-                    serviceAddress?: string
-                    customerName?: string
-                    ownerName?: string
-                    customerMailingAddress?: string
-                    cityStateZip?: string
-                    ownerMailingAddress?: string
-                    ownerCityStateZip?: string
-                    residentName?: string
-                    residentMailingAddress?: string
-                    residentCityStateZip?: string
-                }) => [
-                    property.account,
-                    property.serviceAddress,
-                    property.customerName,
-                    property.ownerName,
-                    property.customerMailingAddress,
-                    property.cityStateZip,
-                    property.ownerMailingAddress,
-                    property.ownerCityStateZip,
-                    property.residentName,
-                    property.residentMailingAddress,
-                    property.residentCityStateZip,
-                ])
+        const searchFiltered = searchTerm.trim()
+            ? filterShareholdersBySearchTerm(
+                allShareholders.filter(Boolean),
+                searchTerm,
+                buildSearchFields,
+            )
+            : allShareholders.filter(Boolean)
 
-                return shareholderRecordMatchesSearch(
-                    {
-                        name: shareholder.name,
-                        alternateNames,
-                        shareholderId: shareholder.shareholderId,
-                        barcodeId,
-                        sharedId: shareholder.sharedId,
-                        ownerMailingAddress: shareholder.ownerMailingAddress,
-                        ownerCityStateZip: shareholder.ownerCityStateZip,
-                        propertyTexts,
-                    },
-                    searchTerm,
-                )
-            })
-            .filter((shareholder) => {
+        return searchFiltered.filter((shareholder) => {
                 // Apply property count filter
                 const matchesPropertyFilter =
                     propertyFilter === "all"
