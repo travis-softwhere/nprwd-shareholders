@@ -4,8 +4,9 @@ import { getShareholderDetails } from "@/actions/getShareholderDetails"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { notFound } from "next/navigation"
-import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
+import { ShareholderCheckInGuardProvider } from "@/contexts/ShareholderCheckInGuardContext"
+import ShareholderBackLink from "@/components/ShareholderBackLink"
 import { Badge } from "@/components/ui/badge"
 import ManualCheckInButton from "@/components/ManualCheckInButton"
 import ShareholderPropertiesTable from "@/components/ShareholderPropertiesTable"
@@ -40,14 +41,10 @@ export default async function ShareholderPage({
     }))
 
     return (
+      <ShareholderCheckInGuardProvider>
       <div className="container mx-auto p-2 sm:p-6 max-w-full sm:max-w-3xl">
         <h1 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-8">Benefit Unit Owner Details</h1>
-        <Link
-          href="/"
-          className="text-primary hover:underline mb-2 sm:mb-4 inline-flex items-center"
-        >
-          ← Back to benefit unit owners
-        </Link>
+        <ShareholderBackLink />
 
         <Card className="mt-2 sm:mt-4">
           <CardContent className="p-2 sm:p-6">
@@ -136,6 +133,7 @@ export default async function ShareholderPage({
           </CardContent>
         </Card>
       </div>
+      </ShareholderCheckInGuardProvider>
     )
   } catch (error) {
     // Let Next.js error boundary handle this

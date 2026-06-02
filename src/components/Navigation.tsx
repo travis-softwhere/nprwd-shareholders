@@ -1,7 +1,7 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useShareholderCheckInGuardOptional } from "@/contexts/ShareholderCheckInGuardContext"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { LogOut, Home, Settings, Award, Building } from "lucide-react"
@@ -11,14 +11,12 @@ import Image from "next/image"
 
 export default function Navigation() {
     const pathname = usePathname()
+    const router = useRouter()
+    const checkInGuard = useShareholderCheckInGuardOptional()
     const { data: session } = useSession()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
 
-    // Return null if session doesn't exist (should never happen due to AuthGate)
-    if (!session) return null;
-
-    // Check if the screen is mobile sized
     useEffect(() => {
         const checkIfMobile = () => {
             setIsMobile(window.innerWidth < 768)
@@ -34,12 +32,31 @@ export default function Navigation() {
         return () => window.removeEventListener('resize', checkIfMobile)
     }, [])
 
+    if (!session) return null
+
     const navigation = [
         { name: "Benefit Unit Owners", href: "/", icon: Home },
         { name: "Properties", href: "/properties", icon: Building },
         { name: "Prizes", href: "/awards", icon: Award, adminOnly: true },
         { name: "Admin", href: "/admin", icon: Settings, adminOnly: true },
     ]
+
+    const navigateTo = (href: string) => {
+        if (checkInGuard) {
+            checkInGuard.requestNavigation({ type: "href", href })
+        } else {
+            router.push(href)
+        }
+    }
+
+    const signOutWithGuard = () => {
+        const run = () => signOut({ callbackUrl: "/auth/signin" })
+        if (checkInGuard) {
+            checkInGuard.requestNavigation({ type: "callback", run })
+        } else {
+            run()
+        }
+    }
 
     // Desktop sidebar navigation
     const DesktopNavigation = () => (
@@ -63,9 +80,13 @@ export default function Navigation() {
 
                     return (
                         shouldRender && (
-                            <Link
+                            <a
                                 key={item.name}
                                 href={item.href}
+                                onClick={(event) => {
+                                    event.preventDefault()
+                                    navigateTo(item.href)
+                                }}
                                 className={cn(
                                     isActive
                                         ? "bg-blue-50 text-blue-600"
@@ -75,7 +96,7 @@ export default function Navigation() {
                             >
                                 <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
                                 <span>{item.name}</span>
-                            </Link>
+                            </a>
                         )
                     )
                 })}
@@ -84,7 +105,7 @@ export default function Navigation() {
                 <div className="flex shrink-0 px-2 pb-4">
                     <Button
                         variant="ghost"
-                        onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                        onClick={signOutWithGuard}
                         className="h-auto w-full justify-start gap-x-3 px-2 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                     >
                         <LogOut className="h-6 w-6 shrink-0" aria-hidden="true" />
@@ -113,9 +134,13 @@ export default function Navigation() {
                             : pathname === item.href
 
                     return (
-                        <Link
+                        <a
                             key={item.name}
                             href={item.href}
+                            onClick={(event) => {
+                                event.preventDefault()
+                                navigateTo(item.href)
+                            }}
                             className={cn(
                                 "flex flex-col items-center justify-center",
                                 isActive ? "text-blue-600" : "text-gray-500 hover:text-gray-900",
@@ -123,11 +148,11 @@ export default function Navigation() {
                         >
                             <Icon className="h-5 w-5" />
                             <span className="text-xs mt-1">{item.name}</span>
-                        </Link>
+                        </a>
                     )
                 })}
                 <button
-                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    onClick={signOutWithGuard}
                     className="flex flex-col items-center justify-center text-gray-500 hover:text-gray-900"
                 >
                     <LogOut className="h-5 w-5" />

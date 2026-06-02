@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo } from "react"
-import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -19,6 +18,7 @@ import {
 import { formatCheckInDateTime } from "@/lib/formatCheckInTime"
 import PropertyCheckInButton from "@/components/PropertyCheckInButton"
 import PropertyUndoCheckInButton from "@/components/PropertyUndoCheckInButton"
+import { useShareholderCheckInGuard } from "@/contexts/ShareholderCheckInGuardContext"
 import type { properties } from "@/lib/db/schema"
 
 type ShareholderProperty = typeof properties.$inferSelect & {
@@ -46,7 +46,11 @@ export default function ShareholderPropertiesTable({
   cityStateZip,
   checkedInProperties,
 }: ShareholderPropertiesTableProps) {
-  const router = useRouter()
+  const { requestNavigation } = useShareholderCheckInGuard()
+
+  const openProperty = (href: string) => {
+    requestNavigation({ type: "href", href })
+  }
 
   const orderedProperties = useMemo(() => {
     const order = orderPropertiesForSignatureDisplay(properties).map((p) => p.id)
@@ -81,11 +85,11 @@ export default function ShareholderPropertiesTable({
               <TableRow
                 key={property.id}
                 className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                onClick={() => router.push(href)}
+                onClick={() => openProperty(href)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault()
-                    router.push(href)
+                    openProperty(href)
                   }
                 }}
                 tabIndex={0}

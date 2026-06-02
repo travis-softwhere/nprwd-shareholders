@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import SignaturePad from "./SignaturePad"
+import { useShareholderCheckInGuard } from "@/contexts/ShareholderCheckInGuardContext"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,6 +43,7 @@ export default function ManualCheckInButton({
     const [showSignaturePad, setShowSignaturePad] = useState(false)
     const [signaturePadKey, setSignaturePadKey] = useState(0)
     const router = useRouter()
+    const { setPendingConfirmation } = useShareholderCheckInGuard()
 
     const remainingCount = Math.max(0, totalProperties - checkedInProperties)
     const hasCheckedIn = checkedInProperties > 0
@@ -186,6 +188,7 @@ export default function ManualCheckInButton({
                     key={signaturePadKey}
                     onSignatureComplete={handleSignatureComplete}
                     onCancel={() => setShowSignaturePad(false)}
+                    onPendingConfirmationChange={setPendingConfirmation}
                     shareholderId={shareholderId}
                     shareholderName={shareholderName}
                     designeeName={designeeName}

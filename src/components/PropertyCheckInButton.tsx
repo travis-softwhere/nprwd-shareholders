@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import SignaturePad from "./SignaturePad"
+import { useShareholderCheckInGuard } from "@/contexts/ShareholderCheckInGuardContext"
 
 type PropertyCheckInButtonProps = {
   propertyId: number
@@ -38,6 +39,7 @@ export default function PropertyCheckInButton({
   const [showSignaturePad, setShowSignaturePad] = useState(false)
   const [padKey, setPadKey] = useState(0)
   const router = useRouter()
+  const { setPendingConfirmation } = useShareholderCheckInGuard()
 
   const openPad = () => {
     setPadKey((k) => k + 1)
@@ -95,6 +97,7 @@ export default function PropertyCheckInButton({
           key={padKey}
           onSignatureComplete={handleSignatureComplete}
           onCancel={() => setShowSignaturePad(false)}
+          onPendingConfirmationChange={setPendingConfirmation}
           shareholderId={shareholderId}
           shareholderName={shareholderName}
           designeeName={designeeName}

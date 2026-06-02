@@ -19,6 +19,8 @@ export type SignaturePadContext = {
 interface SignaturePadProps extends SignaturePadContext {
   onSignatureComplete: (signatureImage: string, signatureHash: string) => void | Promise<void>;
   onCancel: () => void;
+  /** True while signature is captured but user has not confirmed check-in yet. */
+  onPendingConfirmationChange?: (pending: boolean) => void;
 }
 
 function formatMailingLines(mailingAddress?: string | null, cityStateZip?: string | null): string | null {
@@ -238,6 +240,7 @@ interface TopazSignCapture {
 export default function SignaturePad({
   onSignatureComplete,
   onCancel,
+  onPendingConfirmationChange,
   shareholderName,
   shareholderId,
   designeeName: designeeNameProp,
@@ -258,6 +261,14 @@ export default function SignaturePad({
   const cancelledRef = useRef(false);
 
   const mailingLines = formatMailingLines(mailingAddress, cityStateZip);
+
+  useEffect(() => {
+    const pending =
+      pendingSignature != null &&
+      (phase === "review" || phase === "submitting");
+    onPendingConfirmationChange?.(pending);
+    return () => onPendingConfirmationChange?.(false);
+  }, [phase, pendingSignature, onPendingConfirmationChange]);
 
   useEffect(() => {
     if (!shareholderId || designeeNameProp !== undefined) return;
