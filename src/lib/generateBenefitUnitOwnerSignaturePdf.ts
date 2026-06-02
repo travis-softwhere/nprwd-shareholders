@@ -32,12 +32,14 @@ const PAGE_HEIGHT = 279.4
 const PAGE_WIDTH = 215.9
 const MARGIN = 10
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
-const SIG_W = 38
-const SIG_H = 11
-const TEXT_X = MARGIN + SIG_W + 3
+const SIG_W = 40
+const SIG_H = 14
+const SIG_COL_GAP = 4
+const TEXT_X = MARGIN + SIG_W + SIG_COL_GAP
 const TEXT_W = PAGE_WIDTH - TEXT_X - MARGIN
-const LINE = 3.6
-const BLOCK_GAP = 2
+const LINE = 3.8
+const BLOCK_GAP = 3
+const OWNER_BLOCK_GAP = 4
 const SIG_PAD = 1
 
 /** Helvetica in jsPDF mis-renders some Unicode (e.g. >=, middle dot) as per-character gaps. */
@@ -68,8 +70,10 @@ function formatPropertyLine(property: SignaturePdfProperty): string {
   return acct ? `${addr} (${acct})` : addr
 }
 
-function formatPropertiesCompact(properties: SignaturePdfProperty[]): string {
-  return properties.map(formatPropertyLine).join("; ")
+function formatPropertyDetailLine(property: SignaturePdfProperty): string {
+  const base = formatPropertyLine(property)
+  const timeLabel = property.checkedInAt ? formatCheckInDateTime(property.checkedInAt) : ""
+  return pdfAscii(timeLabel ? `${base} | ${timeLabel}` : base)
 }
 
 /** Single PDF for the whole meeting — compact rows, one block per owner/signature group. */
@@ -152,14 +156,7 @@ export function buildMeetingSignatureListPdfBytes(input: MeetingSignatureListPdf
       ? pdfAscii(`Designee: ${owner.designee.trim()}`)
       : null
 
-    const headerHeight =
-      headerLines.length * LINE +
-      mailingLines.length * LINE +
-      (designeeLine ? LINE : 0) +
-      BLOCK_GAP
-
-    if (signatureGroups.length === 0 && checkedNoSig.length === 0) {
-      ensureSpace(headerHeight + LINE)
+    const drawOwnerHeader = () => {
       doc.setFont("helvetica", "bold")
       doc.setFontSize(8)
       for (const line of headerLines) {
@@ -176,81 +173,112 @@ export function buildMeetingSignatureListPdfBytes(input: MeetingSignatureListPdf
         doc.text(designeeLine, MARGIN, y)
         y += LINE
       }
-      doc.text(pdfAscii("Checked in - no signature on file"), MARGIN, y)
-      y += LINE + BLOCK_GAP
-      continue
+      y += OWNER_BLOCK_GAP
     }
 
-    for (const group of signatureGroups) {
-      const propText = formatPropertiesCompact(group.properties)
-      const timeLabel = group.checkedInAt
-        ? formatCheckInDateTime(group.checkedInAt)
-        : ""
-      const detailText = pdfAscii(timeLabel ? `${propText} | ${timeLabel}` : propText)
-      const detailLines = doc.splitTextToSize(detailText, TEXT_W) as string[]
-      const blockHeight = Math.max(SIG_H, headerHeight + detailLines.length * LINE) + BLOCK_GAP
+    const drawSignatureWithProperties = (
+      signatureImage: string | null,
+      properties: SignaturePdfProperty[],
+      label?: string,
+    ) => {
+      const checkedProps = properties
+        .filter((p) => Boolean(p.checkedIn))
+        .sort((a, b) =>
+          (a.account ?? "").localeCompare(b.account ?? "", undefined, { numeric: true }),
+        )
+      if (!checkedProps.length) return
+
+      const textX = signatureImage ? TEXT_X : MARGIN
+      const textW = signatureImage ? TEXT_W : CONTENT_WIDTH
+
+      const labelLines = label
+        ? (doc.splitTextToSize(pdfAscii(label), textW) as string[])
+        : []
+      const propertyLineSets = checkedProps.map((property) => {
+        const line = formatPropertyDetailLine(property)
+        return doc.splitTextToSize(line, textW) as string[]
+      })
+      const propertyLineCount = propertyLineSets.reduce((sum, lines) => sum + lines.length, 0)
+      const textBlockHeight =
+        labelLines.length * LINE + Math.max(LINE, propertyLineCount * LINE)
+      const sigBlockHeight = signatureImage ? Math.max(SIG_H, textBlockHeight) : 0
+      const blockHeight = Math.max(sigBlockHeight, textBlockHeight) + BLOCK_GAP
 
       ensureSpace(blockHeight)
 
-      const blockTop = y
+      const sigY = y
 
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(8)
-      let hy = blockTop
-      for (const line of headerLines) {
-        doc.text(line, MARGIN, hy)
-        hy += LINE
+      if (signatureImage) {
+        drawSignatureFrame(doc, MARGIN, sigY, SIG_W, sigBlockHeight)
+        try {
+          const innerW = SIG_W - SIG_PAD * 2
+          const innerH = sigBlockHeight - SIG_PAD * 2
+          doc.addImage(
+            signatureImage,
+            signatureImageFormat(signatureImage),
+            MARGIN + SIG_PAD,
+            sigY + SIG_PAD,
+            innerW,
+            innerH,
+          )
+        } catch {
+          doc.setFontSize(7)
+          doc.text("(signature)", MARGIN + SIG_PAD, sigY + sigBlockHeight / 2)
+        }
       }
+
       doc.setFont("helvetica", "normal")
       doc.setFontSize(7)
-      for (const line of mailingLines) {
-        doc.text(line, MARGIN, hy)
-        hy += LINE
-      }
-      if (designeeLine) {
-        doc.text(designeeLine, MARGIN, hy)
-        hy += LINE
+      let textY = sigY + LINE * 0.85
+
+      if (labelLines.length) {
+        doc.setFont("helvetica", "italic")
+        for (const line of labelLines) {
+          doc.text(line, textX, textY)
+          textY += LINE
+        }
+        doc.setFont("helvetica", "normal")
       }
 
-      const sigX = MARGIN
-      const sigY = blockTop + headerHeight
-      drawSignatureFrame(doc, sigX, sigY, SIG_W, SIG_H)
-      try {
-        const innerW = SIG_W - SIG_PAD * 2
-        const innerH = SIG_H - SIG_PAD * 2
-        doc.addImage(
-          group.signatureImage,
-          signatureImageFormat(group.signatureImage),
-          sigX + SIG_PAD,
-          sigY + SIG_PAD,
-          innerW,
-          innerH,
-        )
-      } catch {
-        doc.setFontSize(7)
-        doc.text("(signature)", sigX + SIG_PAD, sigY + SIG_H / 2)
+      for (const lines of propertyLineSets) {
+        for (const line of lines) {
+          doc.text(line, textX, textY)
+          textY += LINE
+        }
       }
 
-      let ty = blockTop + headerHeight
-      for (const line of detailLines) {
-        doc.text(line, TEXT_X, ty + 2.5)
-        ty += LINE
-      }
+      y += blockHeight
+    }
 
-      y = blockTop + blockHeight
+    const ownerHeaderHeight =
+      headerLines.length * LINE +
+      mailingLines.length * LINE +
+      (designeeLine ? LINE : 0) +
+      OWNER_BLOCK_GAP
+
+    ensureSpace(ownerHeaderHeight + SIG_H)
+    drawOwnerHeader()
+
+    let drewSignatureBlock = false
+    for (const group of signatureGroups) {
+      drawSignatureWithProperties(group.signatureImage, group.properties)
+      drewSignatureBlock = true
     }
 
     if (checkedNoSig.length) {
-      const propText = formatPropertiesCompact(checkedNoSig)
-      const lines = doc.splitTextToSize(`No signature on file: ${propText}`, CONTENT_WIDTH) as string[]
-      ensureSpace(lines.length * LINE + BLOCK_GAP)
+      drawSignatureWithProperties(
+        null,
+        checkedNoSig,
+        "Checked in — no signature on file",
+      )
+      drewSignatureBlock = true
+    }
+
+    if (!drewSignatureBlock) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(7)
-      for (const line of lines) {
-        doc.text(line, MARGIN, y)
-        y += LINE
-      }
-      y += BLOCK_GAP
+      doc.text(pdfAscii("Checked in — no signature on file"), MARGIN, y)
+      y += LINE
     }
 
     y += 1
