@@ -88,6 +88,15 @@ export function buildMeetingSignatureListPdfBytes(input: MeetingSignatureListPdf
   const meetingTotalOwners = input.owners.length
   const meetingCheckedInOwners = ownersWithCheckIn.length
 
+  let meetingTotalProperties = 0
+  let meetingCheckedInProperties = 0
+  for (const owner of input.owners) {
+    for (const property of owner.properties) {
+      meetingTotalProperties += 1
+      if (property.checkedIn) meetingCheckedInProperties += 1
+    }
+  }
+
   const ensureSpace = (neededMm: number) => {
     if (y + neededMm > PAGE_HEIGHT - MARGIN) {
       doc.addPage()
@@ -118,11 +127,18 @@ export function buildMeetingSignatureListPdfBytes(input: MeetingSignatureListPdf
     y += LINE
   }
 
-  const attendanceLine = pdfAscii(
+  const ownerAttendanceLine = pdfAscii(
     `Attendance: ${meetingCheckedInOwners} of ${meetingTotalOwners} benefit unit owners with at least one property checked in`,
   )
-  const attendanceLines = doc.splitTextToSize(attendanceLine, CONTENT_WIDTH) as string[]
-  for (const line of attendanceLines) {
+  for (const line of doc.splitTextToSize(ownerAttendanceLine, CONTENT_WIDTH) as string[]) {
+    doc.text(line, MARGIN, y)
+    y += LINE
+  }
+
+  const propertyAttendanceLine = pdfAscii(
+    `Properties checked in: ${meetingCheckedInProperties} / ${meetingTotalProperties}`,
+  )
+  for (const line of doc.splitTextToSize(propertyAttendanceLine, CONTENT_WIDTH) as string[]) {
     doc.text(line, MARGIN, y)
     y += LINE
   }
