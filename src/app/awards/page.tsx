@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, type RefObject } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Trophy } from "lucide-react"
@@ -25,6 +25,237 @@ interface Shareholder {
   shareholderId: string
   meetingId: string
   properties: Property[]
+}
+
+/** Above this count, the wheel uses numbered slices + a name list instead of labels on slices. */
+const WHEEL_NAMES_ON_SLICE_MAX = 16
+
+function sliceFillColor(index: number, total: number): string {
+  const hue = Math.round((index * 360) / Math.max(total, 1))
+  return `hsl(${hue} 68% 45%)`
+}
+
+function sliceLabelText(index: number, total: number, showNames: boolean, name: string): string {
+  if (!showNames) return String(index + 1)
+  const maxLen = total <= 6 ? 20 : total <= 10 ? 14 : total <= 14 ? 10 : 8
+  const trimmed = name.trim()
+  return trimmed.length > maxLen ? `${trimmed.slice(0, maxLen)}…` : trimmed
+}
+
+function sliceFontSize(total: number, showNames: boolean): number {
+  if (!showNames) {
+    if (total > 80) return 6
+    if (total > 40) return 7
+    return 9
+  }
+  if (total <= 6) return 12
+  if (total <= 10) return 10
+  if (total <= 14) return 8
+  return 7
+}
+
+function wheelDimensions(count: number): { sizeClass: string; labelRadius: number } {
+  if (count <= 10) {
+    return { sizeClass: "w-[min(92vw,24rem)] h-[min(92vw,24rem)]", labelRadius: 102 }
+  }
+  if (count <= WHEEL_NAMES_ON_SLICE_MAX) {
+    return { sizeClass: "w-[min(92vw,21rem)] h-[min(92vw,21rem)]", labelRadius: 98 }
+  }
+  return { sizeClass: "w-[min(92vw,18rem)] h-[min(92vw,18rem)]", labelRadius: 95 }
+}
+
+function WheelModal({
+  meetingYear,
+  eligibleShareholders,
+  wheelRef,
+  spinning,
+  wheelWinner,
+  onClose,
+  onSpin,
+}: {
+  meetingYear: number
+  eligibleShareholders: Shareholder[]
+  wheelRef: RefObject<HTMLDivElement | null>
+  spinning: boolean
+  wheelWinner: Shareholder | null
+  onClose: () => void
+  onSpin: () => void
+}) {
+  const count = eligibleShareholders.length
+  const showNamesOnSlices = count <= WHEEL_NAMES_ON_SLICE_MAX
+  const { sizeClass, labelRadius } = wheelDimensions(count)
+  const fontSize = sliceFontSize(count, showNamesOnSlices)
+  const winnerIndex = wheelWinner
+    ? eligibleShareholders.findIndex(
+        (s) => String(s.shareholderId).trim() === String(wheelWinner.shareholderId).trim(),
+      )
+    : -1
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 relative flex flex-col max-w-4xl w-full max-h-[95vh] overflow-hidden">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl leading-none z-10"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        <div className="text-center mb-4 pr-8">
+          <h2 className="font-bold text-lg">{meetingYear} Meeting — Spin the Wheel!</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {count} eligible entr{count === 1 ? "y" : "ies"}
+            {showNamesOnSlices
+              ? " — names shown on wheel"
+              : " — match slice numbers to the list"}
+          </p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-5 items-center lg:items-start justify-center min-h-0 flex-1 overflow-hidden">
+          <div className="relative flex flex-col items-center shrink-0">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 100 100"
+              className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 drop-shadow"
+              aria-hidden
+            >
+              <polygon points="50,0 0,100 100,100" fill="#0e7490" stroke="#fff" strokeWidth="4" />
+            </svg>
+            <div
+              className={`${sizeClass} rounded-full border-[5px] border-[#0e7490] shadow-lg relative overflow-hidden`}
+              ref={wheelRef}
+            >
+              <svg width="100%" height="100%" viewBox="0 0 300 300" className="block">
+                {eligibleShareholders.map((s, i) => {
+                  const sliceAngle = 360 / count
+                  const startAngle = i * sliceAngle
+                  const endAngle = (i + 1) * sliceAngle
+                  const largeArc = sliceAngle > 180 ? 1 : 0
+                  const r = 150
+                  const toRad = (deg: number) => (Math.PI * (deg - 90)) / 180
+                  const x1 = 150 + r * Math.cos(toRad(startAngle))
+                  const y1 = 150 + r * Math.sin(toRad(startAngle))
+                  const x2 = 150 + r * Math.cos(toRad(endAngle))
+                  const y2 = 150 + r * Math.sin(toRad(endAngle))
+                  const isWinner = !spinning && winnerIndex === i
+                  return (
+                    <path
+                      key={s.shareholderId}
+                      d={`M150,150 L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`}
+                      fill={sliceFillColor(i, count)}
+                      stroke="#fff"
+                      strokeWidth={isWinner ? 3 : 1.5}
+                    />
+                  )
+                })}
+                {eligibleShareholders.map((s, i) => {
+                  const sliceAngle = 360 / count
+                  const angle = (i + 0.5) * sliceAngle
+                  const rad = (Math.PI * (angle - 90)) / 180
+                  const cx = 150 + labelRadius * Math.cos(rad)
+                  const cy = 150 + labelRadius * Math.sin(rad)
+                  let textRotation = angle + 90
+                  if (textRotation > 90 && textRotation < 270) {
+                    textRotation += 180
+                  }
+                  return (
+                    <text
+                      key={`${s.shareholderId}-label`}
+                      x={cx}
+                      y={cy}
+                      fill="#fff"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fontSize={fontSize}
+                      fontWeight={showNamesOnSlices ? 600 : 700}
+                      transform={`rotate(${textRotation}, ${cx}, ${cy})`}
+                      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.55)" }}
+                    >
+                      {sliceLabelText(i, count, showNamesOnSlices, s.name)}
+                    </text>
+                  )
+                })}
+                <circle cx="150" cy="150" r="32" fill="#fff" stroke="#0e7490" strokeWidth="3" />
+                <text
+                  x="150"
+                  y="146"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="18"
+                  fontWeight="bold"
+                  fill="#0e7490"
+                >
+                  {count}
+                </text>
+                <text
+                  x="150"
+                  y="162"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="9"
+                  fill="#64748b"
+                >
+                  entries
+                </text>
+              </svg>
+            </div>
+
+            <button
+              type="button"
+              className="mt-6 px-8 py-2.5 bg-[#0e7490] hover:bg-[#0c637a] text-white font-bold rounded-lg disabled:opacity-50 shadow"
+              onClick={onSpin}
+              disabled={spinning}
+            >
+              {spinning ? "Spinning…" : "Spin"}
+            </button>
+
+            {wheelWinner && !spinning && (
+              <div className="mt-4 text-center px-2">
+                <div className="text-sm font-semibold text-[#0e7490] uppercase tracking-wide">
+                  Winner
+                </div>
+                <div className="text-xl font-bold text-foreground">{wheelWinner.name}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {showNamesOnSlices && winnerIndex >= 0 ? `#${winnerIndex + 1} · ` : null}
+                  ID {wheelWinner.shareholderId}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!showNamesOnSlices ? (
+            <div className="w-full lg:flex-1 lg:max-w-md min-h-0 flex flex-col border rounded-lg bg-slate-50 overflow-hidden">
+              <p className="shrink-0 px-3 py-2 text-sm font-semibold border-b bg-white">
+                Eligible names (slice #)
+              </p>
+              <ol className="overflow-y-auto flex-1 divide-y divide-slate-200 text-sm max-h-[min(50vh,20rem)] lg:max-h-[min(70vh,24rem)]">
+                {eligibleShareholders.map((s, i) => {
+                  const isWinner = !spinning && winnerIndex === i
+                  return (
+                    <li
+                      key={s.shareholderId}
+                      className={`flex gap-2 px-3 py-2 ${isWinner ? "bg-cyan-100 font-semibold" : "bg-white"}`}
+                    >
+                      <span
+                        className="shrink-0 w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center"
+                        style={{ backgroundColor: sliceFillColor(i, count) }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="leading-snug pt-0.5">{s.name}</span>
+                    </li>
+                  )
+                })}
+              </ol>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AwardsPage() {
@@ -333,106 +564,15 @@ export default function AwardsPage() {
         )}
 
         {showWheel && selectedMeeting && eligibleShareholders.length > 0 && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-            <div className="bg-white rounded-lg shadow-lg p-6 relative flex flex-col items-center max-w-[95vw]">
-              <button
-                type="button"
-                onClick={handleCloseWheel}
-                className="absolute top-2 right-2 text-gray-500 hover:text-black text-xl"
-                aria-label="Close"
-              >
-                ×
-              </button>
-              <div className="mb-4 font-bold text-lg">
-                {selectedMeeting.year} Meeting — Spin the Wheel!
-              </div>
-              <div className="relative flex flex-col items-center">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 100 100"
-                  className="absolute -top-5 left-1/2 -translate-x-1/2 z-10"
-                  aria-hidden
-                >
-                  <polygon points="50,0 0,100 100,100" fill="#1ca9e1" />
-                </svg>
-                <div
-                  className="w-72 h-72 rounded-full border-4 border-[#1ca9e1] flex items-center justify-center relative overflow-hidden"
-                  ref={wheelRef}
-                  style={{ background: "#fff" }}
-                >
-                  <svg width="100%" height="100%" viewBox="0 0 300 300" className="absolute top-0 left-0">
-                    {eligibleShareholders.map((s, i) => {
-                      const angle = 360 / eligibleShareholders.length
-                      const startAngle = i * angle
-                      const endAngle = (i + 1) * angle
-                      const largeArc = angle > 180 ? 1 : 0
-                      const r = 150
-                      const x1 = 150 + r * Math.cos((Math.PI * (startAngle - 90)) / 180)
-                      const y1 = 150 + r * Math.sin((Math.PI * (startAngle - 90)) / 180)
-                      const x2 = 150 + r * Math.cos((Math.PI * (endAngle - 90)) / 180)
-                      const y2 = 150 + r * Math.sin((Math.PI * (endAngle - 90)) / 180)
-                      return (
-                        <path
-                          key={s.shareholderId}
-                          d={`M150,150 L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`}
-                          fill={i % 2 === 0 ? "#1ca9e1" : "#fff"}
-                          stroke="#1ca9e1"
-                        />
-                      )
-                    })}
-                  </svg>
-                  <svg width="100%" height="100%" viewBox="0 0 300 300" className="absolute top-0 left-0">
-                    {eligibleShareholders.map((s, i) => {
-                      const sliceAngle = 360 / eligibleShareholders.length
-                      const angle = (i + 0.5) * sliceAngle
-                      const rad = (angle - 90) * (Math.PI / 180)
-                      const rStart = 75
-                      const rEnd = 100
-                      const xStart = 150 + rStart * Math.cos(rad)
-                      const yStart = 150 + rStart * Math.sin(rad)
-                      const xEnd = 150 + rEnd * Math.cos(rad)
-                      const yEnd = 150 + rEnd * Math.sin(rad)
-                      const rotation = angle + 90
-                      const cx = (xStart + xEnd) / 2
-                      const cy = (yStart + yEnd) / 2
-                      return (
-                        <text
-                          key={`${s.shareholderId}-label`}
-                          x={cx}
-                          y={cy}
-                          fill={i % 2 === 0 ? "#fff" : "#1ca9e1"}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fontSize="10"
-                          transform={`rotate(${rotation}, ${cx}, ${cy})`}
-                        >
-                          {s.name.length > 15 ? `${s.name.slice(0, 15)}…` : s.name}
-                        </text>
-                      )
-                    })}
-                  </svg>
-                </div>
-                <button
-                  type="button"
-                  className="mt-8 px-6 py-2 bg-[#1ca9e1] text-white font-bold rounded disabled:opacity-50"
-                  onClick={handleSpinWheel}
-                  disabled={spinning}
-                >
-                  {spinning ? "Spinning..." : "Spin"}
-                </button>
-                {wheelWinner && !spinning && (
-                  <div className="mt-6 text-center">
-                    <div className="text-lg font-bold text-[#1ca9e1]">Winner:</div>
-                    <div className="text-xl font-bold">{wheelWinner.name}</div>
-                    <div className="text-xs text-gray-500">
-                      Benefit Unit Owner ID: {wheelWinner.shareholderId}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <WheelModal
+            meetingYear={selectedMeeting.year}
+            eligibleShareholders={eligibleShareholders}
+            wheelRef={wheelRef}
+            spinning={spinning}
+            wheelWinner={wheelWinner}
+            onClose={handleCloseWheel}
+            onSpin={handleSpinWheel}
+          />
         )}
       </div>
     </div>
