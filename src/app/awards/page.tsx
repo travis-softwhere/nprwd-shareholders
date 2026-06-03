@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, useMemo, type RefObject } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Trophy } from "lucide-react"
@@ -64,53 +64,180 @@ function wheelDimensions(count: number): { sizeClass: string; labelRadius: numbe
   return { sizeClass: "w-[min(92vw,18rem)] h-[min(92vw,18rem)]", labelRadius: 95 }
 }
 
+const SPIN_DURATION_MS = 4500
+const WINNER_FLASH_MS = 1400
+
+function parseWheelRotationDegrees(transform: string): number {
+  if (!transform || transform === "none") return 0
+  const match = transform.match(/matrix\(([^)]+)\)/)
+  if (!match) return 0
+  const values = match[1].split(",").map((v) => Number.parseFloat(v.trim()))
+  if (values.length < 2) return 0
+  let deg = (Math.atan2(values[1], values[0]) * 180) / Math.PI
+  if (deg < 0) deg += 360
+  return deg
+}
+
+/** Which slice is under the fixed top pointer for a given wheel rotation (degrees CW). */
+function sliceIndexAtPointer(rotationDeg: number, count: number): number {
+  if (count <= 0) return 0
+  const sliceAngle = 360 / count
+  const normalized = ((rotationDeg % 360) + 360) % 360
+  const pointerAngle = (360 - normalized) % 360
+  let idx = Math.floor(pointerAngle / sliceAngle)
+  if (idx >= count) idx = count - 1
+  return idx
+}
+
 function WheelModal({
   meetingYear,
   eligibleShareholders,
-  wheelRef,
-  spinning,
-  wheelWinner,
-  onClose,
-  onSpin,
+  onComplete,
+  onCancel,
 }: {
   meetingYear: number
   eligibleShareholders: Shareholder[]
-  wheelRef: RefObject<HTMLDivElement | null>
-  spinning: boolean
-  wheelWinner: Shareholder | null
-  onClose: () => void
-  onSpin: () => void
+  onComplete: (winner: Shareholder) => void
+  onCancel: () => void
 }) {
   const count = eligibleShareholders.length
   const showNamesOnSlices = count <= WHEEL_NAMES_ON_SLICE_MAX
   const { sizeClass, labelRadius } = wheelDimensions(count)
   const fontSize = sliceFontSize(count, showNamesOnSlices)
-  const winnerIndex = wheelWinner
-    ? eligibleShareholders.findIndex(
-        (s) => String(s.shareholderId).trim() === String(wheelWinner.shareholderId).trim(),
-      )
-    : -1
+
+  const wheelRef = useRef<HTMLDivElement>(null)
+  const currentRotation = useRef(0)
+  const pendingWinnerRef = useRef<Shareholder | null>(null)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const spinStartedRef = useRef(false)
+
+  const [spinning, setSpinning] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
+  const [phase, setPhase] = useState<"starting" | "spinning" | "winner">("starting")
+
+  const startSpin = useCallback(() => {
+    if (count === 0 || !wheelRef.current) return
+
+    const idx = Math.floor(Math.random() * count)
+    const winner = eligibleShareholders[idx]
+    pendingWinnerRef.current = winner
+    setHighlightedIndex(idx)
+    setSpinning(true)
+    setPhase("spinning")
+
+    const anglePerSlice = 360 / count
+    const sliceCenter = idx * anglePerSlice + anglePerSlice / 2
+    const rotationDelta = 5 * 360 + (360 - sliceCenter)
+    currentRotation.current += rotationDelta
+
+    const el = wheelRef.current
+    el.style.transition = `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`
+    el.style.transform = `rotate(${currentRotation.current}deg)`
+  }, [count, eligibleShareholders])
+
+  useEffect(() => {
+    if (spinStartedRef.current) return
+    spinStartedRef.current = true
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => startSpin())
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [startSpin])
+
+  useEffect(() => {
+    if (!spinning) return
+
+    let raf = 0
+    const tick = () => {
+      const el = wheelRef.current
+      if (el) {
+        const deg = parseWheelRotationDegrees(window.getComputedStyle(el).transform)
+        setHighlightedIndex(sliceIndexAtPointer(deg, count))
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [spinning, count])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    }
+  }, [])
+
+  const handleTransitionEnd = (event: React.TransitionEvent<HTMLDivElement>) => {
+    if (event.propertyName !== "transform" || !spinning) return
+
+    const winner = pendingWinnerRef.current
+    if (!winner) return
+
+    const winnerIdx = eligibleShareholders.findIndex(
+      (s) => String(s.shareholderId).trim() === String(winner.shareholderId).trim(),
+    )
+    setSpinning(false)
+    setHighlightedIndex(winnerIdx >= 0 ? winnerIdx : null)
+    setPhase("winner")
+
+    closeTimerRef.current = setTimeout(() => {
+      onComplete(winner)
+    }, WINNER_FLASH_MS)
+  }
+
+  const highlighted =
+    highlightedIndex != null && highlightedIndex >= 0 && highlightedIndex < count
+      ? eligibleShareholders[highlightedIndex]
+      : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 relative flex flex-col max-w-4xl w-full max-h-[95vh] overflow-hidden">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl leading-none z-10"
-          aria-label="Close"
-        >
-          ×
-        </button>
+        {!spinning && phase === "starting" ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl leading-none z-10"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        ) : null}
 
-        <div className="text-center mb-4 pr-8">
-          <h2 className="font-bold text-lg">{meetingYear} Meeting — Spin the Wheel!</h2>
+        <div className="text-center mb-3 pr-8">
+          <h2 className="font-bold text-lg">{meetingYear} Meeting — Door Prize Draw</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {count} eligible entr{count === 1 ? "y" : "ies"}
-            {showNamesOnSlices
-              ? " — names shown on wheel"
-              : " — match slice numbers to the list"}
           </p>
+        </div>
+
+        <div
+          className={`mx-auto mb-4 w-full max-w-lg rounded-xl border-2 px-4 py-3 text-center transition-colors ${
+            phase === "winner"
+              ? "border-amber-400 bg-amber-50 shadow-md"
+              : spinning
+                ? "border-cyan-400 bg-cyan-50 animate-pulse"
+                : "border-slate-200 bg-slate-50"
+          }`}
+          aria-live="polite"
+        >
+          {highlighted ? (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#0e7490]">
+                {phase === "winner" ? "Winner" : "Now on the wheel"}
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 leading-tight">
+                {highlighted.name}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {!showNamesOnSlices && highlightedIndex != null
+                  ? `Slice #${highlightedIndex + 1} · `
+                  : null}
+                ID {highlighted.shareholderId}
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground">Spinning…</p>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-5 items-center lg:items-start justify-center min-h-0 flex-1 overflow-hidden">
@@ -127,6 +254,7 @@ function WheelModal({
             <div
               className={`${sizeClass} rounded-full border-[5px] border-[#0e7490] shadow-lg relative overflow-hidden`}
               ref={wheelRef}
+              onTransitionEnd={handleTransitionEnd}
             >
               <svg width="100%" height="100%" viewBox="0 0 300 300" className="block">
                 {eligibleShareholders.map((s, i) => {
@@ -140,14 +268,15 @@ function WheelModal({
                   const y1 = 150 + r * Math.sin(toRad(startAngle))
                   const x2 = 150 + r * Math.cos(toRad(endAngle))
                   const y2 = 150 + r * Math.sin(toRad(endAngle))
-                  const isWinner = !spinning && winnerIndex === i
+                  const isHighlighted = highlightedIndex === i
                   return (
                     <path
                       key={s.shareholderId}
                       d={`M150,150 L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`}
                       fill={sliceFillColor(i, count)}
-                      stroke="#fff"
-                      strokeWidth={isWinner ? 3 : 1.5}
+                      stroke={isHighlighted ? "#fbbf24" : "#fff"}
+                      strokeWidth={isHighlighted ? 4 : 1.5}
+                      style={isHighlighted ? { filter: "brightness(1.2)" } : undefined}
                     />
                   )
                 })}
@@ -161,6 +290,7 @@ function WheelModal({
                   if (textRotation > 90 && textRotation < 270) {
                     textRotation += 180
                   }
+                  const isHighlighted = highlightedIndex === i
                   return (
                     <text
                       key={`${s.shareholderId}-label`}
@@ -169,10 +299,10 @@ function WheelModal({
                       fill="#fff"
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fontSize={fontSize}
-                      fontWeight={showNamesOnSlices ? 600 : 700}
+                      fontSize={isHighlighted ? fontSize + 1 : fontSize}
+                      fontWeight={isHighlighted ? 800 : showNamesOnSlices ? 600 : 700}
                       transform={`rotate(${textRotation}, ${cx}, ${cy})`}
-                      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.55)" }}
+                      style={{ textShadow: "0 1px 3px rgba(0,0,0,0.65)" }}
                     >
                       {sliceLabelText(i, count, showNamesOnSlices, s.name)}
                     </text>
@@ -203,27 +333,11 @@ function WheelModal({
               </svg>
             </div>
 
-            <button
-              type="button"
-              className="mt-6 px-8 py-2.5 bg-[#0e7490] hover:bg-[#0c637a] text-white font-bold rounded-lg disabled:opacity-50 shadow"
-              onClick={onSpin}
-              disabled={spinning}
-            >
-              {spinning ? "Spinning…" : "Spin"}
-            </button>
-
-            {wheelWinner && !spinning && (
-              <div className="mt-4 text-center px-2">
-                <div className="text-sm font-semibold text-[#0e7490] uppercase tracking-wide">
-                  Winner
-                </div>
-                <div className="text-xl font-bold text-foreground">{wheelWinner.name}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {showNamesOnSlices && winnerIndex >= 0 ? `#${winnerIndex + 1} · ` : null}
-                  ID {wheelWinner.shareholderId}
-                </div>
-              </div>
-            )}
+            {spinning ? (
+              <p className="mt-4 text-sm text-muted-foreground">Spinning…</p>
+            ) : phase === "winner" ? (
+              <p className="mt-4 text-sm font-medium text-amber-700">Recording winner…</p>
+            ) : null}
           </div>
 
           {!showNamesOnSlices ? (
@@ -231,13 +345,17 @@ function WheelModal({
               <p className="shrink-0 px-3 py-2 text-sm font-semibold border-b bg-white">
                 Eligible names (slice #)
               </p>
-              <ol className="overflow-y-auto flex-1 divide-y divide-slate-200 text-sm max-h-[min(50vh,20rem)] lg:max-h-[min(70vh,24rem)]">
+              <ol className="overflow-y-auto flex-1 divide-y divide-slate-200 text-sm max-h-[min(40vh,18rem)] lg:max-h-[min(55vh,22rem)]">
                 {eligibleShareholders.map((s, i) => {
-                  const isWinner = !spinning && winnerIndex === i
+                  const isHighlighted = highlightedIndex === i
                   return (
                     <li
                       key={s.shareholderId}
-                      className={`flex gap-2 px-3 py-2 ${isWinner ? "bg-cyan-100 font-semibold" : "bg-white"}`}
+                      className={`flex gap-2 px-3 py-2 transition-colors ${
+                        isHighlighted
+                          ? "bg-cyan-100 font-semibold ring-2 ring-inset ring-cyan-400"
+                          : "bg-white"
+                      }`}
                     >
                       <span
                         className="shrink-0 w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center"
@@ -269,10 +387,6 @@ export default function AwardsPage() {
   const { selectedMeeting, meetings, isLoading: meetingLoading } = useMeeting()
   const [winners, setWinners] = useState<Shareholder[]>([])
   const [showWheel, setShowWheel] = useState(false)
-  const [spinning, setSpinning] = useState(false)
-  const [wheelWinner, setWheelWinner] = useState<Shareholder | null>(null)
-  const wheelRef = useRef<HTMLDivElement>(null)
-  const currentRotation = useRef(0)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -346,13 +460,7 @@ export default function AwardsPage() {
     setWinners([])
     setSelectedShareholder(null)
     setShowWheel(false)
-    setWheelWinner(null)
     setError(null)
-    currentRotation.current = 0
-    if (wheelRef.current) {
-      wheelRef.current.style.transition = ""
-      wheelRef.current.style.transform = "rotate(0deg)"
-    }
   }, [selectedMeeting?.id])
 
   const meetingShareholders = useMemo(() => {
@@ -388,45 +496,17 @@ export default function AwardsPage() {
       .filter(Boolean) as Shareholder[]
   }, [properties, meetingShareholders, meetingShareholderIds, winners])
 
-  const handleSpinWheel = () => {
-    if (spinning || eligibleShareholders.length === 0) return
-
-    const idx = Math.floor(Math.random() * eligibleShareholders.length)
-    const winner = eligibleShareholders[idx]
-    setWheelWinner(winner)
-    setSpinning(true)
-
-    const totalSpins = 5
-    const anglePerSlice = 360 / eligibleShareholders.length
-    const randomAngle = idx * anglePerSlice + anglePerSlice / 2
-    const rotationDelta = totalSpins * 360 + (360 - randomAngle)
-    currentRotation.current += rotationDelta
-    if (wheelRef.current) {
-      wheelRef.current.style.transition = "transform 4s ease-out"
-      wheelRef.current.style.transform = `rotate(${currentRotation.current}deg)`
-    }
-
-    setTimeout(() => {
-      setSpinning(false)
-      setWinners((prev) => [winner, ...prev])
-      setSelectedShareholder(winner)
-      setProperties((prevProps) =>
-        prevProps.map((p) =>
-          String(p.shareholderId).trim() === String(winner.shareholderId).trim()
-            ? { ...p, checkedIn: false }
-            : p,
-        ),
-      )
-    }, 4000)
-  }
-
-  const handleCloseWheel = () => {
+  const handleWheelComplete = (winner: Shareholder) => {
+    setWinners((prev) => [winner, ...prev])
+    setSelectedShareholder(winner)
+    setProperties((prevProps) =>
+      prevProps.map((p) =>
+        String(p.shareholderId).trim() === String(winner.shareholderId).trim()
+          ? { ...p, checkedIn: false }
+          : p,
+      ),
+    )
     setShowWheel(false)
-    setWheelWinner(null)
-    if (wheelRef.current) {
-      wheelRef.current.style.transition = ""
-      wheelRef.current.style.transform = "rotate(0deg)"
-    }
   }
 
   const openWheel = () => {
@@ -565,13 +645,11 @@ export default function AwardsPage() {
 
         {showWheel && selectedMeeting && eligibleShareholders.length > 0 && (
           <WheelModal
+            key={`wheel-${eligibleShareholders.map((s) => s.shareholderId).join(",")}`}
             meetingYear={selectedMeeting.year}
             eligibleShareholders={eligibleShareholders}
-            wheelRef={wheelRef}
-            spinning={spinning}
-            wheelWinner={wheelWinner}
-            onClose={handleCloseWheel}
-            onSpin={handleSpinWheel}
+            onComplete={handleWheelComplete}
+            onCancel={() => setShowWheel(false)}
           />
         )}
       </div>
