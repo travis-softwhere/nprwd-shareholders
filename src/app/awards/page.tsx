@@ -211,7 +211,7 @@ function WheelModal({
         </div>
 
         <div
-          className={`mx-auto mb-4 w-full max-w-lg rounded-xl border-2 px-4 py-3 text-center transition-colors ${
+          className={`mx-auto mb-4 w-full max-w-lg h-[7.25rem] rounded-xl border-2 px-4 flex flex-col items-center justify-center text-center transition-[border-color,background-color,box-shadow] ${
             phase === "winner"
               ? "border-amber-400 bg-amber-50 shadow-md"
               : spinning
@@ -221,22 +221,32 @@ function WheelModal({
           aria-live="polite"
         >
           {highlighted ? (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#0e7490]">
+            <div className="w-full min-w-0">
+              <p className="h-4 text-xs font-semibold uppercase tracking-wider text-[#0e7490] leading-4">
                 {phase === "winner" ? "Winner" : "Now on the wheel"}
               </p>
-              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 leading-tight">
+              <p
+                className="mt-1 h-10 text-2xl sm:text-3xl font-bold text-foreground leading-10 truncate"
+                title={highlighted.name}
+              >
                 {highlighted.name}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p
+                className="mt-1 h-4 text-xs text-muted-foreground leading-4 truncate"
+                title={
+                  !showNamesOnSlices && highlightedIndex != null
+                    ? `Slice #${highlightedIndex + 1} · ID ${highlighted.shareholderId}`
+                    : `ID ${highlighted.shareholderId}`
+                }
+              >
                 {!showNamesOnSlices && highlightedIndex != null
                   ? `Slice #${highlightedIndex + 1} · `
                   : null}
                 ID {highlighted.shareholderId}
               </p>
-            </>
+            </div>
           ) : (
-            <p className="text-muted-foreground">Spinning…</p>
+            <p className="h-10 text-muted-foreground leading-10">Spinning…</p>
           )}
         </div>
 
@@ -333,11 +343,15 @@ function WheelModal({
               </svg>
             </div>
 
-            {spinning ? (
-              <p className="mt-4 text-sm text-muted-foreground">Spinning…</p>
-            ) : phase === "winner" ? (
-              <p className="mt-4 text-sm font-medium text-amber-700">Recording winner…</p>
-            ) : null}
+            <p className="mt-4 h-5 text-sm text-center leading-5 text-muted-foreground">
+              {spinning ? (
+                <span>Spinning…</span>
+              ) : phase === "winner" ? (
+                <span className="font-medium text-amber-700">Recording winner…</span>
+              ) : (
+                <span aria-hidden="true">&nbsp;</span>
+              )}
+            </p>
           </div>
 
           {!showNamesOnSlices ? (
@@ -351,10 +365,10 @@ function WheelModal({
                   return (
                     <li
                       key={s.shareholderId}
-                      className={`flex gap-2 px-3 py-2 transition-colors ${
+                      className={`flex gap-2 px-3 py-2 transition-colors shadow-[inset_0_0_0_2px] ${
                         isHighlighted
-                          ? "bg-cyan-100 font-semibold ring-2 ring-inset ring-cyan-400"
-                          : "bg-white"
+                          ? "bg-cyan-100 font-semibold shadow-cyan-400"
+                          : "bg-white shadow-transparent"
                       }`}
                     >
                       <span
